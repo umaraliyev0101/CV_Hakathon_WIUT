@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). See Milestones.
+Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). M1 (pure core, Tasks 3-11) done. See Milestones.
 
 ## Milestones
 
@@ -28,6 +28,9 @@ Pose, 4 boxes on a 960x540 frame: rtmpose_s 32.5 ms, rtmpose_m 68.8 ms.
 Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within 5 points of the best AND which detects >=1 car|truck|motorcycle (score>=0.3) on every showroom image. If none qualifies: among detectors within 5 points of best recall, the one with the most vehicle detections (ties: fastest).
 
 **Chosen detector: `yolox_s` (rule met); pose `rtmpose_s`.** Raw numbers: `runs/bench/detectors.json` (gitignored). Caveat: only 35 GT boxes (sparse hallway clip), so recall differences of a few points are noise; the nano/tiny vs s/m gap (about 0.26) is large enough to trust. M0 only covers one scene; no showroom person GT exists.
+
+### M1: pure core (Tasks 3-11)
+- Geometry, timeline, zones, journey, roles, interest, stats, insights R1-R7, identity merge. Default suite: 140 passed, 2 deselected (slow). Decisions are logged below.
 
 ## Decisions
 
