@@ -1,0 +1,26 @@
+{
+  "_doc": "Quick-test gate thresholds (prompts/teammate_c_synthetic_showroom_quicktest.md section 3). Never lower these to make a gate pass.",
+  "render": {
+    "expected_frames": 200,
+    "mean_luma_min": 15.0,
+    "clip_luma_level": 250,
+    "clipped_frac_max": 0.05,
+    "magenta_frac_max": 0.001,
+    "magenta_rule": {"r_min": 200, "b_min": 200, "g_max": 60},
+    "min_in_view_frac": 0.8
+  },
+  "labels": {
+    "min_mask_px": 400,
+    "min_box_h_px": 20
+  },
+  "events": {
+    "match_tol_s": 1.0,
+    "types": ["greet"]
+  },
+  "video": {
+    "codec": "h264",
+    "pix_fmt": "yuv420p",
+    "fps": 10,
+    "duration_tol_frames": 1
+  }
+}

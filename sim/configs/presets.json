@@ -1,0 +1,9 @@
+{
+  "_doc": "Event-rule thresholds. Source of truth should be A's spec salespeople_prompts/2026-10-11-showroom-coach-design.md (section 4.5/4.6); that file was not available for the quick test, so these are the fallback values from the quick-test prompt section 3. FLAG: replace with A's exact values when the spec arrives.",
+  "source": "quicktest-prompt-fallback",
+  "short_clip": {
+    "greet_dist_m": 1.5,
+    "greet_facing_deg": 60.0,
+    "greet_min_s": 2.0
+  }
+}

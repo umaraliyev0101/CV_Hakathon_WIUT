@@ -7,3 +7,8 @@ deck/build/shots/
 deck/build/qa/
 deck/build/qa.html
 deck/build/deck.html
+# synthetic pipeline: assets, renders and envs stay out of git
+assets/
+data/
+.venv/
+.pytest_cache/
