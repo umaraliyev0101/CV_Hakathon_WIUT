@@ -1,0 +1,36 @@
+{
+  "dev": [
+    {
+      "clip": "2018-03-11.16-35-01.16-40-00.school.G423",
+      "video": "data/meva/videos/2018-03-11.16-35-01.16-40-00.school.G423.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-11.16-35-01.16-40-00.school.G423"
+    },
+    {
+      "clip": "2018-03-11.12-00-00.12-05-00.school.G420",
+      "video": "data/meva/videos/2018-03-11.12-00-00.12-05-00.school.G420.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-11.12-00-00.12-05-00.school.G420"
+    }
+  ],
+  "test": [
+    {
+      "clip": "2018-03-12.11-05-01.11-10-01.school.G423",
+      "video": "data/meva/videos/2018-03-12.11-05-01.11-10-01.school.G423.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-12.11-05-01.11-10-01.school.G423"
+    },
+    {
+      "clip": "2018-03-13.17-10-00.17-15-00.school.G421",
+      "video": "data/meva/videos/2018-03-13.17-10-00.17-15-00.school.G421.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-13.17-10-00.17-15-00.school.G421"
+    },
+    {
+      "clip": "2018-03-09.10-40-00.10-45-00.school.G419",
+      "video": "data/meva/videos/2018-03-09.10-40-00.10-45-00.school.G419.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-09.10-40-00.10-45-00.school.G419"
+    },
+    {
+      "clip": "2018-03-09.10-15-00.10-20-00.school.G299",
+      "video": "data/meva/videos/2018-03-09.10-15-00.10-20-00.school.G299.r13.avi",
+      "kpf": "data/meva/annotations/2018-03-09.10-15-00.10-20-00.school.G299"
+    }
+  ]
+}

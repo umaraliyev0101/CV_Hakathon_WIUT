@@ -2,13 +2,32 @@
 
 ## Status
 
-Task 1 (skeleton, datatypes, config, verify.sh) done. See Milestones.
+Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). See Milestones.
 
 ## Milestones
 
 ### M0 / Task 1: skeleton
 - Added package `pulse` (src layout), datatypes, presets/config, minimal CLI, `scripts/verify.sh`,
   data records. Tests: config, datatypes, slow ffmpeg smoke marker.
+
+### M0 / Task 2: models, MEVA parser, detector benchmark
+- Models downloaded to `models/<name>/` (gitignored); `models/MANIFEST.json` committed (sha256, bytes, licence). rtmlib subset vendored in `src/pulse/perception/vendor_rtmlib`; `rtmlib` pip package removed from the venv.
+- `pulse bench detectors` (CPUExecutionProvider only), dev clip `2018-03-11.16-35-01.16-40-00.school.G423`: 60 evenly sampled frames, 35 GT person boxes (height >= 20 px at 960 wide), IoU >= 0.5, score thr 0.3. Showroom images: `data/stock/keyframes/*.jpg` (3).
+
+| detector | person recall | cars per image (BLR-07 / BYD-t07 / BYD-t13) | ms/frame 960x540 (CPU) |
+|---|---|---|---|
+| yolox_nano | 0.343 | 4 / 1 / 2 | 9.9 |
+| yolox_tiny | 0.371 | 7 / 0 / 2 | 25.0 |
+| yolox_s | 0.629 | 6 / 1 / 1 | 82.2 |
+| yolox_m | 0.629 | 5 / 1 / 3 | 196.3 |
+| rfdetr_n | 0.514 | 5 / 1 / 5 | 88.8 |
+| rfdetr_s | 0.571 | 6 / 1 / 4 | 158.0 |
+
+Pose, 4 boxes on a 960x540 frame: rtmpose_s 32.5 ms, rtmpose_m 68.8 ms.
+
+Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within 5 points of the best AND which detects >=1 car|truck|motorcycle (score>=0.3) on every showroom image. If none qualifies: among detectors within 5 points of best recall, the one with the most vehicle detections (ties: fastest).
+
+**Chosen detector: `yolox_s` (rule met); pose `rtmpose_s`.** Raw numbers: `runs/bench/detectors.json` (gitignored). Caveat: only 35 GT boxes (sparse hallway clip), so recall differences of a few points are noise; the nano/tiny vs s/m gap (about 0.26) is large enough to trust. M0 only covers one scene; no showroom person GT exists.
 
 ## Decisions
 
@@ -24,3 +43,7 @@ Task 1 (skeleton, datatypes, config, verify.sh) done. See Milestones.
 ## Open problems
 
 - None yet.
+- 2026-10-11 (Task 2): detector = `yolox_s` per the spec section 5 rule (numbers under M0). `Config.detector` default changed from yolox_tiny to yolox_s.
+- 2026-10-11 (Task 2): slow test uses MEVA dev frame 700, not 300: frame 300 of the dev clip has no GT person (first appears ~621); frame 700 has a GT person (CLIPS.md).
+- 2026-10-11 (Task 2): `labels/split.json` created now (dev = G423 03-11 + G420; test = other four) so `meva_dev_clip` can read it.
+- 2026-10-11 (Task 2): fixtures named `mini.*` (flow dialect) and `minidict.*` (quoted dict dialect); `pulse bench detectors --showroom` accepts several images.

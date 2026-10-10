@@ -34,7 +34,7 @@ class Config:
     person_height_m: float = 1.70
     hfov_deg: float = 70.0
     kp_thr: float = 0.3                     # keypoint confidence threshold
-    detector: str = "yolox_tiny"            # replaced by the M0 benchmark decision
+    detector: str = "yolox_s"               # chosen by the M0 benchmark (PROGRESS.md)
     pose_model: str = "rtmpose_s"
     det_score_thr: float = 0.3
     det_nms_thr: float = 0.45
