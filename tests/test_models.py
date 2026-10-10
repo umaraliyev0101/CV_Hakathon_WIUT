@@ -151,17 +151,32 @@ def test_models_dir_env_and_default(monkeypatch, tmp_path):
     assert M.models_dir() == tmp_path / "m"
 
 
-def test_manifest_lists_only_present_files(http_dir, models_env, monkeypatch):
+def test_manifest_lists_every_registry_entry(http_dir, models_env, monkeypatch):
     root, base = http_dir
     (root / "m.onnx").write_bytes(b"fake-onnx")
     monkeypatch.setitem(M.MODELS, "fake", M.ModelSpec("fake", f"{base}/m.onnx", "m.onnx", "MIT", "none", "src", note="a note"))
     M.ensure_model("fake")
     man = json.loads(M.write_manifest().read_text(encoding="utf-8"))
-    assert [e["name"] for e in man["models"]] == ["fake"]
-    e = man["models"][0]
-    assert e == {"name": "fake", "file": "fake/m.onnx", "url": f"{base}/m.onnx",
-                 "sha256": hashlib.sha256(b"fake-onnx").hexdigest(), "bytes": 9,
-                 "licence": "MIT", "trained_on": "none", "source_page": "src", "note": "a note"}
+    by_name = {e["name"]: e for e in man["models"]}
+    # one row per registry entry, in registry order, whether or not the file is on disk
+    assert [e["name"] for e in man["models"]] == list(M.MODELS)
+    assert by_name["fake"] == {"name": "fake", "file": "fake/m.onnx", "url": f"{base}/m.onnx",
+                               "sha256": hashlib.sha256(b"fake-onnx").hexdigest(), "bytes": 9,
+                               "licence": "MIT", "trained_on": "none", "source_page": "src", "note": "a note"}
+    for name, spec in M.MODELS.items():
+        if name == "fake":
+            continue
+        e = by_name[name]
+        assert e["present"] is False and e["bytes"] is None
+        assert e["sha256"] == spec.sha256  # the pinned hash stands in for the missing file
+        assert e["file"] == f"{name}/{spec.filename}" and e["url"] == spec.url
+        assert e["licence"] == spec.licence and e["trained_on"] == spec.trained_on
+
+
+def test_manifest_with_nothing_on_disk_still_lists_all_rows(models_env):
+    man = json.loads(M.write_manifest().read_text(encoding="utf-8"))
+    assert [e["name"] for e in man["models"]] == list(M.MODELS)
+    assert all(e["present"] is False and e["bytes"] is None for e in man["models"])
 
 
 def test_cli_fetch_models(http_dir, models_env, monkeypatch, capsys):
@@ -188,3 +203,113 @@ def test_cli_fetch_models_reports_failure(models_env, monkeypatch, capsys):
     monkeypatch.setattr(M.time, "sleep", lambda s: None)
     assert main(["fetch-models", "bad"]) == 1
     assert "bad" in capsys.readouterr().err
+
+
+def test_cli_partial_fetch_keeps_every_manifest_row(http_dir, models_env, monkeypatch):
+    root, base = http_dir
+    (root / "a.onnx").write_bytes(b"aaa")
+    monkeypatch.setattr(M, "MODELS", {
+        "a": M.ModelSpec("a", f"{base}/a.onnx", "a.onnx", "MIT", "none", "x"),
+        "b": M.ModelSpec("b", f"{base}/b.onnx", "b.onnx", "MIT", "none", "x", sha256="1" * 64),
+    })
+    assert main(["fetch-models", "a"]) == 0
+    man = json.loads((models_env / "MANIFEST.json").read_text(encoding="utf-8"))
+    rows = {e["name"]: e for e in man["models"]}
+    assert set(rows) == {"a", "b"}
+    assert rows["a"]["bytes"] == 3 and "present" not in rows["a"]
+    assert rows["b"] == {"name": "b", "file": "b/b.onnx", "url": f"{base}/b.onnx", "sha256": "1" * 64,
+                         "bytes": None, "licence": "MIT", "trained_on": "none", "source_page": "x",
+                         "present": False}
+
+
+def test_cli_failed_fetch_still_writes_all_rows(models_env, monkeypatch, capsys):
+    def refuse(*a, **k):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(M, "MODELS", {"bad": M.ModelSpec("bad", "http://127.0.0.1:9/x.onnx", "x.onnx", "MIT", "none", "x")})
+    monkeypatch.setattr(M, "_download", refuse)
+    monkeypatch.setattr(M.time, "sleep", lambda s: None)
+    assert main(["fetch-models", "bad"]) == 1
+    man = json.loads((models_env / "MANIFEST.json").read_text(encoding="utf-8"))
+    assert [(e["name"], e["present"], e["sha256"], e["bytes"]) for e in man["models"]] == [("bad", False, None, None)]
+
+
+# ---- truncated downloads ----
+
+@pytest.fixture
+def short_server():
+    """Promises 1000 bytes but sends only 10, then closes the connection."""
+    hits = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Length", "1000")
+            self.end_headers()
+            self.wfile.write(b"0123456789")
+
+        def log_message(self, *args):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_address[1]}", hits
+    srv.shutdown()
+    srv.server_close()
+
+
+def test_truncated_download_is_rejected_without_pinned_hash(short_server, models_env, monkeypatch):
+    base, hits = short_server
+    monkeypatch.setitem(M.MODELS, "t", M.ModelSpec("t", f"{base}/t.onnx", "t.onnx", "MIT", "none", "x"))  # sha256=None
+    with pytest.raises(M.ModelUnavailable, match="Content-Length"):
+        M.ensure_model("t", retries=1, backoff=0)
+    assert not list((models_env / "t").iterdir())  # neither the model nor a .part file survives
+
+
+def test_truncated_download_is_retried(short_server, models_env, monkeypatch):
+    base, hits = short_server
+    monkeypatch.setitem(M.MODELS, "t", M.ModelSpec("t", f"{base}/t.onnx", "t.onnx", "MIT", "none", "x"))
+    monkeypatch.setattr(M.time, "sleep", lambda s: None)
+    with pytest.raises(M.ModelUnavailable):
+        M.ensure_model("t", retries=3, backoff=0)
+    assert len(hits) == 3
+
+
+def test_truncated_archive_is_rejected(short_server, models_env, monkeypatch):
+    base, hits = short_server
+    monkeypatch.setitem(M.MODELS, "t", M.ModelSpec("t", f"{base}/t.zip", "t.onnx", "MIT", "none", "x", archive_member="end2end.onnx"))
+    with pytest.raises(M.ModelUnavailable, match="Content-Length"):
+        M.ensure_model("t", retries=1, backoff=0)
+    assert not list((models_env / "t").iterdir())
+
+
+def test_full_download_with_content_length_still_accepted(http_dir, models_env, monkeypatch):
+    root, base = http_dir  # SimpleHTTPRequestHandler sends Content-Length
+    (root / "m.onnx").write_bytes(b"x" * 3_000_000)  # several 1 MiB chunks
+    monkeypatch.setitem(M.MODELS, "big", M.ModelSpec("big", f"{base}/m.onnx", "m.onnx", "MIT", "none", "x"))
+    assert M.ensure_model("big").stat().st_size == 3_000_000
+
+
+# ---- a file the user placed is only replaced by a verified download ----
+
+def test_failed_download_keeps_existing_file_with_wrong_hash(http_dir, models_env, monkeypatch):
+    root, base = http_dir  # server has no m.onnx, so the download answers 404
+    mine = models_env / "fake" / "m.onnx"
+    mine.parent.mkdir(parents=True)
+    mine.write_bytes(b"user-placed")
+    monkeypatch.setitem(M.MODELS, "fake", M.ModelSpec("fake", f"{base}/m.onnx", "m.onnx", "MIT", "none", "x", sha256="2" * 64))
+    with pytest.raises(M.ModelUnavailable):
+        M.ensure_model("fake", retries=1, backoff=0)
+    assert mine.read_bytes() == b"user-placed"
+
+
+def test_successful_download_replaces_file_with_wrong_hash(http_dir, models_env, monkeypatch):
+    root, base = http_dir
+    (root / "m.onnx").write_bytes(b"fake-onnx")
+    mine = models_env / "fake" / "m.onnx"
+    mine.parent.mkdir(parents=True)
+    mine.write_bytes(b"stale")
+    good = hashlib.sha256(b"fake-onnx").hexdigest()
+    monkeypatch.setitem(M.MODELS, "fake", M.ModelSpec("fake", f"{base}/m.onnx", "m.onnx", "MIT", "none", "x", sha256=good))
+    assert M.ensure_model("fake").read_bytes() == b"fake-onnx"

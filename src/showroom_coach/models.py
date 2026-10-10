@@ -121,8 +121,8 @@ def _check_free_disk(path: Path, incoming: int = 0) -> None:
         )
 
 
-def _copy(src: BinaryIO, dst: Path, limit: int | None = None) -> str:
-    """Stream src to dst and return the sha256 hex digest of what was written."""
+def _copy(src: BinaryIO, dst: Path, limit: int | None = None) -> tuple[str, int]:
+    """Stream src to dst and return (sha256 hex digest, byte count) of what was written."""
     h = hashlib.sha256()
     written = 0
     with open(dst, "wb") as out:
@@ -132,7 +132,13 @@ def _copy(src: BinaryIO, dst: Path, limit: int | None = None) -> str:
                 raise _BadDownload(f"more than {limit} bytes; refusing")
             h.update(chunk)
             out.write(chunk)
-    return h.hexdigest()
+    return h.hexdigest(), written
+
+
+def _check_complete(received: int, content_length: int | None) -> None:
+    """http.client does not raise when a server closes early on read(amt), so compare ourselves."""
+    if content_length is not None and received != content_length:
+        raise _BadDownload(f"truncated download: got {received} bytes, Content-Length says {content_length}")
 
 
 def _extract_member(archive: Path, member: str, dst: Path) -> str:
@@ -146,7 +152,7 @@ def _extract_member(archive: Path, member: str, dst: Path) -> str:
             if info.file_size > MAX_MEMBER_BYTES:
                 raise _BadDownload(f"{member} is {info.file_size} bytes; refusing")
             with zf.open(info) as src:
-                return _copy(src, dst, limit=MAX_MEMBER_BYTES)
+                return _copy(src, dst, limit=MAX_MEMBER_BYTES)[0]
     raise _BadDownload(f"{member} not found in archive")
 
 
@@ -158,12 +164,15 @@ def _download(spec: ModelSpec, dest_dir: Path, target: Path) -> None:
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
             length = resp.headers.get("Content-Length")
-            if length and length.isdigit():
-                _check_free_disk(dest_dir, int(length))
+            expected = int(length) if length and length.isdigit() else None
+            if expected is not None:
+                _check_free_disk(dest_dir, expected)
             if spec.archive_member is None:
-                digest = _copy(resp, part)
+                digest, received = _copy(resp, part)
+                _check_complete(received, expected)
             else:
-                _copy(resp, archive)
+                received = _copy(resp, archive)[1]
+                _check_complete(received, expected)
                 digest = _extract_member(archive, spec.archive_member, part)
         if spec.sha256 and digest != spec.sha256.lower():
             raise _BadDownload(f"sha256 mismatch: got {digest}, expected {spec.sha256}")
@@ -187,8 +196,9 @@ def ensure_model(name: str, retries: int = 3, backoff: float = 2.0) -> Path:
     if target.is_file():
         if spec.sha256 is None or _sha256_file(target) == spec.sha256.lower():
             return target
+        # Leave the file alone: os.replace overwrites it atomically once a verified download
+        # exists, so a failed download never destroys a file the user placed there.
         log.warning("%s: sha256 differs from the registry; downloading again", name)
-        target.unlink()
     dest_dir.mkdir(parents=True, exist_ok=True)
     attempts = max(1, retries)
     last: Exception | None = None
@@ -206,19 +216,23 @@ def ensure_model(name: str, retries: int = 3, backoff: float = 2.0) -> Path:
 
 
 def write_manifest() -> Path:
-    """Write models/MANIFEST.json with one entry per model file that is present on disk."""
+    """Write models/MANIFEST.json with one row for every registry entry.
+
+    This file is the committed licence record, so a row never disappears because a file is
+    missing or a fetch failed. Rows for files on disk carry the measured sha256 and size; rows
+    for missing files carry the pinned sha256 (null if none), `"bytes": null` and `"present": false`.
+    """
     root = models_dir()
     entries = []
     for name, spec in MODELS.items():
         f = root / name / spec.filename
-        if not f.is_file():
-            continue
+        present = f.is_file()
         entry = {
             "name": name,
             "file": f"{name}/{spec.filename}",
             "url": spec.url,
-            "sha256": _sha256_file(f),
-            "bytes": f.stat().st_size,
+            "sha256": _sha256_file(f) if present else spec.sha256,
+            "bytes": f.stat().st_size if present else None,
             "licence": spec.licence,
             "trained_on": spec.trained_on,
             "source_page": spec.source_page,
@@ -227,6 +241,8 @@ def write_manifest() -> Path:
             entry["archive_member"] = spec.archive_member
         if spec.note:
             entry["note"] = spec.note
+        if not present:
+            entry["present"] = False
         entries.append(entry)
     root.mkdir(parents=True, exist_ok=True)
     path = root / "MANIFEST.json"
