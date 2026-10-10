@@ -197,7 +197,7 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
         "median_visit_s": _med([p.last_t - p.first_t for p in fresh]),
         "browse_rate": _share(len(browsers), n), "assisted_share": _share(len(assisted_ids), n),
         "assisted_customers": len(assisted_ids), "median_time_to_assist": _med(tta),
-        "unserved_episodes": sum(1 for e in episodes if e.unserved),
+        "unserved_episodes": sum(1 for e in ceps if e.unserved),
         "deep_interest_visitors": len(deep_ids), "has_desk": bool(desk_ids),
         "reached_desk": len(desk_reach), "deep_interest_reached_desk": len(deep_ids & desk_reach),
         "peak_occupancy": int(peak[1]) if peak else 0, "peak_t": peak[0] if peak else None,
@@ -220,11 +220,11 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
     if approx:
         warnings.append("Distance estimate approximate (box-height fallback for >50% of samples)")
     if analysed_share < 0.99:
-        warnings.append(f"Only {round(analysed_share * 100)}% of the clip analysed (camera moving or cut)")
+        warnings.append(f"Only {int(analysed_share * 100)}% of the clip analysed (camera moving or cut)")
     warnings.extend(extra_warnings)
 
     visits = []
-    for p in persons:
+    for p in cust:
         vs = journeys.get(p.person_id, [])
         a = asst(p.person_id)
         visits.append({

@@ -80,3 +80,70 @@ def test_entries_by_frame_edge_without_entrance_zone(zones4):
     st = ST.compute(persons, j, {5: "customer"}, CFG, timeline=tl, episodes=[], assist={},
                     zones=no_ent, duration=20.0, frame_size=(960, 540))
     assert st.store["entries"] == 1
+
+
+# --- fix round 1: pinning tests ---
+from pulse.datatypes import InterestEpisode, ZoneVisit  # noqa: E402
+
+
+def _run(persons, tl, zones, roles=None, journeys=None, duration=20.0, **kw):
+    j = journeys if journeys is not None else J.build(tl, zones, CFG.preset)
+    roles = roles or {p.person_id: "customer" for p in persons}
+    return ST.compute(persons, j, roles, CFG, timeline=tl, episodes=[], assist={}, zones=zones,
+                      duration=duration, frame_size=(960, 540), **kw)
+
+
+def test_visits_exclude_staff(zones4):
+    st = scenario(zones4)
+    assert sorted(v["person_id"] for v in st.visits) == [1, 2, 3]
+
+
+def test_unserved_episodes_customers_only(zones4):
+    ep = lambda pid: InterestEpisode(pid, "car-a", 0, 10, 10, 1, False, True)  # noqa: E731
+    st = ST.compute([Person(1, [1], 5, 6), Person(9, [9], 5, 6)], {}, {1: "customer", 9: "staff"}, CFG,
+                    timeline={}, episodes=[ep(1), ep(9)], assist={}, zones=zones4, duration=20.0,
+                    frame_size=(960, 540))
+    assert st.store["unserved_episodes"] == 1
+
+
+def test_exits_respect_leave_after_and_entrance(zones4):
+    late = {1: stay(1, 0.95, 0.5, 5, 1), 2: stay(2, 0.95, 0.5, 5, 13)}   # last_t 6.0 and 18.0
+    persons = [Person(i, [i], s[0].t, s[-1].t) for i, s in late.items()]
+    st = _run(persons, late, zones4)
+    assert st.store["exits"] == 1                      # 18.0 > 20 - 3, so only person 1 exits
+
+
+def test_entries_exclude_already_present_with_entrance(zones4):
+    tl = {1: stay(1, 0.95, 0.5, 0, 2), 2: stay(2, 0.95, 0.5, 5, 2)}
+    persons = [Person(i, [i], s[0].t, s[-1].t) for i, s in tl.items()]
+    st = _run(persons, tl, zones4)
+    assert st.store["entries"] == 1 and st.store["already_present"] == 1
+
+
+def test_crowding_minus_one_without_staff(zones4):
+    tl = {1: stay(1, 0.2, 0.7, 0, 5)}
+    st = _run([Person(1, [1], 0, 5)], tl, zones4)
+    assert all(r == -1 for _, r in st.crowding)
+
+
+def test_warning_texts_exact(zones4):
+    tl = {1: stay(1, 0.2, 0.7, 0, 5)}
+    for s in tl[1]:
+        s.dist_method = "box"
+    st = _run([Person(1, [1], 0, 5)], tl, zones4, analysed_share=0.9899)
+    assert "Distance estimate approximate (box-height fallback for >50% of samples)" in st.warnings
+    assert "Only 98% of the clip analysed (camera moving or cut)" in st.warnings
+    assert st.store["distance_approx"]
+
+
+def test_rank_tiebreak_by_stops(zones4):
+    cars = [z for z in zones4 if z.kind == "car"]
+    persons = [Person(1, [1], 5, 15), Person(2, [2], 5, 15)]
+    j = {1: [ZoneVisit(1, "car-a", 5, 10, False), ZoneVisit(1, "car-b", 10, 15, True)],
+         2: [ZoneVisit(2, "car-a", 5, 10, False), ZoneVisit(2, "car-b", 10, 15, True)]}
+    j[1][0].t_out = 10.0
+    # equal total dwell (10 s each); car-b has the stops, so it must rank 1
+    tl = {1: stay(1, 0.2, 0.7, 5, 10), 2: stay(2, 0.2, 0.7, 5, 10)}
+    st = _run(persons, tl, cars, journeys=j)
+    ranks = {c["zone_id"]: c["rank"] for c in st.per_car}
+    assert ranks == {"car-b": 1, "car-a": 2}
