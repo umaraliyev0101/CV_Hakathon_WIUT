@@ -32,6 +32,12 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 ### M1: pure core (Tasks 3-11)
 - Geometry, timeline, zones, journey, roles, interest, stats, insights R1-R7, identity merge. Default suite: 140 passed, 2 deselected (slow). Decisions are logged below.
 
+### M2 / Task 13: embeddings, camera motion, perception cache
+- `pulse.pipeline.perceive` caches per video in `runs/cache/<key>/` (CPU, yolox_s + rtmpose_s + DINOv2-small, `sample_fps` 5, width 960).
+- Measured RTF (analysed seconds / perception seconds, includes embeddings and keyframe car detection):
+  - MEVA 10 s clip (60 s mark): RTF 1.44, perception 6.96 s, embed 0.43 s (6%).
+  - Full 300 s MEVA dev clip (G423): RTF 1.66, perception 180.6 s, embed 4.9 s (2.7%); 2197 obs, 68 embedded tracks, 52 persons, one stable segment, keyframe t=149.8 s, 0 vehicles (hallway). Cache kept at `runs/cache/` for later tasks.
+
 ## Decisions
 
 - 2026-10-11: Pre-flight was not run by the owner; the agent created the repo, copied the spec/CLAUDE.md/prompt; `data/stock/` and `data/synthetic/share/` are empty.
@@ -59,3 +65,6 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11 (Task 11): identity merge chain rule: clusters A and B join via candidate (a, b) only if a is A's latest-ending track, b is B's earliest-starting track, and no track of A overlaps any track of B by > 0.2 s, so each person stays a time-ordered chain. Cosine on L2-normalised embeddings; None/zero embeddings never merge. Singleton tracks become Persons; ids 1..n by first_t (ties by smallest track id). `summarize` skips non-finite foot points. `reattach` uses gap = now - lost.t_end for both the leave_after limit and spatial plausibility.
 - 2026-10-11 (Task 12): iter_frames stops at t >= max_duration (exclusive); sources slower than sample_fps skip duplicate targets; VideoInfo has an extra `fps_assumed` flag (fps 0/NaN -> 25). probe() decodes one frame. meva_10s fixture loads scripts/make_clip.py via importlib (scripts is not a package). Engine timings are rolling means over the last 50 frames.
 - 2026-10-11 (Task 12): Tracker passes `frame_rate=30` (not sample_fps as the brief says) to sv.ByteTrack: supervision computes max_time_lost = int(frame_rate/30*lost_track_buffer), so frame_rate=5 turned the 10-frame buffer into 1 frame and a 3-frame gap lost the id (brief test failed). With 30, the buffer is exactly int(track_buffer_s*sample_fps) sampled frames.
+- 2026-10-11 (Task 13): crops per track = 3 (controller ruling, brief said 5), score >= 0.5, one candidate per second (thinned to 12), picked evenly; tracks < 1.0 s get HSV-only embeddings padded with a zero DINO part so all vectors have equal length (such a vector can never reach merge_sim_thr against a full one: cosine <= 0.71). Crops stored 112x112, not full frames.
+- 2026-10-11 (Task 13): camera-motion cut test uses a 64-bin grayscale histogram correlation (< 0.5), since only grays are kept (brief says HSV histogram). Cut displacement is reported as 1.0. Segment t1 = start of the next segment (contiguous cover). Keyframe = middle frame of the longest stable run; re-read afterwards with iter_frames. The raw keyframe is only written to the cache dir.
+- 2026-10-11 (Task 13): `PerceptionCache` has an extra `keyframe` field (raw BGR, saved but not loaded; use `keyframe_path`). `cache.save` writes to a temp dir and renames; `exists` requires all five data files. `video_key` = sha1(file sha1 + sample_fps, max_width, max_duration_s, detector, pose_model).
