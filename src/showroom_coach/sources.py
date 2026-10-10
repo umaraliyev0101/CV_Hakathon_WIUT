@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 
 _EPS = 1e-6
+_MAX_FPS = 240.0           # containers with no real frame rate report 1000 or 90000
+_MIN_READ_FRACTION = 0.9   # fewer decoded frames than this share of the expected count means a damaged file
 
 
 class VideoError(Exception):
@@ -82,9 +84,15 @@ def _open(path) -> cv2.VideoCapture:
 
 def _fps(cap: cv2.VideoCapture, path) -> float:
     fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
-    if not math.isfinite(fps) or fps <= 0:
+    if not math.isfinite(fps) or fps <= 0 or fps > _MAX_FPS:
         raise VideoError(f"cannot read video: {Path(str(path)).name}")
     return fps
+
+
+def _frame_count(cap: cv2.VideoCapture) -> int:
+    """The container's frame count, or 0 when it reports none (or nonsense)."""
+    n = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0.0)
+    return int(n) if math.isfinite(n) and n > 0 else 0
 
 
 def probe(path, max_width: int = 960, sample_fps: float = 5.0, max_seconds: float = 300.0) -> VideoInfo:
@@ -97,7 +105,7 @@ def probe(path, max_width: int = 960, sample_fps: float = 5.0, max_seconds: floa
         if not ok or first is None or first.size == 0:
             raise VideoError(f"cannot read video: {name}")
         src_h, src_w = first.shape[:2]
-        n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        n_frames = _frame_count(cap)
         if n_frames <= 0:                        # some containers do not report a count: count by grabbing
             n_frames = 1
             while cap.grab():
@@ -122,13 +130,17 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
 
     Frame ``i`` is kept when ``i / src_fps >= next_t - 1e-6`` and ``next_t`` then advances by ``1 / sample_fps``.
     Skipped frames are only ``grab()``-ed (no decode to an array); kept ones are ``retrieve()``-d.
-    ``VideoError`` is raised on the first ``next()`` if the file cannot be read.
+    ``VideoError`` is raised on the first ``next()`` if the file cannot be read, and after the last readable
+    frame if decoding stops before ``max_seconds`` having read under 90% of the container's frame count (damaged
+    or cut-off file); a short file whose count matches what was read is fine.
     """
     if sample_fps <= 0:
         raise ValueError("sample_fps must be > 0")
     cap = _open(path)
     try:
         fps = _fps(cap, path)
+        n_frames = _frame_count(cap)
+        expected = min(n_frames, max_seconds * fps) if n_frames > 0 else 0.0
         step = 1.0 / sample_fps
         next_t = 0.0
         i = 0
@@ -142,5 +154,9 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
                 if ok and frame is not None:
                     yield i, t, resize_max_width(frame, max_width)
             i += 1
+        else:                                    # grab() failed: end of file, or a decode error that looks like it
+            if expected > 0 and i < _MIN_READ_FRACTION * expected:
+                raise VideoError(
+                    f"video stops early at {i / fps:.1f} s of ~{expected / fps:.1f} s: the file may be damaged")
     finally:
         cap.release()

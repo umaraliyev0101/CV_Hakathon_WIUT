@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import cv2
@@ -150,6 +151,63 @@ def test_meet_video_script(meet_video):
     assert out is None or out[2] <= 30
 
 
+def _damaged_copy(src, dst, how, frac=0.4, seed=0):
+    """Copy ``src`` to ``dst`` and damage it at ``frac`` of the file: cut it off, or overwrite 3000 random bytes."""
+    data = bytearray(Path(src).read_bytes())
+    at = int(len(data) * frac)
+    if how == "truncate":
+        del data[at:]
+    else:
+        rng = random.Random(seed)
+        data[at:at + 3000] = bytes(rng.randrange(256) for _ in range(3000))
+    Path(dst).write_bytes(bytes(data))
+    return Path(dst)
+
+
+@pytest.fixture
+def small_video(tmp_path, make_video):
+    """4 s, 30 fps, 320x240 AVI with one walker (fast to write and to damage)."""
+    mover = {"color": (0, 0, 255), "w": 40, "h": 100, "pos": lambda t: (20 * t, 20)}
+    return make_video(tmp_path / "small.avi", seconds=4, fps=30, size=(320, 240), movers=[mover])
+
+
+@pytest.mark.parametrize("how", ["truncate", "overwrite"])
+def test_damaged_video_fails_instead_of_looking_complete(small_video, tmp_path, how):
+    bad = _damaged_copy(small_video, tmp_path / f"{how}.avi", how)
+    got = []
+    with pytest.raises(VideoError, match=r"video stops early at \d+\.\d s of ~4\.0 s: the file may be damaged"):
+        for _, t, _ in iter_frames(bad, sample_fps=5.0):
+            got.append(t)
+    assert 0 < len(got) < 0.9 * 20           # the readable part was still delivered before the error
+
+
+def test_intact_video_does_not_trip_the_damage_check(small_video):
+    frames = list(iter_frames(small_video, sample_fps=5.0))
+    assert len(frames) == 20 and frames[-1][1] == pytest.approx(3.8)
+
+
+def test_damage_beyond_the_trim_point_is_not_our_problem(small_video, tmp_path):
+    bad = _damaged_copy(small_video, tmp_path / "late.avi", "truncate", frac=0.6)    # readable up to ~2.4 s
+    frames = list(iter_frames(bad, sample_fps=5.0, max_seconds=1.0))
+    assert len(frames) == 5
+    with pytest.raises(VideoError, match="stops early"):
+        list(iter_frames(bad, sample_fps=5.0, max_seconds=3.5))
+
+
+def test_probe_rejects_rateless_container(tmp_path, make_video):
+    """Containers with no real frame rate report 1000 or 90000 fps: refuse them instead of timing events wrongly."""
+    path = make_video(tmp_path / "rateless.avi", seconds=0.05, fps=1000, size=(64, 48), movers=[])
+    with pytest.raises(VideoError, match="cannot read video: rateless.avi"):
+        probe(path)
+    with pytest.raises(VideoError):
+        list(iter_frames(path))
+
+
+def test_probe_accepts_high_but_real_frame_rates(tmp_path, make_video):
+    path = make_video(tmp_path / "hfr.avi", seconds=0.5, fps=240, size=(64, 48), movers=[])
+    assert probe(path).src_fps == pytest.approx(240)
+
+
 @pytest.mark.slow
 def test_real_meva_sample_5fps():
     if not SAMPLE.exists():
@@ -167,3 +225,12 @@ def test_real_meva_sample_5fps():
         n += 1
     assert 295 <= n <= 305
     assert last_t == pytest.approx(60.0, abs=0.5)
+
+
+@pytest.mark.slow
+def test_real_meva_sample_damaged_copy_fails(tmp_path):
+    if not SAMPLE.exists():
+        pytest.skip(f"missing {SAMPLE}")
+    bad = _damaged_copy(SAMPLE, tmp_path / "damaged.mp4", "overwrite")
+    with pytest.raises(VideoError, match="stops early"):
+        list(iter_frames(bad, sample_fps=5.0))
