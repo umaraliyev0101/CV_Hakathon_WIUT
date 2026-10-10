@@ -9,8 +9,9 @@ record sits on one line in Python-dict style, e.g.::
                'id2': 4, 'src_status': 'good', 'timespan': [{'tsr0': [5445, 5964]}]}}
 
 The files are downloaded, so they are treated as untrusted data: nothing is evaluated and no YAML
-loader is used. Each line is read with small, bounded regular expressions that do not depend on key
-order, and any line that does not match is skipped (headers, comments, truncated or garbled records).
+loader is used. Each line is read with small regular expressions that run in linear time and do not
+depend on key order. Lines longer than 64 KiB are dropped unread, and any line that does not match is
+skipped (headers, comments, truncated or garbled records).
 
 Frame numbers are 0-based indices into the source video; every frame of a track has a box
 (``keyframe: False`` boxes are interpolated). Boxes are ``x1 y1 x2 y2`` in source pixels.
@@ -21,8 +22,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
-# Records are ~100 B (geom) to ~1.5 KB (a 16-actor talk). Anything longer than this is not a record.
-_MAX_LINE = 1 << 20
+# Real records are 53-101 B (types, geom) and under 1 KB (activities, 16-actor talks included).
+# A longer line is not a record: it is skipped without being read into memory.
+_MAX_LINE = 64 * 1024
 
 # Digit runs are length-bounded so every number converts to a finite float / small int.
 _COORD = r"-?\d{1,9}(?:\.\d{1,9})?"
@@ -35,9 +37,11 @@ _TS0 = re.compile(rf"'ts0':\s*{_INT_END}")
 _ACT2 = re.compile(r"'act2':\s*\{\s*'([^']{1,200})'")
 _ACTORS_KEY = re.compile(r"'actors':\s*\[")
 _TSR0 = re.compile(r"'tsr0':\s*\[\s*(\d{1,9})\s*,\s*(\d{1,9})\s*\]")
-# an innermost {'class': score, ...} dict; the outer dicts hold dicts or an id, so they never match
-_SCORES = re.compile(rf"\{{\s*((?:'[^']{{1,100}}'\s*:\s*{_COORD}\s*,?\s*)+)\}}")
-_SCORE_ITEM = re.compile(rf"'([^']+)'\s*:\s*({_COORD})")
+# An innermost {'class': score, ...} dict; the outer dicts hold dicts or an id, so they never match.
+# Linear time: whitespace is only ever matched by one quantifier at a time. `\s*,?\s*` would let the two
+# `\s*` split a run of N blanks N ways, and the `+` loop would retry that at every item (quadratic).
+_SCORES = re.compile(rf"\{{\s*((?:'[^']{{1,100}}'\s*:\s*{_COORD}(?:\s*,)?\s*)+)\}}")
+_SCORE_ITEM = re.compile(rf"'([^']{{1,100}})'\s*:\s*({_COORD})")
 _NOT_A_CLASS = re.compile(r"(?:id|ts)\d+")
 
 
@@ -60,11 +64,22 @@ class Activity:
 
 
 def _lines(path) -> Iterator[str]:
-    """Yield the lines of ``path`` that could be records (decoding errors are replaced, not raised)."""
+    """Yield the lines of ``path`` that could be records (decoding errors are replaced, not raised).
+
+    A line longer than ``_MAX_LINE`` characters (newline included) is dropped. It is read at most
+    ``_MAX_LINE + 1`` characters at a time and the rest is discarded, so memory stays bounded however long
+    the line is.
+    """
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            if len(line) <= _MAX_LINE:
+        while True:
+            line = fh.readline(_MAX_LINE + 1)
+            if not line:
+                return
+            if len(line) <= _MAX_LINE:  # complete: a longer line would have filled the whole read
                 yield line
+                continue
+            while line and not line.endswith("\n"):  # over-long: discard up to its end
+                line = fh.readline(_MAX_LINE + 1)
 
 
 def _hull(text: str) -> tuple[int, int] | None:
