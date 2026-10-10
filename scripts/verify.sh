@@ -19,6 +19,7 @@ SHOW=$(ls data/stock/*.mp4 data/stock/*.mov data/stock/*.webm data/synthetic/sha
 step "analyze MEVA dev clip" .venv/bin/pulse analyze "$MEVA_DEV" --out runs/verify/meva --preset dealership
 step "analyze showroom clip" .venv/bin/pulse analyze "$SHOW" --out runs/verify/stock --preset short
 step "check outputs" $PY scripts/check_outputs.py runs/verify/meva runs/verify/stock
+step "smoke API" $PY scripts/smoke_api.py
 step "git status clean" bash -c 'out=$(git status --short); echo "$out"; test -z "$out"'
 step "no git remote" bash -c 'out=$(git remote -v); echo "$out"; test -z "$out"'
 echo; echo "VERIFY OK"

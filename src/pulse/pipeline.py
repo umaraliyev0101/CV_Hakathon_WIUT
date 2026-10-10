@@ -35,7 +35,7 @@ def _pick(items: list, k: int) -> list:
 
 
 def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], None] | None = None,
-             engine: PerceptionEngine | None = None) -> PerceptionCache:
+             engine: PerceptionEngine | None = None, embedder: Embedder | None = None) -> PerceptionCache:
     video, cache_root = Path(video), Path(cache_root)
     if not video.is_file():
         raise sources.VideoError(f"Video not found: {video}")
@@ -98,7 +98,7 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
 
     # embeddings (timed separately; budget <= 20% of perception time)
     t_e = time.perf_counter()
-    embedder = Embedder(providers=engine.providers)
+    embedder = embedder or Embedder(providers=engine.providers)
     groups = {tid: [c for _, c in _pick(lst, CROPS_PER_TRACK)] for tid, lst in crops.items() if lst}
     for tid, (_, c) in best.items():
         if not groups.get(tid):

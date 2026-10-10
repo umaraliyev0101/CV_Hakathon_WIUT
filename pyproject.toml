@@ -41,4 +41,5 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-m \"not slow\""
 markers = ["slow: needs real video/models; run with -m slow"]
-filterwarnings = ["ignore::FutureWarning:supervision.*", "ignore:.*ByteTrack.*deprecated:FutureWarning"]
+filterwarnings = ["ignore::FutureWarning:supervision.*", "ignore:.*ByteTrack.*deprecated:FutureWarning",
+  "ignore:Using .httpx. with .starlette.testclient. is deprecated:Warning"]
