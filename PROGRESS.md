@@ -39,6 +39,7 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - Dev/test split fixed at plan time: dev = 2018-03-11.16-35-01.16-40-00.school.G423, 2018-03-11.12-00-00.12-05-00.school.G420; test = 2018-03-12.11-05-01.11-10-01.school.G423, 2018-03-13.17-10-00.17-15-00.school.G421, 2018-03-09.10-40-00.10-45-00.school.G419, 2018-03-09.10-15-00.10-20-00.school.G299.
 - MEVA: 6 indoor clips downloaded to data/meva/ (CC BY 4.0, Corona et al., WACV 2021); see data/meva/CLIPS.md.
 - data/stock/ and data/synthetic/share/ empty at start; agent will look for a commercially licensed showroom clip by script (not Pexels).
+- 2026-10-11: roles reasons (controller ruling R3): a feature yields a reason only when its normalised value >= 0.25; top 3 such features by w*norm. Needed so a customer with presence 0.1 has `reasons == []`.
 
 ## Open problems
 
