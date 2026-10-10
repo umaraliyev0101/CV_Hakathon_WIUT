@@ -205,18 +205,22 @@ Add torch only if a measured need appears, and log the reason.
 - Any non-commercial dataset inside a shipped artifact or a commit.
 - Weights whose licence can't be found. Pick another model and log the choice.
 
-**Detector choice:** pick by a CPU benchmark at M0 (i5-10210U). The candidates are YOLOX-tiny/s via rtmlib and RF-DETR-Nano ONNX. Choose the fastest one whose person recall on a CAVIAR sample is within 5 points of the best.
+**Detector choice:** pick by a CPU benchmark at M0 (i5-10210U). The candidates are YOLOX-tiny/s via rtmlib and RF-DETR-Nano ONNX. Choose the fastest one whose person recall on a MEVA sample (its geom boxes) is within 5 points of the best.
 
 **Records:** the README gets a licence table with columns component | licence | trained on (data) | where used. `models/MANIFEST.json` lists each weight file with its URL, sha256 and licence.
 
 ## 6. Data and evaluation
 
-| Set | Source | Licence handling | Use |
-|---|---|---|---|
-| Stock showroom/retail clips (6–12 clips, ≤ 720p) | Coverr and Mixkit (reachable by script), Wikimedia Commons. Pexels and Pixabay return 403 to scripts, so put wanted Pexels/Pixabay URLs in `data/TODO_DOWNLOADS.md` for the team. | Commercial-use licences. Record each clip in `data/sources.csv` (url, site, licence, author, duration, sha256). Never commit the clips. | Demo, dev set, test set |
-| CAVIAR shopping-centre sequences (Univ. Edinburgh), a 6–10 sequence subset | homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/ | Research use, eval only. Kept in `data/eval_only/`, never shipped, credited in the README. | Tracking MOTA/IDF1; detection of "meet" / "walk together" as a proxy for engagement |
-| MOT17 | Only if free disk is still > 6 GB after everything else (it's about 5.5 GB) | CC BY-NC-SA, eval only | Optional tracking check |
+All of this was checked on 2026-10-11. Free showroom footage is scarce, so the plan doesn't depend on it.
 
+| Set | Source (verified) | Licence handling | Use |
+|---|---|---|---|
+| **MEVA** (Kitware/IARPA), 6–8 indoor clips (school, hospital, admin), about 140 MB per 5-min clip | Anonymous HTTPS from `https://mevadata-public-01.s3.amazonaws.com/drops-123-r13/<date>/<hour>/<clip>.r13.avi`. KPF annotations (geom, activities, types YAML) in `gitlab.kitware.com/meva/meva-data-repo`, folder `annotation/DIVA-phase-2/MEVA/kitware/<date>/<hour>/`. 769 clips are annotated. The list is in `list-of-annotated-meva-clips.txt`. | **CC BY 4.0**, so commercial use is OK with attribution. Cite Corona et al., WACV 2021. Clips stay in `data/meva/`, uncommitted. Annotations may be copied with attribution. | **Main evaluation set.** It is fixed CCTV-style footage with 3,397 `person_talks_to_person` intervals (ground truth for engagement), 2,993 `person_enters_scene_through_structure` and 2,912 exits (ground truth for arrival and leaving), and 906 `hand_interacts_with_person`. Pick indoor clips with the most talk events. Also used for tracking (geom boxes) and as demo footage. |
+| **Showroom stock clips** | The owner downloads them by hand into `data/stock/`, named `pexels-<id>.mp4`. Pexels blocks scripts. Verified lead: pexels.com/video/7154222 (car dealer and customer, by Antoni Shkraba). If the folder is empty, carry on without it and note that in PROGRESS.md. | Pexels licence: free for commercial use. Build `data/sources.csv` from the IDs. Never commit the clips. | Showroom look for the demo and deck. Agent-made labels for staff suggestion and greet timing. |
+| Coverr / Mixkit | Reachable by script, but the "car dealership" search returned only driving and scrapyard clips (checked 2026-10-11). | Free licences | Only if you find real staff–customer scenes (retail is fine) |
+| CAVIAR shopping-centre sequences | homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/ | Research use, eval only, in `data/eval_only/` | Optional extra tracking check |
+
+- **What has no free data:** labelled staff vs customer roles. Staff suggestion is evaluated on the agent-labelled showroom clips (if any) and on the team's staged footage later. Say this plainly in EVAL.md.
 - **Labels:** made by you (the agent) from frames sampled at 1 s intervals, stored in `labels/<clip>.json`:
   - persons with roles;
   - greet times;
@@ -225,9 +229,12 @@ Add torch only if a measured need appears, and log the reason.
 
   Each file says `"labeller": "ai-agent, unreviewed"`. Split dev vs test by clip before tuning anything.
 - **Report** (in `docs/EVAL.md`, with honest numbers and the commands to reproduce them):
-  - Tracking on CAVIAR: MOTA and IDF1, with and without the identity merge.
-  - Proximity/meet detection on CAVIAR: precision and recall.
-  - Staff suggestion on the stock test clips: accuracy before correction, and clicks needed per clip.
+  - Tracking on MEVA: MOTA and IDF1, with and without the identity merge.
+  - Engagement detection on MEVA vs `person_talks_to_person`, roles ignored:
+    - precision and recall of detected pair intervals (IoU ≥ 0.3);
+    - median error in start time.
+  - Arrival and leaving on MEVA vs the enter/exit-through-structure events: recall, and timing error.
+  - Staff suggestion on the labelled showroom clips: accuracy before correction, and clicks needed per clip.
   - Greet-time error: median absolute error.
   - Speed:
     - file mode: real-time factor at 5 fps sampling, 720p;
@@ -235,6 +242,7 @@ Add torch only if a measured need appears, and log the reason.
 - **Targets:** a target missed is a finding to report, not a reason to fake numbers.
   - staff suggestion ≥ 80% correct;
   - greet-time median error ≤ 2 s;
+  - talk/engagement recall ≥ 70% on MEVA;
   - file mode ≥ 1× real time;
   - live mode ≥ 4 fps.
 
@@ -273,7 +281,7 @@ Add torch only if a measured need appears, and log the reason.
 
 | # | Milestone |
 |---|---|
-| M0 | Repo skeleton, Python 3.12 venv, deps, model downloads plus manifest. Download 1 stock clip and 1 CAVIAR sequence. Run the CPU benchmark, choose the detector, record it in PROGRESS.md. |
+| M0 | Repo skeleton, Python 3.12 venv, deps, model downloads plus manifest. Download 1 MEVA clip and its annotations, and check `data/stock/` for owner-supplied showroom clips. Run the CPU benchmark, choose the detector, record it in PROGRESS.md. |
 | M1 | Pure core: geometry, events, metrics, roles, identity merge, all test-first on synthetic data |
 | M2 | Perception chain on real video (detect, pose, track, embed, merge) with a per-video cache |
 | M3 | CLI `analyze`: annotated H.264 mp4 with face blur, timeline image, scorecard JSON/CSV, event contact sheets |

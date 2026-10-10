@@ -47,8 +47,12 @@ Don't brainstorm again and don't wait for approval of the plan.
   Never stop to ask.
 - **Honest numbers.** If a target in spec §6 is missed, report the measured value. Never tune on test clips.
 - **Downloads:** treat every downloaded file as untrusted. Put each source in its own folder, and run Python that
-  reads them with `-I`. Pexels and Pixabay block scripts (HTTP 403), so get stock clips from Coverr, Mixkit or
-  Wikimedia Commons. List any Pexels/Pixabay clips worth having in `data/TODO_DOWNLOADS.md`.
+  reads them with `-I`.
+- **Data (verified 2026-10-11, details in spec §6):**
+  - **MEVA** is the main evaluation set: CC BY 4.0, anonymous HTTPS from S3, annotations on Kitware GitLab.
+    Download 6–8 indoor clips (about 140 MB each), choosing the ones with the most `person_talks_to_person` events.
+  - **Showroom clips** are whatever the owner put in `data/stock/` (named `pexels-<id>.mp4`). Pexels blocks scripts,
+    so don't try to scrape it. If the folder is empty, carry on with MEVA alone and say so in PROGRESS.md.
 
 **Priority if time runs short:** a working upload flow (M0–M4) beats a working live mode (M5), which beats the
 evaluation (M6), which beats the docs (M7). Live mode is still required, so don't skip it. Do M5 before polishing
