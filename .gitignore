@@ -1,0 +1,18 @@
+# Large / local-only artefacts (CLAUDE.md rules)
+data/*
+!data/sources.csv
+!data/TODO_DOWNLOADS.md
+models/*
+!models/MANIFEST.json
+runs/
+.venv/
+jobs/
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.DS_Store
