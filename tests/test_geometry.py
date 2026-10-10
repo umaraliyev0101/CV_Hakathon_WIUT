@@ -69,3 +69,37 @@ def test_facing_front_and_unknown():
     assert g.facing_dir(None) is None
     assert g.faces(o, (0, 3.0), (0, 1.5)) is True     # B between person and camera
     assert g.faces(o, (0, 3.0), (0, 5.0)) is False
+
+
+# --- fix round 1: degenerate inputs ---
+@pytest.mark.parametrize("bbox", [(10, 50, 20, 50), (10, 80, 20, 50),
+                                  (10, float("nan"), 20, float("nan")),
+                                  (float("nan"), 10, float("nan"), 90)])
+def test_degenerate_box_is_invalid_and_infinitely_far(bbox):
+    p = g.position_m(TrackObs(0, 0, 1, bbox, 0.9, None), (W, H))
+    assert p.method == "invalid" and math.isnan(p.x) and math.isnan(p.z)
+    ok = g.position_m(synth_person(0, 3.0), (W, H))
+    assert g.distance_m((p.x, p.z), (ok.x, ok.z)) == math.inf
+    assert g.distance_m((ok.x, ok.z), (p.x, p.z)) == math.inf
+
+
+def test_full_gate_uses_mean_ankle_and_falls_through_to_torso():
+    o = synth_person(0, 3.0)
+    kps = [list(k) for k in o.keypoints]
+    kps[15][1] = kps[0][1] + 50      # one ankle below the nose
+    kps[16][1] = kps[0][1] - 200     # other ankle above it: max > nose but mean < nose
+    p = g.position_m(TrackObs(0, 0, 1, o.bbox, 0.9, kps), (W, H))
+    assert p.method == "torso"
+
+
+def test_homography_line_at_infinity_and_too_few_points():
+    h = np.array([[1.0, 0, 0], [0, 1, 0], [0, 0, 0]])
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        x, y = g.to_floor(h, (5, 5))
+    assert math.isnan(x) and math.isnan(y)
+    p = g.position_m(TrackObs(0, 0, 1, (0, 0, 10, 20), 0.9, None), (W, H), floor_h=h)
+    assert p.method == "invalid"
+    with pytest.raises(ValueError, match="at least 4"):
+        g.fit_homography([(0, 0), (1, 0), (1, 1)], [(0, 0), (1, 0), (1, 1)])

@@ -46,17 +46,24 @@ def position_m(obs: TrackObs, frame_size: tuple[int, int], hfov_deg: float = 70.
                floor_h: np.ndarray | None = None) -> PosEstimate:
     kps = obs.keypoints
     u_foot, v_foot = foot_point(obs.bbox, kps, kp_thr)
+    if not (math.isfinite(u_foot) and math.isfinite(v_foot)):
+        return PosEstimate(math.nan, math.nan, "invalid")
     if floor_h is not None:
         x, y = to_floor(floor_h, (u_foot, v_foot))
+        if not (math.isfinite(x) and math.isfinite(y)):
+            return PosEstimate(math.nan, math.nan, "invalid")
         return PosEstimate(x, y, "floor")
 
     w = frame_size[0]
     f = focal_px(w, hfov_deg)
     method, h_px = "box", None
     ankles = [kps[i][1] for i in (L_ANK, R_ANK) if _conf(kps, i, kp_thr)]
-    if _conf(kps, NOSE, kp_thr) and ankles and max(ankles) > kps[NOSE][1]:
-        # use the same ankle estimate as the foot point (mean of confident ankles)
-        h_px = (float(np.mean(ankles)) - kps[NOSE][1]) / NOSE_TO_ANKLE_FRAC
+    full_px = None
+    if _conf(kps, NOSE, kp_thr) and ankles:
+        # same ankle estimate as the foot point (mean of confident ankles)
+        full_px = (float(np.mean(ankles)) - kps[NOSE][1]) / NOSE_TO_ANKLE_FRAC
+    if full_px is not None and full_px > 0:
+        h_px = full_px
         method = "full"
     elif all(_conf(kps, i, kp_thr) for i in (L_SH, R_SH, L_HIP, R_HIP)):
         sh_y = (kps[L_SH][1] + kps[R_SH][1]) / 2.0
@@ -64,16 +71,19 @@ def position_m(obs: TrackObs, frame_size: tuple[int, int], hfov_deg: float = 70.
         if hip_y > sh_y:
             h_px = (hip_y - sh_y) / TORSO_FRAC
             method = "torso"
-    if h_px is None or h_px <= 0:
+    if h_px is None or not math.isfinite(h_px) or h_px <= 0:
         h_px = obs.bbox[3] - obs.bbox[1]
         method = "box"
-    h_px = max(float(h_px), 1e-6)
+    if not math.isfinite(h_px) or h_px <= 0:
+        return PosEstimate(math.nan, math.nan, "invalid")
     z = f * person_h / h_px
     x = (u_foot - w / 2.0) * z / f
     return PosEstimate(float(x), float(z), method)
 
 
 def distance_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    if not all(math.isfinite(v) for v in (*a, *b)):
+        return math.inf
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
@@ -115,6 +125,9 @@ def faces(a_obs: TrackObs, a_pos, b_pos, max_angle_deg: float = 60) -> bool | No
 
 
 def fit_homography(img_pts, floor_pts) -> np.ndarray:
+    if len(img_pts) < 4 or len(floor_pts) < 4 or len(img_pts) != len(floor_pts):
+        raise ValueError("fit_homography needs at least 4 matching image/floor point pairs "
+                         f"(got {len(img_pts)} and {len(floor_pts)})")
     h, _ = cv2.findHomography(np.float32(img_pts), np.float32(floor_pts), 0)
     if h is None:
         raise ValueError("homography could not be fitted from the given points")
@@ -123,4 +136,6 @@ def fit_homography(img_pts, floor_pts) -> np.ndarray:
 
 def to_floor(h: np.ndarray, pt) -> tuple[float, float]:
     v = np.asarray(h, dtype=np.float64) @ np.array([pt[0], pt[1], 1.0])
+    if v[2] == 0 or not np.all(np.isfinite(v)):
+        return (math.nan, math.nan)
     return (float(v[0] / v[2]), float(v[1] / v[2]))
