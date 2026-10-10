@@ -1,0 +1,13 @@
+{
+  "id": "mock0001",
+  "filename": "showroom_morning.mp4",
+  "preset": "short",
+  "status": "done",
+  "progress": 1.0,
+  "message": "done",
+  "error": null,
+  "warnings": [
+    "video trimmed to the first 300 s"
+  ],
+  "video_status": "ready"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "mock0001",
+  "filename": "showroom_morning.mp4",
+  "preset": "short",
+  "status": "failed",
+  "progress": 0.31,
+  "message": "detecting people… 19 s of 60 s",
+  "error": "could not read frames from this file (the video may be damaged)",
+  "warnings": [],
+  "video_status": "none"
+}

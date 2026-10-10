@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Coach</title>
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 22 23 10' stroke='%231B2430' stroke-width='3'/%3E%3Ccircle cx='9' cy='22' r='7' fill='%23FF8C00'/%3E%3Ccircle cx='23' cy='10' r='7' fill='%231478E6'/%3E%3C/svg%3E">
+<script>
+  // Asset base. The backend serves this page at "/" and this folder at "/static/", so relative URLs
+  // (style.css, app.js, mock/..., mock thumbnails) need <base href="/static/"> there. Opened in place
+  // (any plain file server, e.g. http://localhost:8765/index.html) they already resolve, so no <base>.
+  // The stylesheet and script are written here, after the base is decided, because a static link or
+  // script tag would be fetched early by the browser's preload scanner against the wrong base (404).
+  (function () {
+    var onBackend = location.pathname === '/';
+    if (onBackend) document.write('<base href="/static/">');
+    document.write('<link rel="stylesheet" href="style.css">');
+    window.__loadApp = function () { document.write('<script src="app.js"><\/script>'); };
+  })();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top__bar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" focusable="false">
+        <path d="M9 22 23 10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="9" cy="22" r="7" fill="#FF8C00"/>
+        <circle cx="23" cy="10" r="7" fill="#1478E6"/>
+      </svg>
+      <span class="brand__name">Showroom Coach</span>
+    </div>
+
+    <ol class="steps" id="steps" aria-label="Steps">
+      <li data-step="upload">Upload</li>
+      <li data-step="progress">Analyse</li>
+      <li data-step="confirm">Confirm staff</li>
+      <li data-step="results">Results</li>
+    </ol>
+
+    <div class="top__tools">
+      <button type="button" class="btn btn--quiet" id="btnNew" hidden>New clip</button>
+      <a class="btn btn--quiet" href="/live">
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="4" fill="currentColor"/><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        Live camera
+      </a>
+    </div>
+  </div>
+
+  <div class="banner" role="note">
+    <div class="wrap banner__in">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M10 1.8 3.5 4.4v5c0 4 2.7 7 6.5 8.8 3.8-1.8 6.5-4.8 6.5-8.8v-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m7 10 2.1 2.1L13.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="banner__text">Coaching support only — not an automatic judgement of staff (Uzbekistan AI law ZRU-1115). Faces are blurred; processing stays on this computer. Staff must be informed that analytics is in use.</span>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap" tabindex="-1">
+  <div id="notice" class="notice" role="alert" hidden></div>
+
+  <!-- 1. Upload -->
+  <section class="view upload" id="view-upload" data-view="upload" aria-labelledby="upload-title">
+    <div class="upload__copy">
+      <h1 id="upload-title" class="display" tabindex="-1">Who was greeted, who waited, who walked out.</h1>
+      <p class="lede">Upload a clip from your showroom camera. Showroom Coach measures how fast customers are greeted, how long they wait while staff are free, who leaves without a word, and how long staff stay with each customer.</p>
+
+      <form id="uploadForm" class="upload__form" novalidate>
+        <input type="file" id="file" class="sr-only" accept=".mp4,.mov,.avi,.mkv,.webm,.m4v,video/*">
+        <label for="file" class="drop" id="drop">
+          <svg class="drop__icon" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><rect x="5" y="9" width="30" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="m17 15 8 5-8 5z" fill="currentColor"/></svg>
+          <span class="drop__text">
+            <span class="drop__title" id="dropTitle">Drop a video here, or choose a file</span>
+            <span class="drop__hint" id="dropHint">MP4, MOV, AVI, MKV, WEBM or M4V, up to 1 GB</span>
+          </span>
+        </label>
+
+        <div class="field">
+          <label for="preset">Thresholds</label>
+          <select id="preset"></select>
+          <dl class="facts" id="presetFacts"></dl>
+        </div>
+
+        <p class="form-error" id="uploadError" role="alert" hidden></p>
+        <div class="upload__actions">
+          <button type="submit" class="btn btn--primary btn--lg" id="btnAnalyse" disabled>Analyse</button>
+          <span class="muted" id="analyseHint">Choose a video to start.</span>
+        </div>
+      </form>
+    </div>
+
+    <figure class="plan">
+      <svg viewBox="0 0 520 400" role="img" aria-labelledby="plan-title" focusable="false">
+        <title id="plan-title">Top-down sketch of a showroom: a salesperson (blue) comes within greeting distance of a waiting customer (orange).</title>
+        <defs>
+          <pattern id="floor-tiles" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#DCE2E9" stroke-width="1"/></pattern>
+        </defs>
+        <rect x="2" y="2" width="516" height="396" rx="10" fill="#F6F8FA" stroke="#C3CCD6" stroke-width="2"/>
+        <rect x="2" y="2" width="516" height="396" rx="10" fill="url(#floor-tiles)"/>
+        <!-- entrance -->
+        <rect x="200" y="392" width="120" height="10" fill="#F6F8FA"/>
+        <path d="M200 398h120" stroke="#1B2430" stroke-width="3" stroke-dasharray="2 8" stroke-linecap="round"/>
+        <text x="260" y="384" text-anchor="middle" font-size="13" fill="#5F6B7C">Entrance</text>
+        <!-- cars, seen from above -->
+        <g fill="#DDE3EA" stroke="#9FABB9" stroke-width="2">
+          <rect x="44" y="40" width="150" height="62" rx="26"/>
+          <rect x="326" y="40" width="150" height="62" rx="26"/>
+        </g>
+        <g fill="#C3CCD6" stroke="#9FABB9" stroke-width="1.5">
+          <path d="M92 52h46l8 10v18l-8 10H92l-8-10V62z"/>
+          <path d="M374 52h46l8 10v18l-8 10h-46l-8-10V62z"/>
+        </g>
+        <!-- customer's walk from the door -->
+        <path d="M260 372C256 330 214 318 190 292" fill="none" stroke="#FF8C00" stroke-width="3" stroke-dasharray="3 9" stroke-linecap="round"/>
+        <!-- greeting distance around the salesperson -->
+        <circle cx="270" cy="240" r="84" fill="#1478E6" fill-opacity=".07" stroke="#1478E6" stroke-width="2" stroke-dasharray="8 7"/>
+        <text x="270" y="140" text-anchor="middle" font-size="13" fill="#0F5FC0" font-weight="600">greeting distance</text>
+        <!-- the greeting -->
+        <path d="M270 240 196 280" stroke="#1B2430" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="196" cy="280" r="13" fill="#FF8C00"/>
+        <circle cx="270" cy="240" r="13" fill="#1478E6"/>
+        <!-- a second salesperson, busy elsewhere -->
+        <circle cx="414" cy="180" r="13" fill="#1478E6"/>
+        <circle cx="436" cy="204" r="13" fill="#FF8C00"/>
+        <path d="M414 180 436 204" stroke="#1B2430" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+      </svg>
+      <figcaption>A greeting is counted when a salesperson stays within the greeting distance of a waiting customer. Everyone is tracked as a number, never recognised by face.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 2. Progress -->
+  <section class="view progress" id="view-progress" data-view="progress" hidden aria-labelledby="progress-title">
+    <h2 id="progress-title" class="display display--md" tabindex="-1"><span id="progVerb">Analysing</span> <span class="nowrap" id="progFile"></span></h2>
+    <ol class="stages" id="stages"></ol>
+    <div class="meter" id="meter" role="progressbar" aria-labelledby="progress-title" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="meter__fill" id="meterFill"></div>
+    </div>
+    <div class="meter__row">
+      <p class="meter__msg" id="progMsg" aria-live="polite">Starting…</p>
+      <p class="meter__pct" id="progPct">0%</p>
+    </div>
+    <ul class="badges" id="progWarn"></ul>
+    <div class="fail" id="progFail" hidden>
+      <h3>This clip could not be analysed</h3>
+      <p id="progError"></p>
+      <button type="button" class="btn btn--primary" id="btnRetry">Try another clip</button>
+    </div>
+    <p class="muted" id="progFoot">Keep this tab open. Detection runs on this computer and the video is not sent anywhere else.</p>
+  </section>
+
+  <!-- 3. Confirm staff -->
+  <section class="view confirm" id="view-confirm" data-view="confirm" hidden aria-labelledby="confirm-title">
+    <div class="section-head">
+      <div>
+        <h2 id="confirm-title" class="display display--md" tabindex="-1">Who is staff?</h2>
+        <p class="lede">We guessed from outfits, who talked to whom and how long each person was on screen. Switch anyone we got wrong and name your salespeople, then continue. Scores update straight away.</p>
+      </div>
+    </div>
+    <ul class="badges" id="confirmWarn"></ul>
+    <div class="people" id="people"></div>
+    <div class="actionbar">
+      <p class="actionbar__count" id="roleCount" aria-live="polite"></p>
+      <button type="button" class="btn btn--quiet" id="btnBackToResults" hidden>Back to results</button>
+      <button type="button" class="btn btn--primary btn--lg" id="btnConfirm">Looks right →</button>
+    </div>
+  </section>
+
+  <!-- 4. Results -->
+  <section class="view results" id="view-results" data-view="results" hidden aria-labelledby="results-title">
+    <div class="results-head">
+      <div>
+        <h2 id="results-title" class="display display--md" tabindex="-1">Results</h2>
+        <p class="muted" id="resMeta"></p>
+      </div>
+      <div class="results-tools">
+        <div class="field field--inline">
+          <label for="resPreset">Thresholds</label>
+          <select id="resPreset"></select>
+        </div>
+        <button type="button" class="btn" id="btnChange">Change roles</button>
+        <nav class="exports" id="exports" aria-label="Downloads"></nav>
+      </div>
+    </div>
+    <ul class="badges" id="resWarn"></ul>
+
+    <div class="results-top">
+      <div class="stage" id="videoStage"></div>
+      <div class="results-side">
+        <div class="tiles" id="tiles"></div>
+        <section class="panel alerts" aria-labelledby="alerts-title">
+          <h3 id="alerts-title" class="panel__title">Alerts <span class="count" id="alertCount"></span></h3>
+          <ol class="alerts__list" id="alerts"></ol>
+        </section>
+      </div>
+    </div>
+
+    <section class="panel timeline" aria-labelledby="tl-title">
+      <div class="panel__head">
+        <h3 id="tl-title" class="panel__title">Floor timeline</h3>
+        <ul class="legend" aria-label="Legend">
+          <li><i class="sw sw--present"></i>On screen</li>
+          <li><i class="sw sw--waiting"></i>Waiting (customer)</li>
+          <li><i class="sw sw--engaged"></i>Engaged</li>
+          <li><i class="mk-key mk-key--greet" aria-hidden="true">✓</i>Greeted</li>
+          <li><i class="mk-key mk-key--wait" aria-hidden="true"></i>Long wait while staff free</li>
+          <li><i class="mk-key mk-key--walk" aria-hidden="true">×</i>Walk-out</li>
+        </ul>
+      </div>
+      <div id="timeline"></div>
+      <p class="muted timeline__note">Blue is staff and orange is customers, the same colours as the video. Click the timeline to jump the video to that moment.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="sc-title">
+      <h3 id="sc-title" class="panel__title">Salespeople</h3>
+      <div id="scorecard"></div>
+    </section>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="notice">Showroom Coach needs JavaScript. Turn it on in your browser and reload the page.</p></noscript>
+<script>__loadApp();</script>
+</body>
+</html>

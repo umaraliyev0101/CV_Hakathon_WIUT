@@ -1,0 +1,151 @@
+{
+  "people": [
+    {
+      "pid": 1,
+      "thumb_url": "mock/thumbs/1.svg",
+      "suggestion": {
+        "role": "staff",
+        "confidence": 0.88,
+        "reasons": [
+          "same outfit as 2 others",
+          "talked to 4 people",
+          "on screen 100% of the clip"
+        ]
+      },
+      "role": "staff",
+      "name": "Aziz",
+      "t_first": 0.0,
+      "t_last": 59.8
+    },
+    {
+      "pid": 2,
+      "thumb_url": "mock/thumbs/2.svg",
+      "suggestion": {
+        "role": "customer",
+        "confidence": 0.74,
+        "reasons": [
+          "different outfit from everyone else",
+          "on screen 35% of the clip"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 0.0,
+      "t_last": 21.0
+    },
+    {
+      "pid": 3,
+      "thumb_url": "mock/thumbs/3.svg",
+      "suggestion": {
+        "role": "customer",
+        "confidence": 0.69,
+        "reasons": [
+          "different outfit from everyone else",
+          "approached by a staff member first"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 10.0,
+      "t_last": 36.2
+    },
+    {
+      "pid": 4,
+      "thumb_url": "mock/thumbs/4.svg",
+      "suggestion": {
+        "role": "staff",
+        "confidence": 0.83,
+        "reasons": [
+          "same outfit as 2 others",
+          "talked to 3 people",
+          "on screen 97% of the clip"
+        ]
+      },
+      "role": "staff",
+      "name": null,
+      "t_first": 0.0,
+      "t_last": 59.8
+    },
+    {
+      "pid": 5,
+      "thumb_url": "mock/thumbs/5.svg",
+      "suggestion": {
+        "role": "customer",
+        "confidence": 0.77,
+        "reasons": [
+          "different outfit from everyone else",
+          "waited near the entrance"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 14.0,
+      "t_last": 59.8
+    },
+    {
+      "pid": 6,
+      "thumb_url": "mock/thumbs/6.svg",
+      "suggestion": {
+        "role": "unsure",
+        "confidence": 0.52,
+        "reasons": [
+          "on screen for only 18% of the clip",
+          "no contact with anyone"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 20.0,
+      "t_last": 31.0
+    },
+    {
+      "pid": 7,
+      "thumb_url": "mock/thumbs/7.svg",
+      "suggestion": {
+        "role": "customer",
+        "confidence": 0.71,
+        "reasons": [
+          "different outfit from everyone else",
+          "approached by a staff member first"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 25.0,
+      "t_last": 50.4
+    },
+    {
+      "pid": 8,
+      "thumb_url": "mock/thumbs/8.svg",
+      "suggestion": {
+        "role": "staff",
+        "confidence": 0.64,
+        "reasons": [
+          "same outfit as 2 others",
+          "talked to 2 people",
+          "joined after the start"
+        ]
+      },
+      "role": "staff",
+      "name": null,
+      "t_first": 12.0,
+      "t_last": 59.8
+    },
+    {
+      "pid": 9,
+      "thumb_url": "mock/thumbs/9.svg",
+      "suggestion": {
+        "role": "customer",
+        "confidence": 0.8,
+        "reasons": [
+          "different outfit from everyone else",
+          "entered with another customer"
+        ]
+      },
+      "role": "customer",
+      "name": null,
+      "t_first": 40.0,
+      "t_last": 59.8
+    }
+  ]
+}
