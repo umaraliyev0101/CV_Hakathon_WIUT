@@ -3,20 +3,23 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
 import numpy as np
 
 from . import cache as cache_mod
-from . import identity, sources
+from . import identity, insights as insights_mod, interest, journey, roles as roles_mod, sources
+from . import stats as stats_mod, zones as zones_mod
 from .camera_motion import motion_flags, pick_key_idx, segments, to_gray_small
 from .cache import PerceptionCache
-from .config import Config
-from .datatypes import Person, Timeline
+from .config import Config, get_config
+from .datatypes import (InterestEpisode, Insight, Person, RoleSuggestion, Stats, Timeline, Zone,
+                        ZoneVisit)
 from .engine import PerceptionEngine
 from .perception.embed import Embedder, torso_crop
-from .timeline import build_timeline
+from .timeline import build_timeline, filter_stable
 
 CROPS_PER_TRACK = 3
 MIN_CROP_SCORE = 0.5
@@ -130,3 +133,77 @@ def build_people(pc: PerceptionCache, cfg: Config,
     persons = identity.merge(summaries, cfg)
     track_to_person = {tid: p.person_id for p in persons for tid in p.track_ids}
     return persons, build_timeline(pc.obs, track_to_person, size, cfg, floor_h), track_to_person
+
+
+@dataclass
+class Analysis:
+    persons: list[Person]
+    timeline: Timeline
+    suggestions: list[RoleSuggestion]
+    roles: dict[int, str]
+    journeys: dict[int, list[ZoneVisit]]
+    episodes: list[InterestEpisode]
+    assist: dict
+    stats: Stats
+    insights: list[Insight]
+    zones: list[Zone]
+    meta: dict = field(default_factory=dict)
+
+
+def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
+          overrides: dict[int, str] | None = None,
+          imported_roles: dict[int, str] | None = None) -> Analysis:
+    """Everything after perception. Pure: reads only the cache, never runs a model."""
+    size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
+    duration = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
+    persons, timeline, _ = build_people(pc, cfg)
+    if zones is None:
+        zones = zones_mod.auto_zones(pc.cars, (size[1], size[0]))
+    inter = roles_mod.interactions(persons, timeline, pc.embeddings, duration, cfg)
+    suggestions = roles_mod.suggest(persons, inter, cfg)
+    roles = roles_mod.final_roles(suggestions, imported_roles, overrides)
+
+    stable = filter_stable(timeline, pc.segments)
+    staff_tracks = {pid: ss for pid, ss in stable.items() if roles.get(pid) == "staff"}
+    journeys = journey.build(stable, zones, cfg.preset)
+    assist = interest.assistance(stable, staff_tracks, cfg.preset)
+    episodes = interest.episodes(journeys, staff_tracks, cfg.preset, stable, zones)
+    same_view = sum(max(0.0, min(s.t1, duration) - s.t0) for s in pc.segments if s.stable and s.same_view)
+    share = min(1.0, same_view / duration) if duration > 0 and pc.segments else 1.0
+    extra = []
+    if pc.meta.get("trimmed"):
+        extra.append(f"Video trimmed to the first {int(cfg.max_duration_s)} s")
+    st = stats_mod.compute(persons, journeys, roles, cfg, timeline=stable, episodes=episodes,
+                           assist=assist, zones=zones, duration=duration, frame_size=size,
+                           analysed_share=share, extra_warnings=extra)
+    ins = insights_mod.recommend(st, episodes, cfg)
+    meta = {"video": Path(str(pc.meta.get("video", ""))).name, "preset": cfg.preset.name,
+            "duration": float(pc.meta.get("duration") or 0.0), "analysed_duration": duration,
+            "trimmed": bool(pc.meta.get("trimmed")), "sample_fps": cfg.sample_fps,
+            "frame_w": size[0], "frame_h": size[1], "n_samples": int(pc.meta.get("n_samples", 0)),
+            "providers": list(pc.meta.get("providers", [])),
+            "perception_seconds": float(pc.meta.get("perception_seconds", 0.0)),
+            "rtf": float(pc.meta.get("rtf", 0.0)), "demo_only": cfg.preset.demo_only}
+    return Analysis(persons, timeline, suggestions, roles, journeys, episodes, assist, st, ins,
+                    zones, meta)
+
+
+def write_outputs(pc: PerceptionCache, analysis: Analysis, out_dir, cfg: Config, video=None,
+                  render_video: bool = True) -> list[Path]:
+    from . import report
+    out_dir = Path(out_dir)
+    report.build_report(analysis, pc, out_dir, cfg, video=video,
+                        render_video=render_video and video is not None)
+    return sorted(p for p in out_dir.rglob("*") if p.is_file())
+
+
+def analyze(video, out_dir, preset: str = "short", zones_path=None, roles_path=None,
+            cache_root=Path("runs/cache"), render_video: bool = True, cfg: Config | None = None,
+            progress: Callable[[float], None] | None = None) -> Analysis:
+    cfg = cfg or get_config(preset)
+    pc = perceive(video, Path(cache_root), cfg, progress)
+    zones = zones_mod.load_zones(zones_path) if zones_path else None
+    imported = roles_mod.load_roles_json(roles_path) if roles_path else None
+    analysis = score(pc, cfg, zones=zones, imported_roles=imported)
+    write_outputs(pc, analysis, out_dir, cfg, video=video, render_video=render_video)
+    return analysis

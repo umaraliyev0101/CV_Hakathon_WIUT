@@ -2,9 +2,13 @@
 
 ## Status
 
-Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). M1 (pure core, Tasks 3-11) done. See Milestones.
+Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). M1 (pure core, Tasks 3-11) done. M3 (Task 15: report, score, `pulse analyze`, check_outputs) done. See Milestones.
 
 ## Milestones
+
+### M3 / Task 15: report, scoring pipeline, CLI analyze, check_outputs
+- `pipeline.score` (cache only, no models), `write_outputs`, `analyze`; `report.build_report` writes every result file; `pulse analyze VIDEO --out DIR`; `scripts/check_outputs.py`; verify.sh runs MEVA dev clip (dealership) and `data/stock/wm-bangalore-04.mp4` (short) then checks outputs.
+- Privacy: all outputs blurred with every detection at that sampled t; the raw keyframe stays in the cache dir.
 
 ### M0 / Task 1: skeleton
 - Added package `pulse` (src layout), datatypes, presets/config, minimal CLI, `scripts/verify.sh`,
@@ -71,3 +75,4 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11 (Task 13 fix round 1, controller ruling): the zero-padded HSV-only scheme is removed. Every track with >= 1 crop gets the full HSV+DINOv2 embedding (<= 3 crops; if no crop reaches score 0.5 its best-score crop is used); a track with no crop has no embedding (never merged). DINOv2 unavailable -> HSV-only for all tracks. `PerceptionEngine.reset()` is called at the start of each perceive; missing/corrupt video raises VideoError before any hashing or cache dir; cache temp dir via tempfile.mkdtemp; Embedder uses the repo-relative models dir and the engine's providers; non-stable segments have same_view=False.
 - 2026-10-11 (Task 14): Coach-compatible wrapper is named `render_timeline(video, timeline, events, out, cfg)` (Coach's `render(video, timeline, events, out)`); note for INTEGRATION.md. `render(..., observations_by_t=)` blurs faces on frames lacking overlays; frames with neither get zone outlines only (zones from the first overlay) and cannot be blurred. Output frames cropped to even dimensions (macro_block_size=2). Face min side = 0.12 x person-box width applied to the keypoint box before 0.6x padding. Contact-sheet tiles are 320 px wide; zone label uses "|" instead of the middle dot (cv2 Hershey fonts are ASCII only).
 - 2026-10-11 (Task 14 fix round 1): `render` and `contact_sheet` take `observations_by_t` as a REQUIRED argument (privacy fail-closed; caller passes every sampled frame's detections; blur covers detected persons only). `render_timeline` derives it from timeline samples. render writes `<out>.part.mp4` then os.replace.
+- 2026-10-11 (Task 15): `build_report` takes extra kwargs `video=None, render_video=False` (thumbnails, contact sheets and the mp4 need frames). Without a video those are skipped and `check_outputs` only checks what `report.json["files"]` lists. Alert overlay = customer in a car-zone visit inside an unserved episode with dwell >= alert_after. Visit/zone stats use the stable-filtered timeline; overlays use the full timeline. `analysed_share` = stable same-view seconds / analysed duration. Reports store the video basename only.
