@@ -9,6 +9,7 @@ alone, for visible_frac), <out>/render_stats.json and <out>/scene.blend. NNNN = 
 import argparse
 import json
 import statistics
+import struct
 import sys
 import time
 from pathlib import Path
@@ -85,6 +86,24 @@ def _png(scene):
     s.compression = 15
 
 
+def dedupe_exif(path):
+    """Blender 4.2 writes the PNG eXIf chunk twice; libpng then warns on every read. Keep the
+    first copy (lossless: chunk-level rewrite, pixel data untouched)."""
+    data = Path(path).read_bytes()
+    out, i, seen = [data[:8]], 8, False
+    while i < len(data):
+        n = struct.unpack(">I", data[i:i + 4])[0]
+        chunk = data[i:i + 12 + n]
+        if chunk[4:8] == b"eXIf":
+            if seen:
+                i += 12 + n
+                continue
+            seen = True
+        out.append(chunk)
+        i += 12 + n
+    Path(path).write_bytes(b"".join(out))
+
+
 def render_frames(scene, frames, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
     times = []
@@ -94,6 +113,7 @@ def render_frames(scene, frames, out_dir):
         t0 = time.perf_counter()
         bpy.ops.render.render(write_still=True)
         times.append(time.perf_counter() - t0)
+        dedupe_exif(scene.render.filepath)
     return times
 
 
