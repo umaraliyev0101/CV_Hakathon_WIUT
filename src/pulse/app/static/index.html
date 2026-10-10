@@ -1,5 +1,109 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Showroom Pulse</title></head>
-<body><h1>Showroom Pulse</h1>
-<p>Anonymous, aggregated analytics; decision support only.</p>
-<p>The web UI is added in a later task. The JSON API is under <code>/api</code>.</p></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Pulse</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <h1>Showroom Pulse</h1>
+    <p class="banner" role="note">Anonymous, aggregated analytics; decision support only.</p>
+    <a class="top-link" href="/live">Live mode</a>
+  </div>
+</header>
+
+<nav class="steps" aria-label="Progress">
+  <ol>
+    <li data-step="upload"><span>1</span> Upload</li>
+    <li data-step="zones"><span>2</span> Zones</li>
+    <li data-step="staff"><span>3</span> Staff</li>
+    <li data-step="results"><span>4</span> Results</li>
+  </ol>
+</nav>
+
+<main>
+  <div id="notice" class="notice" role="alert" hidden></div>
+
+  <section id="step-upload" class="panel" aria-labelledby="h-upload">
+    <h2 id="h-upload">1. Upload a showroom video</h2>
+    <p class="muted">MP4, MOV, AVI, MKV or WebM, up to 1 GB. The video stays on this machine.</p>
+    <form id="upload-form">
+      <div class="field">
+        <label for="file">Video file</label>
+        <input type="file" id="file" name="file" accept="video/*,.mp4,.mov,.avi,.mkv,.webm" required>
+      </div>
+      <fieldset class="field">
+        <legend>Preset</legend>
+        <label class="radio"><input type="radio" name="preset" value="dealership" checked> Dealership <small>(long recordings, stricter thresholds)</small></label>
+        <label class="radio"><input type="radio" name="preset" value="short"> Short clip <small>(demo, lower thresholds)</small></label>
+      </fieldset>
+      <button type="submit" class="primary" id="upload-btn">Upload and analyse</button>
+    </form>
+    <div id="progress" hidden>
+      <p id="progress-msg" aria-live="polite">Uploading...</p>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progress-msg"><div id="bar-fill"></div></div>
+      <p id="progress-pct" class="muted">0%</p>
+    </div>
+  </section>
+
+  <section id="step-zones" class="panel" aria-labelledby="h-zones" hidden>
+    <h2 id="h-zones">2. Check the zones</h2>
+    <p class="muted">Zones were suggested automatically. Drag corners to adjust, add or delete zones, then confirm.</p>
+    <div class="zone-layout">
+      <div>
+        <div class="toolbar" role="toolbar" aria-label="Zone tools">
+          <button type="button" id="tool-select" aria-pressed="true">Select / move</button>
+          <button type="button" id="tool-rect" aria-pressed="false">Add rectangle</button>
+          <button type="button" id="tool-poly" aria-pressed="false">Add polygon</button>
+          <button type="button" id="tool-finish" hidden>Finish polygon</button>
+          <button type="button" id="tool-delete" class="danger" disabled>Delete zone</button>
+        </div>
+        <p id="tool-hint" class="muted" aria-live="polite">Click a zone to select it. Drag its corners to reshape.</p>
+        <div class="canvas-wrap" id="canvas-wrap">
+          <img id="zone-img" alt="Showroom keyframe with face blur" draggable="false">
+          <canvas id="zone-canvas"></canvas>
+        </div>
+      </div>
+      <aside class="zone-side">
+        <h3>Zones</h3>
+        <ul id="zone-list" class="zone-list"></ul>
+        <form id="zone-form" class="zone-form" hidden>
+          <h3>Selected zone</h3>
+          <div class="field"><label for="zone-name">Name</label><input id="zone-name" type="text" maxlength="80"></div>
+          <div class="field"><label for="zone-kind">Kind</label>
+            <select id="zone-kind">
+              <option value="car">Car</option><option value="desk">Desk</option><option value="entrance">Entrance</option>
+              <option value="lounge">Lounge</option><option value="other">Other</option>
+            </select>
+          </div>
+        </form>
+        <p id="zone-error" class="error" role="alert" hidden></p>
+        <button type="button" id="zones-ok" class="primary">Looks right</button>
+      </aside>
+    </div>
+  </section>
+
+  <section id="step-staff" class="panel" aria-labelledby="h-staff" hidden>
+    <h2 id="h-staff">3. Who is staff?</h2>
+    <p class="muted">Staff are excluded from customer statistics. Suggestions come with a confidence and plain reasons; correct any that look wrong. Faces are blurred.</p>
+    <p id="staff-count" class="muted" aria-live="polite"></p>
+    <div id="people" class="people" role="list"></div>
+    <div class="actions">
+      <button type="button" id="staff-ok" class="primary">Looks right</button>
+      <button type="button" id="staff-skip">Skip</button>
+    </div>
+  </section>
+
+  <section id="step-results" aria-labelledby="h-results" hidden>
+    <h2 id="h-results" class="sr-only">Results</h2>
+    <div id="dashboard"></div>
+  </section>
+</main>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>
