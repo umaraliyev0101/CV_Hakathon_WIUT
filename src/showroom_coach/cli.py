@@ -34,6 +34,12 @@ def _cmd_fetch_models(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _bench_candidates() -> tuple[str, ...]:
+    from .perception import bench
+
+    return bench.CANDIDATES
+
+
 def _cmd_bench_detectors(args: argparse.Namespace) -> int:
     from pathlib import Path
 
@@ -47,10 +53,11 @@ def _cmd_bench_detectors(args: argparse.Namespace) -> int:
         print("--frames must be at least 1", file=sys.stderr)
         return 2
     names = tuple(n.strip() for n in args.models.split(",") if n.strip())
-    unknown = [n for n in names if n not in bench.CANDIDATES]
+    unknown = [n for n in names if not bench.is_valid_spec(n)]
     if not names or unknown:
-        print(f"unknown detector(s): {', '.join(unknown) or args.models!r}; "
-              f"choose from {', '.join(bench.CANDIDATES)}", file=sys.stderr)
+        print(f"unknown detector(s): {', '.join(unknown) or args.models!r}; each must be "
+              f"<model> or <model>@<tiles> (tiles 1 or 2) with model one of "
+              f"{', '.join(bench.BASE_DETECTORS)}", file=sys.stderr)
         return 2
     try:
         result = bench.bench_detectors(Path(args.video), Path(args.geom), Path(args.types),
@@ -82,8 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--geom", required=True, help="MEVA <clip>.geom.yml")
     p.add_argument("--types", required=True, help="MEVA <clip>.types.yml")
     p.add_argument("--frames", type=int, default=60, help="frames sampled evenly across the clip (default 60)")
-    p.add_argument("--models", default="yolox_nano,yolox_tiny,yolox_s,rfdetr_nano",
-                   help="comma-separated detectors to compare")
+    p.add_argument("--models", default=",".join(_bench_candidates()),
+                   help="comma-separated detector specs <model>[@<tiles>] to compare "
+                        "(default: every benchmark candidate)")
     p.add_argument("--out", help="result JSON (default runs/bench/detectors.json)")
     p.set_defaults(handler=_cmd_bench_detectors)
     return parser

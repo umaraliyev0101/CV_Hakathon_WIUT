@@ -80,11 +80,57 @@ def test_choose_detector_fastest_within_five_points():
     assert bench.choose_detector(rows) == "a"
 
 
-def test_default_detector_is_a_registered_candidate():
+def test_default_and_live_detectors_are_benchmarked_specs():
     from showroom_coach import config, models
+    from showroom_coach.perception.detect import parse_detector_spec
 
-    assert config.DEFAULT_DETECTOR in models.MODELS
-    assert config.DEFAULT_DETECTOR in bench.CANDIDATES
+    for spec in (config.DEFAULT_DETECTOR, config.LIVE_DETECTOR):
+        assert spec in bench.CANDIDATES
+        name, tiles = parse_detector_spec(spec)
+        assert name in models.MODELS and tiles in (1, 2)
+
+
+def test_candidates_include_tiled_variants():
+    assert bench.CANDIDATES == ("yolox_nano", "yolox_tiny", "yolox_s", "rfdetr_nano",
+                                "yolox_nano@2", "yolox_tiny@2", "yolox_s@2")
+
+
+def _rows():
+    def row(model, ms, recall, big):
+        return {"model": model, "ms_median": ms, "recall": recall,
+                "recall_by_gt_height": {"20-40px": {"n": 5, "recall": 0.0}, "40-80px": {"n": 5, "recall": 0.1},
+                                        "80px+": {"n": 100, "recall": big}}}
+    return [row("a", 20.0, 0.10, 0.50), row("b", 40.0, 0.14, 0.64), row("c", 90.0, 0.20, 0.70),
+            row("d", 30.0, 0.19, 0.60)]
+
+
+def test_choose_live_detector_uses_the_80px_bucket():
+    rows = _rows()
+    # best 80px+ recall 0.70 -> need >= 0.65 : only c; the all-sizes rule would pick d (0.19, fastest within 5 points)
+    assert bench.choose_detector(rows) == "d"
+    assert bench.choose_live_detector(rows) == "c"
+    rows[1]["recall_by_gt_height"]["80px+"]["recall"] = 0.66  # b is now within 5 points and faster than c
+    assert bench.choose_live_detector(rows) == "b"
+
+
+def test_choose_live_detector_without_large_gt_falls_back_to_all_sizes_rule():
+    rows = _rows()
+    for r in rows:
+        r["recall_by_gt_height"]["80px+"] = {"n": 0, "recall": None}
+    assert bench.choose_live_detector(rows) == bench.choose_detector(rows)
+
+
+def test_cli_bench_accepts_tiled_specs_and_rejects_bad_ones(tmp_path, capsys):
+    for name in ("v.avi", "g.yml", "t.yml"):
+        (tmp_path / name).write_text("x", encoding="utf-8")
+    base = ["bench-detectors", "--video", str(tmp_path / "v.avi"),
+            "--geom", str(tmp_path / "g.yml"), "--types", str(tmp_path / "t.yml")]
+    for bad in ("yolox_tiny@3", "yolox_tiny@", "ultralytics@2", "rtmpose_s@2"):
+        assert cli.main(base + ["--models", bad]) == 2, bad
+        assert "unknown detector" in capsys.readouterr().err
+    # a valid spec passes validation and reaches the (here: undecodable) video
+    assert cli.main(base + ["--models", "yolox_tiny@2", "--frames", "2"]) == 1
+    assert "bench-detectors failed" in capsys.readouterr().err
 
 
 def test_cli_registers_bench_detectors():

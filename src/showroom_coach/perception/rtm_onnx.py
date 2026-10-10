@@ -73,6 +73,66 @@ def _multiclass_nms(boxes: np.ndarray, scores: np.ndarray, nms_thr: float, score
             np.concatenate(out_c))
 
 
+# --------------------------------------------------------------------------- tiling
+
+
+def tile_windows(w: int, h: int, tiles: int = 2) -> list[tuple[int, int, int, int]]:
+    """Crop windows (x0, y0, x1, y1) for tiled detection of a w x h frame.
+
+    tiles=1 is the whole frame. tiles=2 splits the longer axis into two overlapping crops of
+    length cw = min(L, max(S, int(0.55 L))) (L, S = longer and shorter side), so each crop is
+    close to square and the crops overlap by at least ~10% of L. A frame where cw covers all
+    of L (square-ish) stays a single crop.
+    """
+    if tiles == 1:
+        return [(0, 0, w, h)]
+    if tiles != 2:
+        raise ValueError(f"tiles must be 1 or 2, got {tiles}")
+    long_, short = (w, h) if w >= h else (h, w)
+    cw = min(long_, max(short, int(0.55 * long_)))
+    if cw >= long_:
+        return [(0, 0, w, h)]
+    if w >= h:
+        return [(0, 0, cw, h), (w - cw, 0, w, h)]
+    return [(0, 0, w, cw), (0, h - cw, w, h)]
+
+
+def nms_by_class(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, thr: float) -> np.ndarray:
+    """Class-aware NMS over already-decoded detections. Returns kept indices (ascending)."""
+    keep: list[np.ndarray] = []
+    for c in np.unique(cls):
+        idx = np.nonzero(cls == c)[0]
+        keep.append(idx[nms(boxes[idx], scores[idx], thr)])
+    return np.sort(np.concatenate(keep)) if keep else np.zeros(0, np.int64)
+
+
+def merge_tiles(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, tile_ids: np.ndarray,
+                nms_thr: float, contain_thr: float = 0.7, small_ratio: float = 0.5):
+    """Merge detections from overlapping tiles (boxes already in frame coordinates).
+
+    First drops a box that is mostly covered by a box of the same class from ANOTHER tile
+    (intersection / smaller area >= contain_thr) while being under `small_ratio` of its area:
+    that is the copy of an object truncated by a crop edge. Then class-aware NMS over the union
+    removes the plain duplicates from the overlap region.
+    """
+    boxes = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)
+    scores, cls = np.asarray(scores, dtype=np.float32), np.asarray(cls, dtype=np.int64)
+    tile_ids = np.asarray(tile_ids)
+    if len(boxes) == 0:
+        return boxes, scores, cls
+    area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    iw = np.minimum(boxes[:, None, 2], boxes[None, :, 2]) - np.maximum(boxes[:, None, 0], boxes[None, :, 0])
+    ih = np.minimum(boxes[:, None, 3], boxes[None, :, 3]) - np.maximum(boxes[:, None, 1], boxes[None, :, 1])
+    inter = np.clip(iw, 0, None) * np.clip(ih, 0, None)
+    smaller = np.minimum(area[:, None], area[None, :])
+    covered = inter >= contain_thr * np.maximum(smaller, 1e-6)
+    other = (tile_ids[:, None] != tile_ids[None, :]) & (cls[:, None] == cls[None, :])
+    shrunk = area[:, None] < small_ratio * area[None, :]  # row i is much smaller than column j
+    keep = np.nonzero(~(covered & other & shrunk).any(axis=1))[0]
+    keep = keep[nms_by_class(boxes[keep], scores[keep], cls[keep], nms_thr)]
+    return boxes[keep], scores[keep], cls[keep]
+
+
 # --------------------------------------------------------------------------- YOLOX
 
 

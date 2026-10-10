@@ -109,17 +109,14 @@ def _model_file(name: str) -> Path:
     return models.models_dir() / name / models.MODELS[name].filename
 
 
-@pytest.mark.slow
-def test_real_frame_detect_and_pose():
+def _real_frame(*models: str) -> np.ndarray:
+    """Frame 300 of the first MEVA clip, resized to width 960; skips when data/models are missing."""
     import cv2
-
-    from showroom_coach.perception.detect import Detector
-    from showroom_coach.perception.pose import PoseEstimator
 
     clip = _first_meva_clip()
     if clip is None:
         pytest.skip("no MEVA clip in data/meva/videos")
-    for name in ("yolox_tiny", "rtmpose_s"):
+    for name in models:
         if not _model_file(name).is_file():
             pytest.skip(f"model {name} not downloaded")
     cap = cv2.VideoCapture(str(clip))
@@ -129,7 +126,36 @@ def test_real_frame_detect_and_pose():
     if not ok:
         pytest.skip("cannot decode frame 300")
     h, w = frame.shape[:2]
-    frame = cv2.resize(frame, (960, round(h * 960 / w)))
+    return cv2.resize(frame, (960, round(h * 960 / w)))
+
+
+@pytest.mark.slow
+def test_real_frame_tiled_detector():
+    from showroom_coach.perception.detect import Detector
+
+    frame = _real_frame("yolox_nano")
+    h, w = frame.shape[:2]
+    single = Detector("yolox_nano").persons(frame)
+    tiled = Detector("yolox_nano@2").persons(frame)
+    assert len(tiled) >= len(single) >= 1
+    boxes = np.array([d.bbox for d in tiled], float)
+    assert (boxes[:, 0] >= 0).all() and (boxes[:, 2] <= w).all() and (boxes[:, 1] >= 0).all() and (boxes[:, 3] <= h).all()
+    for i in range(len(boxes)):  # the merge leaves no overlapping duplicates (class-aware NMS at 0.45)
+        for j in range(i + 1, len(boxes)):
+            iw = min(boxes[i, 2], boxes[j, 2]) - max(boxes[i, 0], boxes[j, 0])
+            ih = min(boxes[i, 3], boxes[j, 3]) - max(boxes[i, 1], boxes[j, 1])
+            inter = max(iw, 0) * max(ih, 0)
+            union = ((boxes[i, 2] - boxes[i, 0]) * (boxes[i, 3] - boxes[i, 1])
+                     + (boxes[j, 2] - boxes[j, 0]) * (boxes[j, 3] - boxes[j, 1]) - inter)
+            assert inter / union <= 0.5, (boxes[i], boxes[j])
+
+
+@pytest.mark.slow
+def test_real_frame_detect_and_pose():
+    from showroom_coach.perception.detect import Detector
+    from showroom_coach.perception.pose import PoseEstimator
+
+    frame = _real_frame("yolox_tiny", "rtmpose_s")
 
     people = Detector("yolox_tiny").persons(frame)
     assert len(people) >= 1

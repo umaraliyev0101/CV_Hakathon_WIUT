@@ -26,11 +26,14 @@ import numpy as np
 
 from ..config import MAX_WIDTH, repo_root
 
-CANDIDATES = ("yolox_nano", "yolox_tiny", "yolox_s", "rfdetr_nano")
+BASE_DETECTORS = ("yolox_nano", "yolox_tiny", "yolox_s", "rfdetr_nano")
+# Detector specs `<model>[@<tiles>]`: plain models plus two-tile variants of the YOLOX family.
+CANDIDATES = (*BASE_DETECTORS, "yolox_nano@2", "yolox_tiny@2", "yolox_s@2")
 SCORE_THR = 0.3
 IOU_THR = 0.5
 MIN_GT_HEIGHT = 20.0  # px, after resizing to MAX_WIDTH
-HEIGHT_BUCKETS = ((MIN_GT_HEIGHT, 40.0, "20-40px"), (40.0, 80.0, "40-80px"), (80.0, float("inf"), "80px+"))
+LARGE_BUCKET = "80px+"  # people near the camera (the live webcam case)
+HEIGHT_BUCKETS = ((MIN_GT_HEIGHT, 40.0, "20-40px"), (40.0, 80.0, "40-80px"), (80.0, float("inf"), LARGE_BUCKET))
 WARMUP_FRAMES = 3
 RECALL_MARGIN = 0.05  # "within 5 points of the best recall"
 PRECISION_NOTE = ("MEVA only boxes annotated actors, so precision is a lower bound: "
@@ -126,6 +129,29 @@ def choose_detector(rows: list[dict], margin: float = RECALL_MARGIN) -> str:
     return min(eligible, key=lambda r: r["ms_median"])["model"]
 
 
+def choose_live_detector(rows: list[dict], margin: float = RECALL_MARGIN) -> str:
+    """Live (webcam) choice: the fastest model whose recall on GT people >= 80 px tall is within
+    `margin` of the best recall on that bucket. Falls back to `choose_detector` when the clip
+    has no such people."""
+    big = [(r, r["recall_by_gt_height"][LARGE_BUCKET]["recall"]) for r in rows]
+    big = [(r, v) for r, v in big if v is not None]
+    if not big:
+        return choose_detector(rows, margin)
+    best = max(v for _, v in big)
+    eligible = [r for r, v in big if v >= best - margin - 1e-9]
+    return min(eligible, key=lambda r: r["ms_median"])["model"]
+
+
+def is_valid_spec(spec: str) -> bool:
+    """True for '<model>' or '<model>@<tiles>' with a known detector model and 1 or 2 tiles."""
+    from .detect import parse_detector_spec
+
+    try:
+        return parse_detector_spec(spec)[0] in BASE_DETECTORS
+    except ValueError:
+        return False
+
+
 def _read_frames(video: Path, indices: list[int]) -> tuple[list[np.ndarray], tuple[float, float], tuple[int, int]]:
     """Decode the wanted frames in one sequential pass (exact, unlike seeking in H.264) and
     resize each to width MAX_WIDTH. Returns (frames, (sx, sy) scale factors, (src_w, src_h))."""
@@ -211,6 +237,7 @@ def bench_detectors(video: Path, geom: Path, types: Path, frames: int = 60,
                                     for k, v in hit.items()},
         })
     chosen = choose_detector(rows)
+    chosen_live = choose_live_detector(rows)
     result = {
         "date": time.strftime("%Y-%m-%d"),
         "clip": Path(video).name,
@@ -227,6 +254,9 @@ def bench_detectors(video: Path, geom: Path, types: Path, frames: int = 60,
         "rule": f"fastest model whose recall is within {RECALL_MARGIN * 100:g} points of the best",
         "rows": rows,
         "chosen": chosen,
+        "live_rule": (f"fastest model whose recall on GT people {LARGE_BUCKET.replace('px+', ' px or taller')} "
+                      f"is within {RECALL_MARGIN * 100:g} points of the best on that bucket"),
+        "chosen_live": chosen_live,
         "precision_note": PRECISION_NOTE,
         "machine": {"platform": platform.platform(), "processor": platform.processor(),
                     "cpu_count": os.cpu_count(), "threads_per_model": 4},
@@ -252,6 +282,8 @@ def format_table(result: dict) -> str:
                  for k, v in r["recall_by_gt_height"].items()]
         lines.append(f"  {r['model']:<13}" + "   ".join(parts))
     lines.append(f"rule: {result['rule']}")
-    lines.append(f"chosen: {result['chosen']}")
+    lines.append(f"chosen (default): {result['chosen']}")
+    lines.append(f"live rule: {result['live_rule']}")
+    lines.append(f"chosen (live): {result['chosen_live']}")
     lines.append(f"note: {result['precision_note']}")
     return "\n".join(lines)

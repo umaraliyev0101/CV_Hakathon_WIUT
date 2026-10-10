@@ -62,7 +62,12 @@ class RoleWeights:
     contact_min_s: float = 5.0
 
 
-DEFAULT_DETECTOR = "yolox_s"  # M0 benchmark (runs/bench/detectors.json): fastest within 5 recall points of the best
+# Detector specs are `<model>[@<tiles>]` (see perception.detect.parse_detector_spec). Both come from the
+# M0 benchmark (runs/bench/detectors.json, 7 candidates): DEFAULT_DETECTOR = fastest whose recall is within
+# 5 points of the best; LIVE_DETECTOR = fastest whose recall on people >= 80 px tall is within 5 points of
+# the best on that bucket (webcam subjects are near the camera).
+DEFAULT_DETECTOR = "yolox_nano@2"
+LIVE_DETECTOR = "yolox_nano@2"
 SAMPLE_FPS = 5.0
 MAX_WIDTH = 960
 MAX_SECONDS = 300.0
