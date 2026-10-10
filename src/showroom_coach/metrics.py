@@ -28,14 +28,17 @@ def _median(values: list[float]) -> float | None:
     return float(statistics.median(values)) if values else None
 
 
-def _visits(events: list[Event]) -> list[_Visit]:
-    """One visit per `enter` event; greets/leaves attach to the latest enter at or before them."""
+def _visits(events: list[Event], exclude: frozenset[int] = frozenset()) -> list[_Visit]:
+    """One visit per `enter` event; greets/leaves attach to the latest enter at or before them.
+
+    Customers in `exclude` (people finally marked staff) get no visits: final roles win.
+    """
     # Enters sort before other events at the same instant so "at or before" holds on ties.
     ordered = sorted(events, key=lambda e: (e.t, e.type != "enter"))
     visits: list[_Visit] = []
     latest: dict[int, _Visit] = {}
     for e in ordered:
-        if e.customer is None:
+        if e.customer is None or e.customer in exclude:
             continue
         if e.type == "enter":
             v = _Visit(e.customer, e.t, bool(e.data.get("entry_known", False)))
@@ -64,9 +67,15 @@ def _wait_s(v: _Visit, t_end: float) -> float:
     return max(0.0, stop - v.t_enter)
 
 
-def unattended_wait(events: list[Event], t_end: float) -> float:
-    """Total seconds customers with a known entry waited before a greet, leave or clip end."""
-    return sum(_wait_s(v, t_end) for v in _visits(events) if v.entry_known)
+def unattended_wait(
+    events: list[Event], t_end: float, exclude_customers: Iterable[int] = ()
+) -> float:
+    """Total seconds customers with a known entry waited before a greet, leave or clip end.
+
+    `exclude_customers` drops the visits of people who are staff in the final roles.
+    """
+    visits = _visits(events, frozenset(exclude_customers))
+    return float(sum(_wait_s(v, t_end) for v in visits if v.entry_known))
 
 
 def _staff_card(sid: int, name: str | None, events: list[Event], t_end: float) -> StaffCard:
@@ -103,12 +112,15 @@ def scorecard(
 ) -> Scorecard:
     """Build per-salesperson cards (staff id ascending) and the store card.
 
-    `customer_ids` is accepted for API symmetry and future use; visits come from `enter` events.
+    `customer_ids` is accepted for API symmetry and future use; visits come from `enter` events,
+    except that visits of anyone in `staff_ids` are skipped.
     """
     names = names or {}
-    staff = [_staff_card(sid, names.get(sid), events, t_end) for sid in sorted(set(staff_ids))]
+    staff_set = frozenset(staff_ids)
+    staff = [_staff_card(sid, names.get(sid), events, t_end) for sid in sorted(staff_set)]
 
-    visits = _visits(events)
+    # A person relabelled customer -> staff can leave an orphan `enter`; final roles win.
+    visits = _visits(events, staff_set)
     greeted = [v for v in visits if v.t_greet is not None]
     known = [v for v in visits if v.entry_known]
     store = StoreCard(

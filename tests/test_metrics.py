@@ -97,3 +97,45 @@ def test_staff_ids_sorted_deduped_and_unknown_staff_ignored():
     sc = scorecard(ev, iter([7, 3, 7]), [], 60.0)
     assert [c.staff for c in sc.staff] == [3, 7]
     assert all(c.greets == 0 for c in sc.staff)
+
+
+def test_visit_of_person_marked_staff_is_not_counted():
+    # Person 8 was seen as a customer (enter emitted, known entry) and later marked staff:
+    # final roles win, so the orphan enter must not become a phantom visit.
+    ev = EV + [Event("enter", 20.0, customer=8, data={"entry_known": True})]
+    sc = scorecard(ev, staff_ids=[1, 4, 8], customer_ids=[2, 3, 5], t_end=60.0)
+    s = sc.store
+    assert (s.customers, s.customers_entry_known, s.greeted) == (3, 3, 2)
+    assert s.greet_rate == pytest.approx(2 / 3)
+    assert s.unattended_wait_s == pytest.approx(4 + 15 + 6)  # no 40 s tail for person 8
+    assert [c.staff for c in sc.staff] == [1, 4, 8]
+    # the same events with 8 treated as a customer do count it
+    s2 = scorecard(ev, [1, 4], [2, 3, 5, 8], 60.0).store
+    assert (s2.customers, s2.greeted) == (4, 2)
+    assert s2.unattended_wait_s == pytest.approx(4 + 15 + 6 + 40)
+
+
+def test_unattended_wait_can_exclude_staff_customers():
+    ev = [
+        Event("enter", 10.0, customer=7, data={"entry_known": True}),
+        Event("enter", 20.0, customer=8, data={"entry_known": True}),
+    ]
+    assert unattended_wait(ev, t_end=60.0) == pytest.approx(50 + 40)
+    assert unattended_wait(ev, t_end=60.0, exclude_customers=[8]) == pytest.approx(50.0)
+
+
+def test_greet_at_the_same_instant_as_enter_matches_that_enter():
+    # A party mate greeted on arrival: greet.t == enter.t, listed before the enter in the input.
+    ev = [
+        Event("greet", 5.0, customer=2, staff=1, data={"time_to_greet": 0.0, "via": "party"}),
+        Event("enter", 5.0, customer=2, data={"entry_known": True}),
+    ]
+    s = scorecard(ev, [1], [2], 60.0).store
+    assert (s.customers, s.greeted) == (1, 1)
+    assert s.median_time_to_greet == 0.0
+    assert s.unattended_wait_s == 0.0
+
+
+def test_unattended_wait_returns_float_on_empty_input():
+    out = unattended_wait([], t_end=10.0)
+    assert out == 0.0 and isinstance(out, float)
