@@ -10,6 +10,7 @@ Floor coordinates: X to the right of the optical axis, Z away from the camera, b
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, field
 
@@ -17,10 +18,13 @@ import numpy as np
 
 from .config import CameraConfig
 
+log = logging.getLogger(__name__)
+
 NOSE_ANKLE_RATIO = 0.89  # nose height 0.93 H - ankle height 0.04 H
 SHOULDER_HIP_RATIO = 0.30  # shoulder 0.82 H - hip 0.52 H
 SHOULDER_WIDTH_RATIO = 0.23  # biacromial width ~ 0.39 m for H = 1.70 m
-STANDING_MIN_RATIO = 2.4  # (ankle_y - nose_y) / torso_px above this => standing
+STANDING_HIP_RATIO = 1.35  # (ankle_y - hip_y) / torso_px at or above this => standing (about 1.6 standing, 0.85-1.11 seated)
+STANDING_MIN_RATIO = 2.4  # legacy (ankle_y - nose_y) / torso_px test, used only when a torso is known without a hip
 KPT_THR = 0.3
 
 # COCO-17 indices
@@ -56,21 +60,47 @@ class Camera:
 
     @classmethod
     def from_config(cls, width: int, height: int, cfg: CameraConfig) -> "Camera":
-        """Build a camera; four ``(u, v, X, Z)`` floor points in ``cfg`` add the image-to-floor homography."""
-        floor_h = None
-        pts = cfg.floor_points
-        if pts is not None and len(pts) == 4:
-            import cv2  # only needed here
+        """Build a camera; four ``(u, v, X, Z)`` floor points in ``cfg`` add the image-to-floor homography.
 
-            arr = np.asarray(pts, dtype=np.float64)
-            if arr.shape == (4, 4) and np.isfinite(arr).all():
-                try:
-                    h, _ = cv2.findHomography(arr[:, :2], arr[:, 2:])
-                except cv2.error:
-                    h = None
-                if h is not None and np.isfinite(h).all():
-                    floor_h = np.asarray(h, dtype=np.float64)
+        Unusable floor points (wrong count, non-finite, degenerate) are logged as a warning and ignored, so the
+        camera falls back to the pinhole estimate instead of failing.
+        """
+        floor_h = _floor_homography(cfg.floor_points) if cfg.floor_points is not None else None
         return cls(width, height, cfg.hfov_deg, cfg.person_height_m, floor_h)
+
+
+def _floor_homography(pts) -> np.ndarray | None:
+    """3x3 image (u, v, 1) -> floor (X, Z, 1) homography from four (u, v, X, Z) points, or None (with a warning)."""
+    try:
+        n = len(pts)
+        arr = np.asarray(pts, dtype=np.float64)
+    except (TypeError, ValueError):
+        log.warning("camera floor_points ignored: expected 4 numeric (u, v, X, Z) points; using the pinhole estimate")
+        return None
+    if n != 4 or arr.shape != (4, 4):
+        log.warning("camera floor_points ignored: expected 4 (u, v, X, Z) points, got %d; using the pinhole estimate", n)
+        return None
+    if not np.isfinite(arr).all():
+        log.warning("camera floor_points ignored: non-finite value; using the pinhole estimate")
+        return None
+    import cv2  # only needed here
+
+    try:
+        h, _ = cv2.findHomography(arr[:, :2], arr[:, 2:])
+    except cv2.error:
+        h = None
+    if h is not None:
+        # cv2 returns a singular matrix (not None) for collinear or duplicate points, so check that H really maps
+        # the four image points onto their floor points.
+        proj = np.c_[arr[:, :2], np.ones(4)] @ np.asarray(h, dtype=np.float64).T
+        with np.errstate(all="ignore"):
+            xz = proj[:, :2] / proj[:, 2:3]
+        tol = 1e-4 * max(1.0, float(np.abs(arr[:, 2:]).max()))
+        if np.isfinite(xz).all() and float(np.abs(xz - arr[:, 2:]).max()) <= tol:
+            return np.asarray(h, dtype=np.float64)
+    log.warning("camera floor_points ignored: degenerate calibration (collinear or duplicate points); "
+                "using the pinhole estimate")
+    return None
 
 
 @dataclass(frozen=True)
@@ -142,6 +172,21 @@ def _box_height(bbox) -> float:
     return max(float(bbox[3]) - float(bbox[1]), 1.0)
 
 
+def _looks_standing(a: np.ndarray, head_y: float, ankle_y: float, torso: float | None) -> bool:
+    """Whether the legs are extended below the torso (standing) rather than folded (seated).
+
+    Compares the hip-to-ankle drop with the torso length: about 1.6 when standing, 0.85-1.11 for a seated person
+    whatever the camera height. The old nose-to-ankle test misread a seated person with the feet toward the camera
+    (perspective inflates the ankle drop) as standing at some depths, so it is kept only as a fallback.
+    """
+    if torso is None:
+        return True  # nothing to compare against
+    hips = [a[i, 1] for i in (_L_HIP, _R_HIP) if _ok(a, i)]
+    if hips:
+        return (ankle_y - float(np.mean(hips))) / torso >= STANDING_HIP_RATIO - _EPS
+    return (ankle_y - head_y) / torso >= STANDING_MIN_RATIO - _EPS  # a torso always has a hip today: not reached
+
+
 def body_height_px(bbox, kpts) -> tuple[float, str]:
     """Equivalent full-body height in px and where it came from: "full" | "torso" | "box"."""
     a = _as_kpts(kpts)
@@ -151,7 +196,7 @@ def body_height_px(bbox, kpts) -> tuple[float, str]:
         ankles = _ankles(a)
         if head_y is not None and ankles is not None:
             span = ankles[1] - head_y
-            if span > _EPS and (torso is None or span / torso >= STANDING_MIN_RATIO - _EPS):
+            if span > _EPS and _looks_standing(a, head_y, ankles[1], torso):
                 return span / NOSE_ANKLE_RATIO, "full"
         if torso is not None:
             return torso / SHOULDER_HIP_RATIO, "torso"
@@ -207,13 +252,17 @@ def facing_vector(bbox, kpts, cam: Camera) -> tuple[float, float] | None:
 
     The left/right shoulder order gives the sign of dz (toward or away from the camera) and the apparent shoulder
     width relative to its expected width gives its size; the nose offset from the shoulder midpoint gives the
-    sign of dx. Needs both shoulders. With the nose hidden the heading is only known when the person is nearly
-    front- or back-on (|dz| >= 0.9), in which case dx is taken as 0.
+    sign of dx. Needs both shoulders, and a body height that is not just the box (with only the shoulders known the
+    visible box says little about the person's size, so the expected shoulder width would be unreliable). With the
+    nose hidden the heading is only known when the person is nearly front- or back-on (|dz| >= 0.9), in which case
+    dx is taken as 0.
     """
     a = _as_kpts(kpts)
     if a is None or not (_ok(a, _L_SHO) and _ok(a, _R_SHO)):
         return None
-    h, _ = body_height_px(bbox, a)
+    h, src = body_height_px(bbox, a)
+    if src == "box":
+        return None
     exp_dx = SHOULDER_WIDTH_RATIO * h
     fz = float(np.clip(-(a[_L_SHO, 0] - a[_R_SHO, 0]) / exp_dx, -1.0, 1.0))
     fx_mag = math.sqrt(max(0.0, 1.0 - fz * fz))
