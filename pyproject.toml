@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "showroom-pulse"
+version = "0.1.0"
+description = "Customer-experience analytics for car showrooms (anonymous, aggregated)"
+requires-python = ">=3.12,<3.13"
+license = {text = "Apache-2.0"}
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "opencv-python-headless>=4.9",
+  "onnxruntime>=1.17",
+  "supervision>=0.26,<0.31",
+  "imageio-ffmpeg>=0.5",
+  "matplotlib>=3.8",
+  "pyyaml>=6",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9",
+  "motmetrics>=1.4",
+  "tqdm>=4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+pulse = "pulse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pulse = ["app/static/*", "perception/vendor_rtmlib/LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m \"not slow\""
+markers = ["slow: needs real video/models; run with -m slow"]
+filterwarnings = ["ignore::FutureWarning:supervision.*"]
