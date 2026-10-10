@@ -18,27 +18,27 @@
  "scenario": "dealership_long",
  "seed": 6,
  "room": {
-  "width_m": 24.94,
-  "depth_m": 14.12,
-  "height_m": 4.77,
+  "width_m": 21.05,
+  "depth_m": 15.23,
+  "height_m": 5.39,
   "wall_thickness_m": 0.2
  },
  "entrance": {
   "wall": "south",
-  "center_x_m": 8.54,
+  "center_x_m": 7.55,
   "width_m": 2.4,
   "height_m": 2.6
  },
  "exit": {
   "wall": "east",
-  "center_y_m": 8.47,
+  "center_y_m": 9.14,
   "width_m": 3.5,
   "height_m": 3.0
  },
  "desk": {
   "center_m": [
    0.95,
-   6.1
+   5.89
   ],
   "length_m": 1.6,
   "width_m": 0.7,
@@ -50,30 +50,30 @@
   {
    "id": 1,
    "center_m": [
-    7.195,
-    5.116
+    6.185,
+    5.591
    ],
-   "length_m": 4.293,
-   "width_m": 1.908,
-   "height_m": 1.261,
-   "yaw_deg": 30.0,
-   "model": "porsche_930_turbo",
+   "length_m": 4.049,
+   "width_m": 2.363,
+   "height_m": 1.068,
+   "yaw_deg": 90.0,
+   "model": "khronos_carconcept",
    "paint": [
-    0.3,
-    0.32,
+    0.05,
+    0.12,
     0.35
    ]
   },
   {
    "id": 2,
    "center_m": [
-    20.698,
-    6.569
+    10.594,
+    10.418
    ],
-   "length_m": 4.921,
-   "width_m": 2.175,
-   "height_m": 1.562,
-   "yaw_deg": 30.0,
+   "length_m": 4.477,
+   "width_m": 1.978,
+   "height_m": 1.421,
+   "yaw_deg": -30.0,
    "model": "lamborghini_urus",
    "paint": [
     0.55,
@@ -84,35 +84,35 @@
   {
    "id": 3,
    "center_m": [
-    15.667,
-    9.513
+    13.638,
+    2.985
    ],
-   "length_m": 4.721,
-   "width_m": 2.098,
-   "height_m": 1.387,
-   "yaw_deg": 45.0,
+   "length_m": 4.015,
+   "width_m": 1.784,
+   "height_m": 1.179,
+   "yaw_deg": 0.0,
    "model": "porsche_930_turbo",
    "paint": [
-    0.75,
-    0.75,
-    0.78
+    0.6,
+    0.45,
+    0.2
    ]
   },
   {
    "id": 4,
    "center_m": [
-    5.546,
-    11.442
+    18.081,
+    10.583
    ],
-   "length_m": 4.002,
-   "width_m": 1.768,
-   "height_m": 1.27,
-   "yaw_deg": 0.0,
-   "model": "lamborghini_urus",
+   "length_m": 4.056,
+   "width_m": 2.019,
+   "height_m": 1.106,
+   "yaw_deg": 90.0,
+   "model": "ferrari_458",
    "paint": [
-    0.9,
-    0.9,
-    0.9
+    0.02,
+    0.02,
+    0.025
    ]
   }
  ],
@@ -120,11 +120,11 @@
   {
    "id": 1,
    "position_m": [
-    5.4,
+    2.4,
     0.35,
     2.8
    ],
-   "yaw_deg": 79.3,
+   "yaw_deg": 47.9,
    "pitch_deg": -25.0,
    "hfov_deg": 70.0,
    "width_px": 1280,
@@ -133,11 +133,11 @@
   {
    "id": 2,
    "position_m": [
-    0.3,
-    1.4,
-    3.2
+    8.4,
+    0.35,
+    2.8
    ],
-   "yaw_deg": 35.57,
+   "yaw_deg": 115.15,
    "pitch_deg": -25.0,
    "hfov_deg": 70.0,
    "width_px": 1280,
@@ -148,7 +148,7 @@
   {
    "id": 1,
    "role": "staff",
-   "height_m": 1.775,
+   "height_m": 1.684,
    "speed_mps": [
     1.15,
     1.4
@@ -157,7 +157,7 @@
    "outfit": "uniform",
    "spawn_m": [
     1.5,
-    5.15
+    4.94
    ],
    "spawn_yaw_deg": -90.0,
    "enter_t": 0.0,
@@ -166,7 +166,7 @@
     {
      "do": "approach",
      "customer": 3,
-     "after_t": 2.92
+     "after_t": 4.2
     },
     {
      "do": "talk",
@@ -177,7 +177,7 @@
      "do": "walk_to",
      "target": [
       1.5,
-      5.15
+      4.94
      ]
     },
     {
@@ -192,7 +192,7 @@
   {
    "id": 2,
    "role": "staff",
-   "height_m": 1.574,
+   "height_m": 1.708,
    "speed_mps": [
     1.15,
     1.4
@@ -200,8 +200,8 @@
    "hard_negative": false,
    "outfit": "uniform",
    "spawn_m": [
-    8.425,
-    8.279
+    8.878,
+    4.606
    ],
    "spawn_yaw_deg": -90.0,
    "enter_t": 0.0,
@@ -214,12 +214,12 @@
     }
    ],
    "default_face": "entrance",
-   "character": "Business_Female_03"
+   "character": "Business_Male_05"
   },
   {
    "id": 3,
    "role": "customer",
-   "height_m": 1.794,
+   "height_m": 1.711,
    "speed_mps": [
     1.15,
     1.4
@@ -228,9 +228,9 @@
    "outfit": "casual",
    "colors": {
     "top": [
-     0.1,
-     0.3,
-     0.65
+     0.15,
+     0.45,
+     0.2
     ],
     "trousers": [
      0.55,
@@ -239,7 +239,7 @@
     ]
    },
    "spawn_m": [
-    8.54,
+    7.55,
     -2.6
    ],
    "spawn_yaw_deg": 90.0,
@@ -254,8 +254,8 @@
     {
      "do": "walk_to",
      "target": [
-      4.566,
-      3.291
+      3.989,
+      3.621
      ]
     },
     {
@@ -271,14 +271,14 @@
     {
      "do": "walk_to",
      "target": [
-      4.659,
-      9.539
+      10.595,
+      2.391
      ]
     },
     {
      "do": "idle",
      "s": 30.0,
-     "face": "car_4",
+     "face": "car_3",
      "anim": "look_around"
     },
     {
@@ -286,12 +286,12 @@
     }
    ],
    "default_face": "car_1",
-   "character": "Male_Adult_12"
+   "character": "Female_Adult_05"
   },
   {
    "id": 4,
    "role": "customer",
-   "height_m": 1.735,
+   "height_m": 1.585,
    "speed_mps": [
     1.15,
     1.4
@@ -311,7 +311,7 @@
     ]
    },
    "spawn_m": [
-    8.54,
+    7.55,
     -2.6
    ],
    "spawn_yaw_deg": 90.0,
@@ -326,27 +326,27 @@
     {
      "do": "walk_to",
      "target": [
-      12.662,
-      7.719
+      9.096,
+      8.946
      ]
     },
     {
      "do": "idle",
      "s": 40.0,
-     "face": "car_3",
+     "face": "car_2",
      "anim": "look_around"
     },
     {
      "do": "walk_to",
      "target": [
-      17.254,
-      5.522
+      16.045,
+      9.41
      ]
     },
     {
      "do": "idle",
      "s": 30.0,
-     "face": "car_2",
+     "face": "car_4",
      "anim": "look_around"
     },
     {
@@ -354,7 +354,7 @@
     }
    ],
    "default_face": "car_1",
-   "character": "Business_Male_02"
+   "character": "Business_Female_01"
   }
  ],
  "parties": [],
@@ -390,23 +390,23 @@
   "staff_stop_dist_m": 1.25,
   "staff_approach_angles_deg": 15.0,
   "approach_cam_m": [
-   5.4,
+   2.4,
    0.35
   ]
  },
  "_generator": {
-  "attempt": 5,
+  "attempt": 8,
   "camera_min_person_vis": [
    0.0,
-   0.377
+   0.196
   ],
   "camera_any_person_vis": [
-   1.0,
+   0.829,
    1.0
   ],
   "camera_median_box_h_px": [
-   167.7,
-   285.2
+   343.1,
+   277.7
   ],
   "note": "visibility estimated from geometry (full body in frame, >= 60 px, not behind a car or a nearer person)"
  }

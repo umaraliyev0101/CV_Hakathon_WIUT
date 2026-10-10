@@ -371,6 +371,8 @@ class Sim:
         ray = np.asarray(cust.pos) - np.asarray(cam[:2])
         ray /= np.linalg.norm(ray)
         others = [a.pos for a in self.agents.values() if a.rendered and a.id not in (staff.id, cust.id)]
+        # other party members: stay out of their greet radius until arriving at the leader
+        mates = [self.agents[m].pos for m in self.board.members(cust.id) if m != cust.id]
         best = None
         for strict in (True, False):
             for k in range(int(round(360 / step))):
@@ -380,12 +382,15 @@ class Sim:
                     continue
                 if any(math.dist(cand, o) < MIN_SEPARATION_PLAN for o in others):
                     continue
+                if strict and any(math.dist(cand, m) < 1.6 for m in mates):
+                    continue
                 if strict:
                     # radial final leg: walk straight at the customer for the last APPROACH_MIN_FINAL_SEG m
                     pre = [cust.pos[0] + (r + APPROACH_MIN_FINAL_SEG) * math.cos(a),
                            cust.pos[1] + (r + APPROACH_MIN_FINAL_SEG) * math.sin(a)]
                     if not self.nav.is_free(pre) or not self.nav.visible(pre, cand) \
-                            or any(math.dist(pre, o) < MIN_SEPARATION_PLAN for o in others):
+                            or any(math.dist(pre, o) < MIN_SEPARATION_PLAN for o in others) \
+                            or any(math.dist(pre, m) < 2.0 for m in mates):
                         continue
                     path = self.nav.shortest_path(staff.pos, pre)
                     if path is None:

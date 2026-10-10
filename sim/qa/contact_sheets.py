@@ -18,9 +18,10 @@ def make_sheet(mp4, gt_path, out_png, n=12, cols=4, tile_w=640):
     from sim import labels
     gt = labels.read_gt(gt_path)
     roles = {p["id"]: p["role"] for p in gt["persons"]}
-    events = [(e["t"], f"{e['type']} (scripted)") for e in gt["events_scripted"]]
-    for preset, evs in gt["events_by_rule"].items():
-        events += [(e["t"], f"{e['type']} (rule:{preset})") for e in evs]
+    events = [(e["t"], f"{e['type']} (scripted)") for e in gt["events_scripted"] if e["type"] != "engagement"]
+    for preset in gt.get("eval_presets", list(gt["events_by_rule"]))[:1]:
+        events += [(e["t"], f"{e['type']} (rule:{preset})") for e in gt["events_by_rule"][preset]
+                   if e["type"] != "engagement"]
     cap = cv2.VideoCapture(str(mp4))
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     idx = [int(round(i)) for i in np.linspace(0, total - 1, n)]
@@ -48,10 +49,10 @@ def make_sheet(mp4, gt_path, out_png, n=12, cols=4, tile_w=640):
             ty = y1 - 8 if y1 > 60 else min(gt["height"] - 50, y2 + 26)
             cv2.putText(img, lab, (x1, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 5, cv2.LINE_AA)
             cv2.putText(img, lab, (x1, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.8, col, 2, cv2.LINE_AA)
-        active = [lab for t, lab in events if t <= fr["t"]]
+        active = sorted({lab.split(" ")[0] for t, lab in events if t <= fr["t"] and "scripted" in lab})
         head = f"frame {k}  t={fr['t']:.1f}s"
         if active:
-            head += "  | after: " + ", ".join(sorted(set(active)))
+            head += "  | so far: " + ", ".join(active)
         cv2.rectangle(img, (0, gt["height"] - 44), (gt["width"], gt["height"]), (0, 0, 0), -1)
         cv2.putText(img, head, (10, gt["height"] - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
         th = int(round(gt["height"] * tile_w / gt["width"]))
@@ -66,14 +67,18 @@ def make_sheet(mp4, gt_path, out_png, n=12, cols=4, tile_w=640):
     cv2.line(strip, (10, 35), (sheet.shape[1] - 10, 35), (200, 200, 200), 1)
     for k in idx:
         cv2.line(strip, (x_of(gt["frames"][k]["t"]), 28), (x_of(gt["frames"][k]["t"]), 42), (255, 255, 255), 1)
-    for t, lab in events:
-        col = (0, 255, 0) if "scripted" in lab else (0, 165, 255)
-        y = 20 if "scripted" in lab else 62
-        cv2.line(strip, (x_of(t), 10), (x_of(t), 60), col, 2)
-        cv2.putText(strip, f"{lab} t={t:.2f}", (x_of(t) + 5, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, col, 1, cv2.LINE_AA)
-    cv2.putText(strip, f"{gt['clip_id']}  boxes: staff=red customer=blue  zones: car=yellow desk=magenta "
-                f"entrance=green", (10, 62 if not events else 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (220, 220, 220), 1, cv2.LINE_AA)
+    k_s = k_r = 0
+    for t, lab in sorted(events):
+        sc = "scripted" in lab
+        col = (0, 255, 0) if sc else (0, 165, 255)
+        if sc:
+            y, k_s = 16 + 14 * (k_s % 2), k_s + 1
+        else:
+            y, k_r = 52 + 14 * (k_r % 2), k_r + 1
+        cv2.line(strip, (x_of(t), 4), (x_of(t), 66), col, 2)
+        cv2.putText(strip, f"{lab} {t:.1f}s", (x_of(t) + 5, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 1, cv2.LINE_AA)
+    cv2.putText(strip, f"{gt['clip_id']}  staff=red customer=blue | zones car=yellow desk=magenta entrance=green",
+                (sheet.shape[1] - 980, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
     sheet = np.vstack([sheet, strip])
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out_png), sheet)

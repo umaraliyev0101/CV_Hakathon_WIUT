@@ -1,0 +1,13 @@
+{
+ "_doc": "Share pack selection (sim/share.py). One clip per short-clip scenario plus extra cameras/lighting variants so every lighting variant is covered by the qa_detector gate. hero = the clip for the pitch deck.",
+ "clips": [
+  {"clip": "s000_greet_fast_cam1_day", "hero": true},
+  {"clip": "s001_greet_slow_cam1_evening_dim"},
+  {"clip": "s002_walkout_cam1_glare"},
+  {"clip": "s003_party_cam1_day"},
+  {"clip": "s004_handoff_cam1_evening_dim"},
+  {"clip": "s000_greet_fast_cam2_glare"},
+  {"clip": "s003_party_cam2_evening_dim"},
+  {"clip": "s004_handoff_cam2_glare"}
+ ]
+}
