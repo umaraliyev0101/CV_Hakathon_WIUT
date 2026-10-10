@@ -34,12 +34,6 @@ def _cmd_fetch_models(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
-def _bench_candidates() -> tuple[str, ...]:
-    from .perception import bench
-
-    return bench.CANDIDATES
-
-
 def _cmd_bench_detectors(args: argparse.Namespace) -> int:
     from pathlib import Path
 
@@ -52,7 +46,8 @@ def _cmd_bench_detectors(args: argparse.Namespace) -> int:
     if args.frames < 1:
         print("--frames must be at least 1", file=sys.stderr)
         return 2
-    names = tuple(n.strip() for n in args.models.split(",") if n.strip())
+    names = (bench.CANDIDATES if args.models is None  # default resolved here, not at parser build
+             else tuple(n.strip() for n in args.models.split(",") if n.strip()))
     unknown = [n for n in names if not bench.is_valid_spec(n)]
     if not names or unknown:
         print(f"unknown detector(s): {', '.join(unknown) or args.models!r}; each must be "
@@ -89,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--geom", required=True, help="MEVA <clip>.geom.yml")
     p.add_argument("--types", required=True, help="MEVA <clip>.types.yml")
     p.add_argument("--frames", type=int, default=60, help="frames sampled evenly across the clip (default 60)")
-    p.add_argument("--models", default=",".join(_bench_candidates()),
+    p.add_argument("--models",
                    help="comma-separated detector specs <model>[@<tiles>] to compare "
                         "(default: every benchmark candidate)")
     p.add_argument("--out", help="result JSON (default runs/bench/detectors.json)")

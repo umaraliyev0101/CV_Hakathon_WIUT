@@ -106,13 +106,26 @@ def nms_by_class(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, thr: fl
     return np.sort(np.concatenate(keep)) if keep else np.zeros(0, np.int64)
 
 
-def merge_tiles(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, tile_ids: np.ndarray,
-                nms_thr: float, contain_thr: float = 0.7, small_ratio: float = 0.5):
-    """Merge detections from overlapping tiles (boxes already in frame coordinates).
+def _inner_cut_edges(windows) -> tuple[int, tuple[float, float]]:
+    """(axis, (cut of tile 0, cut of tile 1)) for two overlapping crops: axis 0 = x (side by side),
+    1 = y (stacked). Tile 0 is cut at its far edge, tile 1 at its near edge."""
+    a, b = windows
+    axis = 0 if (a[1], a[3]) == (b[1], b[3]) else 1
+    return axis, (float(a[axis + 2]), float(b[axis]))
 
-    First drops a box that is mostly covered by a box of the same class from ANOTHER tile
-    (intersection / smaller area >= contain_thr) while being under `small_ratio` of its area:
-    that is the copy of an object truncated by a crop edge. Then class-aware NMS over the union
+
+def merge_tiles(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, tile_ids: np.ndarray,
+                windows, nms_thr: float, contain_thr: float = 0.7, small_ratio: float = 1.0,
+                edge_tol: float = 2.0):
+    """Merge detections from overlapping tiles (boxes already in frame coordinates; `windows` are
+    the crop windows from `tile_windows`, `tile_ids` index into them).
+
+    First drops a box that is the copy of an object truncated by the crop edge: it touches the
+    inner cut edge of its OWN tile (within `edge_tol` px: the far edge of the first tile or the
+    near edge of the second), it is mostly covered by a box of the same class from the OTHER tile
+    (intersection / smaller area >= contain_thr) and it is smaller than that box (area under
+    `small_ratio` times its area). Boxes away from the cut are never dropped here, so people nested
+    inside each other (a child in front of a parent) survive. Then class-aware NMS over the union
     removes the plain duplicates from the overlap region.
     """
     boxes = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)
@@ -120,15 +133,20 @@ def merge_tiles(boxes: np.ndarray, scores: np.ndarray, cls: np.ndarray, tile_ids
     tile_ids = np.asarray(tile_ids)
     if len(boxes) == 0:
         return boxes, scores, cls
-    area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-    iw = np.minimum(boxes[:, None, 2], boxes[None, :, 2]) - np.maximum(boxes[:, None, 0], boxes[None, :, 0])
-    ih = np.minimum(boxes[:, None, 3], boxes[None, :, 3]) - np.maximum(boxes[:, None, 1], boxes[None, :, 1])
-    inter = np.clip(iw, 0, None) * np.clip(ih, 0, None)
-    smaller = np.minimum(area[:, None], area[None, :])
-    covered = inter >= contain_thr * np.maximum(smaller, 1e-6)
-    other = (tile_ids[:, None] != tile_ids[None, :]) & (cls[:, None] == cls[None, :])
-    shrunk = area[:, None] < small_ratio * area[None, :]  # row i is much smaller than column j
-    keep = np.nonzero(~(covered & other & shrunk).any(axis=1))[0]
+    keep = np.arange(len(boxes))
+    if len(windows) == 2:
+        axis, cuts = _inner_cut_edges(windows)
+        own_edge = np.where(tile_ids == 0, boxes[:, axis + 2], boxes[:, axis])  # edge facing the cut
+        at_cut = np.abs(own_edge - np.where(tile_ids == 0, cuts[0], cuts[1])) <= edge_tol
+        area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        iw = np.minimum(boxes[:, None, 2], boxes[None, :, 2]) - np.maximum(boxes[:, None, 0], boxes[None, :, 0])
+        ih = np.minimum(boxes[:, None, 3], boxes[None, :, 3]) - np.maximum(boxes[:, None, 1], boxes[None, :, 1])
+        inter = np.clip(iw, 0, None) * np.clip(ih, 0, None)
+        smaller = np.minimum(area[:, None], area[None, :])
+        covered = inter >= contain_thr * np.maximum(smaller, 1e-6)
+        other = (tile_ids[:, None] != tile_ids[None, :]) & (cls[:, None] == cls[None, :])
+        shrunk = area[:, None] < small_ratio * area[None, :]  # row i is smaller than column j
+        keep = np.nonzero(~(at_cut & (covered & other & shrunk).any(axis=1)))[0]
     keep = keep[nms_by_class(boxes[keep], scores[keep], cls[keep], nms_thr)]
     return boxes[keep], scores[keep], cls[keep]
 
@@ -276,7 +294,8 @@ def rfdetr_postprocess(boxes: np.ndarray, logits: np.ndarray, orig_hw: tuple[int
     top = np.argpartition(flat, -k)[-k:]
     top = top[np.argsort(-flat[top])]
     query, label = top // nclass, top % nclass
-    cls = _COCO91_TO_80[np.minimum(label, 90)]
+    in_range = label < len(_COCO91_TO_80)  # heads with extra classes: never alias them onto a COCO class
+    cls = np.where(in_range, _COCO91_TO_80[np.minimum(label, len(_COCO91_TO_80) - 1)], -1)
     keep = (flat[top] > score_thr) & (label > 0) & (cls >= 0)
 
     b = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)[query[keep]]

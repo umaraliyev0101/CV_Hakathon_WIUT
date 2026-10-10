@@ -105,10 +105,20 @@ def test_tile_windows_rejects_unsupported_counts():
 
 # ---- merging tile detections -------------------------------------------------------------
 
+WIN = R.tile_windows(960, 540, 2)  # [(0,0,540,540), (420,0,960,540)]: cut edges at x=540 (tile 0) and x=420 (tile 1)
+
+
+def _merge(rows, windows=WIN, nms_thr=0.45):
+    """rows: (x1, y1, x2, y2, score, tile[, cls]) -> sorted list of kept boxes (rounded tuples)."""
+    a = np.array(rows, float)
+    cls = a[:, 6].astype(int) if a.shape[1] > 6 else np.zeros(len(a), int)
+    b, _, _ = R.merge_tiles(a[:, :4], a[:, 4], cls, a[:, 5].astype(int), windows, nms_thr)
+    return sorted(tuple(round(v) for v in row) for row in b.tolist())
+
 
 def test_merge_tiles_drops_truncated_copy_and_duplicates():
     boxes = np.array([
-        [500, 100, 540, 300],  # tile 0: person cut by the seam (area 8000)
+        [500, 100, 540, 300],  # tile 0: person cut by the seam at x=540 (area 8000)
         [500, 100, 600, 300],  # tile 1: the whole person (area 20000)
         [440, 300, 500, 420],  # tile 0: object fully in the overlap ...
         [440, 301, 500, 421],  # ... seen again by tile 1 (near-duplicate)
@@ -117,24 +127,79 @@ def test_merge_tiles_drops_truncated_copy_and_duplicates():
     scores = np.array([0.9, 0.8, 0.7, 0.6, 0.5])
     cls = np.zeros(5, int)
     tiles = np.array([0, 1, 0, 1, 0])
-    b, s, c = R.merge_tiles(boxes, scores, cls, tiles, nms_thr=0.45)
+    b, s, c = R.merge_tiles(boxes, scores, cls, tiles, WIN, nms_thr=0.45)
     kept = sorted(map(tuple, b.tolist()))
     assert kept == [(50, 50, 110, 200), (440, 300, 500, 420), (500, 100, 600, 300)]
     assert len(s) == len(c) == 3
 
 
+def test_merge_tiles_keeps_nested_people_seen_by_both_tiles():
+    # Reviewer's case: a person standing in front of a bigger one, both inside the overlap strip and
+    # seen by both tiles. Neither touches a cut edge, so neither copy of the small person may be
+    # dropped as a "seam-truncated" box; only the exact duplicates collapse.
+    big, small = (440, 100, 520, 300), (460, 150, 490, 250)
+    assert _merge([(*big, 0.9, 0), (*small, 0.8, 0), (*big, 0.85, 1), (*small, 0.75, 1)]) == sorted([big, small])
+
+
+def test_merge_tiles_nested_box_in_one_tile_only_survives():
+    big, small = (440, 100, 520, 300), (460, 150, 490, 250)
+    assert _merge([(*big, 0.9, 1), (*small, 0.8, 0)]) == sorted([big, small])
+
+
+@pytest.mark.parametrize("gap,dropped", [(0, True), (2, True), (4, False)])
+def test_merge_tiles_left_tile_box_must_touch_its_cut_within_2px(gap, dropped):
+    whole = (500, 100, 600, 300)                      # tile 1 sees the whole person
+    trunc = (500, 100, 540 - gap, 300)                # tile 0: cut at x=540
+    got = _merge([(*trunc, 0.9, 0), (*whole, 0.8, 1)])
+    assert got == ([whole] if dropped else sorted([trunc, whole]))
+
+
+def test_merge_tiles_right_tile_box_touching_left_cut():
+    whole = (380, 100, 460, 300)                      # tile 0 sees the whole person
+    trunc = (420, 100, 460, 300)                      # tile 1: cut at x=420
+    assert _merge([(*whole, 0.7, 0), (*trunc, 0.95, 1)]) == [whole]
+    # the cut that counts is the box's OWN tile's: a tile-1 box ending at tile 0's cut line (x=540) is
+    # not truncated by tile 1, so a nested tile-1 box there stays
+    nested = (500, 100, 540, 200)
+    assert _merge([(*nested, 0.9, 1), (400, 50, 545, 400, 0.8, 0)]) == sorted([nested, (400, 50, 545, 400)])
+
+
+def test_merge_tiles_truncated_box_with_higher_score_does_not_beat_the_whole_box():
+    # visible part is 54% of the whole box (above the old 50% area limit): NMS alone would keep the
+    # higher-scoring truncated copy, so the border rule has to remove it
+    whole = (470, 100, 600, 300)
+    trunc = (470, 100, 540, 300)
+    assert _merge([(*trunc, 0.95, 0), (*whole, 0.6, 1)]) == [whole]
+
+
+def test_merge_tiles_truncated_box_without_a_counterpart_survives():
+    trunc = (500, 100, 540, 300)  # touches the cut, nothing from the other tile covers it
+    assert _merge([(*trunc, 0.9, 0), (50, 50, 110, 200, 0.5, 0)]) == sorted([trunc, (50, 50, 110, 200)])
+
+
+def test_merge_tiles_portrait_windows_use_the_horizontal_cut_lines():
+    win = R.tile_windows(540, 960, 2)  # [(0,0,540,540), (0,420,540,960)]
+    whole = (100, 500, 300, 600)
+    trunc = (100, 500, 300, 540)       # tile 0 (top): cut at y=540
+    assert _merge([(*trunc, 0.9, 0), (*whole, 0.8, 1)], win) == [whole]
+    whole2 = (100, 380, 300, 460)
+    trunc2 = (100, 420, 300, 460)      # tile 1 (bottom): cut at y=420
+    assert _merge([(*whole2, 0.8, 0), (*trunc2, 0.9, 1)], win) == [whole2]
+    # x edges are irrelevant for portrait tiles: a small box ending at x=540 is not at a cut
+    small, big = (500, 100, 540, 200), (400, 50, 545, 400)
+    assert _merge([(*small, 0.9, 0), (*big, 0.8, 1)], win) == sorted([small, big])
+
+
 def test_merge_tiles_keeps_different_classes_and_same_tile_boxes():
-    boxes = np.array([[0, 0, 40, 100], [0, 0, 100, 100], [200, 0, 240, 100], [200, 0, 300, 100]], float)
-    scores = np.array([0.9, 0.8, 0.7, 0.6])
-    # a small box inside a big one from the SAME tile, or of ANOTHER class, is not a seam artefact
-    cls = np.array([0, 2, 0, 0])
-    tiles = np.array([0, 1, 1, 1])
-    b, _, _ = R.merge_tiles(boxes, scores, cls, tiles, nms_thr=0.45)
-    assert len(b) == 4
+    # all of these touch the cut at x=540 and are covered by a bigger box, but the bigger box is of
+    # another class (person vs car) or from the SAME tile, so none of them is a seam artefact
+    rows = [(500, 0, 540, 100, 0.9, 0, 0), (500, 0, 600, 100, 0.8, 1, 2),
+            (520, 200, 540, 300, 0.7, 0, 0), (440, 200, 540, 300, 0.6, 0, 0)]
+    assert len(_merge(rows, nms_thr=0.99)) == 4
 
 
 def test_merge_tiles_empty():
-    b, s, c = R.merge_tiles(np.zeros((0, 4)), np.zeros(0), np.zeros(0, int), np.zeros(0, int), 0.45)
+    b, s, c = R.merge_tiles(np.zeros((0, 4)), np.zeros(0), np.zeros(0, int), np.zeros(0, int), WIN, 0.45)
     assert b.shape == (0, 4) and s.shape == (0,) and c.shape == (0,)
 
 

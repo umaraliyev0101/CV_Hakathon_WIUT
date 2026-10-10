@@ -74,7 +74,7 @@ class Detector:
             for k, (x0, y0, x1, y1) in enumerate(windows):
                 b, s, c = self._infer(np.ascontiguousarray(frame_bgr[y0:y1, x0:x1]))
                 parts.append((b + np.array([x0, y0, x0, y0], np.float32), s, c, np.full(len(s), k)))
-            boxes, scores, cls = R.merge_tiles(*(np.concatenate(p) for p in zip(*parts)), self.nms_thr)
+            boxes, scores, cls = R.merge_tiles(*(np.concatenate(p) for p in zip(*parts)), windows, self.nms_thr)
         if len(boxes):
             boxes = boxes.copy()
             boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(0, w)

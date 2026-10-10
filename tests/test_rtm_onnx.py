@@ -96,6 +96,18 @@ def test_rfdetr_preprocess_and_postprocess():
     assert 0.97 < s[i] < 0.99
 
 
+def test_rfdetr_postprocess_drops_out_of_range_labels():
+    # A head with more classes than the 91 COCO ids must not map its extra labels onto "toothbrush".
+    boxes = np.zeros((1, 300, 4), np.float32)
+    logits = np.full((1, 300, 95), -10.0, np.float32)
+    boxes[0, 5] = [0.5, 0.5, 0.2, 0.4]; logits[0, 5, 1] = 4.0    # person -> 0
+    boxes[0, 6] = [0.2, 0.2, 0.1, 0.1]; logits[0, 6, 93] = 6.0   # out of range -> dropped
+    boxes[0, 7] = [0.8, 0.8, 0.1, 0.1]; logits[0, 7, 90] = 5.0   # last real COCO id (toothbrush) -> 79
+    boxes[0, 8] = [0.4, 0.4, 0.1, 0.1]; logits[0, 8, 12] = 5.0   # COCO id 12 has no COCO-80 class -> dropped
+    b, s, c = R.rfdetr_postprocess(boxes, logits, (100, 200), score_thr=0.3)
+    assert sorted(c.tolist()) == [0, 79] and len(b) == len(s) == 2
+
+
 def _first_meva_clip() -> Path | None:
     from showroom_coach.config import repo_root
 

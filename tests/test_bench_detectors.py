@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 
 from showroom_coach import cli
@@ -153,3 +156,16 @@ def test_cli_bench_rejects_bad_frames_and_models(tmp_path, capsys):
     assert cli.main(base + ["--frames", "0"]) == 2
     assert cli.main(base + ["--models", "ultralytics_yolo"]) == 2
     assert "unknown detector" in capsys.readouterr().err
+
+
+def test_building_the_parser_does_not_import_the_heavy_modules():
+    code = ("import sys; from showroom_coach import cli; cli.build_parser(); "
+            "bad = [m for m in ('cv2', 'onnxruntime', 'showroom_coach.perception.bench') if m in sys.modules]; "
+            "print(bad); sys.exit(1 if bad else 0)")
+    done = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+    assert done.returncode == 0, done.stdout + done.stderr
+
+
+def test_bench_models_default_is_resolved_lazily():
+    args = cli.build_parser().parse_args(["bench-detectors", "--video", "v", "--geom", "g", "--types", "t"])
+    assert args.models is None  # replaced by bench.CANDIDATES at run time, not computed at parser build
