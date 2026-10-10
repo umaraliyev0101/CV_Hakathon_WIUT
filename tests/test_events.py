@@ -189,3 +189,191 @@ def test_role_flip_mid_stream_drops_customer_state():
     eng.step(4.0, [PersonState(5, (0, 5), "customer")])
     eng.step(4.2, [PersonState(5, (0, 5), "staff")])
     assert eng.status(4.2)[5]["role"] == "staff"
+
+
+# ---------------------------------------------------------------------------------------------- fix round 1
+
+def _run_engine(timeline, th=SHORT):
+    """Step an engine over a timeline; return (engine, events, {t: active_pairs()}, {t: status(t)})."""
+    eng, ev, pairs, status = EventEngine(th), [], {}, {}
+    for t, states in timeline:
+        ev += eng.step(t, states)
+        pairs[t], status[t] = eng.active_pairs(), eng.status(t)
+    return eng, ev, pairs, status
+
+
+def test_no_wait_alert_after_customer_has_gone():
+    ev = run_events(script(40, 0.2, {1: STAFF, 2: {"pos": when(5, 14, (6.0, 5.0))}}), SHORT)
+    assert of(ev, "wait_alert") == []
+    (wo,) = of(ev, "walkout")
+    assert wo.t == pytest.approx(14.0)
+
+
+def _approach_at(t_near, t_far=None):
+    """Customer from t=5 at (6, 5), beside staff (0, 5) during [t_near, t_far], back at (6, 5) afterwards."""
+    def pos(t):
+        if t < 5:
+            return None
+        near = t >= t_near and (t_far is None or t <= t_far)
+        return (1.0, 5.0) if near else (6.0, 5.0)
+    return pos
+
+
+def test_open_greet_streak_that_confirms_suppresses_wait_alert():
+    ev = run_events(script(30, 0.2, {1: STAFF, 2: {"pos": _approach_at(14.0)}}), SHORT)
+    (g,) = of(ev, "greet")
+    assert g.t == pytest.approx(14.0) and g.data["confirmed_at"] == pytest.approx(16.0)
+    assert of(ev, "wait_alert") == []
+
+
+def test_open_greet_streak_that_fails_delays_wait_alert():
+    ev = run_events(script(30, 0.2, {1: STAFF, 2: {"pos": _approach_at(14.0, 15.0)}}), SHORT)
+    assert of(ev, "greet") == []
+    (w,) = of(ev, "wait_alert")
+    assert w.t == pytest.approx(16.6, abs=0.21) and w.data["free_staff"] == [1]
+
+
+def test_status_browsing_between_engagements():
+    tl = script(20, 0.2, {1: STAFF, 2: {"pos": _approach_at(5.0, 15.0)}})
+    _, _, _, status = _run_engine(tl)
+    assert status[6.0][2]["state"] == "waiting"
+    assert status[9.0][2]["state"] == "greeted" and status[9.0][2]["greeted_by"] == 1
+    assert status[14.0][2]["state"] == "engaged"
+    assert status[18.0][2]["state"] == "browsing"
+
+
+def test_active_pairs_close_then_engaged():
+    _, _, pairs, _ = _run_engine(script(20, 0.2, {1: STAFF, 2: {"pos": when(5, 20, (1.0, 5.0))}}))
+    assert pairs[4.8] == []
+    assert pairs[12.8] == [(1, 2, "close")]
+    assert pairs[13.0] == [(1, 2, "engaged")]
+
+
+def test_handoff_once_when_second_staff_engages_twice():
+    def c(t):
+        if t < 5:
+            return None
+        if t <= 15:
+            return (1.0, 5.0)
+        return (9.0, 5.0) if t <= 25 or t >= 28 else (5.0, 5.0)
+    people = {1: STAFF, 4: {"role": "staff", "pos": when(0, 40, (10.0, 5.0))}, 2: {"pos": c}}
+    ev = run_events(script(40, 0.2, people), SHORT, t_end=40)
+    assert [e.staff for e in of(ev, "engagement")] == [1, 4, 4]
+    (h,) = of(ev, "handoff")
+    assert h.data == {"from_staff": 1, "to_staff": 4}
+
+
+def test_party_greet_not_before_mate_entry():
+    people = {1: STAFF, 2: {"pos": when(5, 30, (1.0, 5.0))}, 3: {"pos": when(7, 30, (2.2, 5.6))}}
+    ev = run_events(script(30, 0.2, people), SHORT)
+    greets = {g.customer: g for g in of(ev, "greet")}
+    assert greets[2].t == pytest.approx(5.0)
+    assert greets[3].data["via"] == "party" and greets[3].t == pytest.approx(7.0)
+    assert greets[3].data["time_to_greet"] == pytest.approx(0.0)
+
+
+def test_party_greet_not_after_mate_last_seen():
+    people = {1: STAFF,
+              2: {"pos": lambda t: None if t < 5 else ((6.0, 5.0) if t < 20.6 else (1.0, 5.0))},
+              3: {"pos": when(6, 19.8, (6.0, 6.0))}}
+    ev = run_events(script(30, 0.2, people), SHORT)
+    greets = {g.customer: g for g in of(ev, "greet")}
+    assert greets[2].t == pytest.approx(20.6)
+    (lv,) = [e for e in of(ev, "leave") if e.customer == 3]
+    assert greets[3].t == pytest.approx(19.8) and greets[3].t <= lv.t and lv.data["greeted"] is True
+    assert of(ev, "walkout") == []
+
+
+def test_party_resolved_when_member_leaves():
+    people = {1: STAFF, 2: {"pos": when(5, 30, (1.0, 5.0))}, 3: {"pos": when(6, 10, (1.0, 6.2))}}
+    ev = run_events(script(30, 0.2, people), SHORT)
+    (p,) = of(ev, "party")
+    assert p.data["members"] == [2, 3] and p.data["confirmed_at"] == pytest.approx(13.0)
+    (lv,) = [e for e in of(ev, "leave") if e.customer == 3]
+    assert lv.data["greeted"] is True and of(ev, "walkout") == []
+
+
+def test_party_resolved_at_finish():
+    people = {1: STAFF, 2: {"pos": when(30, 36, (6.0, 5.0))}, 3: {"pos": when(31, 36, (6.0, 6.0))}}
+    (p,) = of(run_events(script(36, 0.2, people), SHORT), "party")
+    assert p.data["members"] == [2, 3] and p.data["confirmed_at"] == pytest.approx(36.0)
+
+
+def test_three_member_party_one_event_per_growth():
+    people = {1: STAFF, 2: {"pos": when(5, 30, (6.0, 5.0))}, 3: {"pos": when(6, 30, (6.0, 6.0))},
+              4: {"pos": when(7, 30, (6.5, 5.5))}}
+    ev = run_events(script(30, 0.2, people), SHORT)
+    assert [p.data["members"] for p in of(ev, "party")] == [[2, 3], [2, 3, 4]]
+
+
+def test_party_member_who_left_is_not_greeted_later():
+    people = {1: STAFF,
+              2: {"pos": lambda t: None if t < 5 else ((6.0, 5.0) if t < 25 else (1.0, 5.0))},
+              3: {"pos": when(6, 18, (6.0, 6.0))}}
+    ev = run_events(script(35, 0.2, people), SHORT)
+    assert [p.data["members"] for p in of(ev, "party")] == [[2, 3]]
+    assert [g.customer for g in of(ev, "greet")] == [2]
+    assert [w.customer for w in of(ev, "walkout")] == [3]
+
+
+def test_party_needs_three_shared_samples():
+    people = {1: STAFF, 2: {"pos": when(5, 30, (6.0, 5.0))}, 3: {"pos": when(6, 6.2, (6.0, 6.0))}}
+    assert of(run_events(script(30, 0.2, people), SHORT), "party") == []
+
+
+def test_reentry_starts_new_visit_and_can_walk_out_again():
+    def pos(t):
+        return (6.0, 5.0) if 5 <= t <= 8 or 14 <= t <= 18 else None
+    ev = run_events(script(25, 0.2, {1: STAFF, 2: {"pos": pos}}), SHORT)
+    assert [e.t for e in of(ev, "enter")] == pytest.approx([5.0, 14.0])
+    assert [e.t for e in of(ev, "walkout")] == pytest.approx([8.0, 18.0])
+
+
+def test_reappearing_after_stall_ends_old_visit():
+    eng = EventEngine(SHORT)
+    staff, cust = PersonState(1, (0.0, 5.0), "staff"), PersonState(2, (6.0, 5.0))
+    eng.step(5.0, [staff, cust])
+    eng.step(5.2, [staff, cust])
+    ev = eng.step(10.0, [staff, cust])  # no step for 4.8 s, longer than leave_after (3 s)
+    assert [e.type for e in ev] == ["leave", "walkout", "enter"]
+    assert ev[0].t == pytest.approx(5.2) and ev[0].data["detected_at"] == pytest.approx(10.0)
+    assert ev[2].t == pytest.approx(10.0)
+
+
+def test_role_flip_closes_engagement_and_drops_visit():
+    eng, ev, _, _ = _run_engine(script(20, 0.2, {1: STAFF, 5: {"pos": when(4, 20, (1.0, 5.0))}}))
+    ev += eng.step(20.2, [PersonState(1, (0.0, 5.0), "staff"), PersonState(5, (1.0, 5.0), "staff")])
+    (e,) = of(ev, "engagement")
+    assert (e.staff, e.customer) == (1, 5) and (e.t, e.t_end) == pytest.approx((4.0, 20.0))
+    assert of(ev, "leave") == [] and of(ev, "walkout") == []
+    assert eng.active_pairs() == []
+    assert eng.status(20.2) == {1: {"role": "staff", "state": "free"}, 5: {"role": "staff", "state": "free"}}
+    assert eng.finish(20.2) == []  # nothing is still open for pid 5 as a customer
+    assert [e.type for e in eng.step(20.4, [PersonState(5, (1.0, 5.0), "customer")])] == ["enter"]
+
+
+def test_role_flip_staff_to_customer_closes_their_engagements():
+    eng, ev, _, _ = _run_engine(script(20, 0.2, {1: STAFF, 2: {"pos": when(4, 20, (1.0, 5.0))}}))
+    ev += eng.step(20.2, [PersonState(1, (0.0, 5.0), "customer"), PersonState(2, (1.0, 5.0))])
+    (e,) = of(ev, "engagement")
+    assert (e.staff, e.customer) == (1, 2) and e.t_end == pytest.approx(20.0)
+    assert [x.customer for x in ev if x.type == "enter"] == [2, 1]
+    assert eng.active_pairs() == []
+
+
+def test_dealership_greet():
+    people = {1: {"role": "staff", "pos": when(0, 100, (0.0, 5.0))},
+              2: {"pos": lambda t: None if t < 30 else ((6.0, 5.0) if t < 50 else (1.0, 5.0))}}
+    (g,) = of(run_events(script(100, 1.0, people), DEAL), "greet")
+    assert g.t == pytest.approx(50.0) and g.data["confirmed_at"] == pytest.approx(55.0)
+    assert g.data["time_to_greet"] == pytest.approx(20.0)
+
+
+def test_dealership_wait_alert_and_walkout():
+    people = {1: {"role": "staff", "pos": when(0, 130, (0.0, 5.0))}, 2: {"pos": when(20, 100, (6.0, 5.0))}}
+    ev = run_events(script(130, 1.0, people), DEAL)
+    (w,) = of(ev, "wait_alert")
+    assert w.t == pytest.approx(81.0) and w.data["wait_s"] == pytest.approx(61.0) and w.data["free_staff"] == [1]
+    (wo,) = of(ev, "walkout")
+    (lv,) = of(ev, "leave")
+    assert wo.t == pytest.approx(100.0) and lv.data["detected_at"] == pytest.approx(110.0)

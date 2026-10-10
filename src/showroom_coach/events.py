@@ -4,17 +4,20 @@ The engine is a pure state machine with no I/O and no clock. Call ``step(t, stat
 with positions in metres on the floor plane and roles already decided, then call ``finish(t_end)`` once at the
 end of the clip. ``run_events`` does both for a whole timeline.
 
-For each customer the states are entered -> waiting -> greeted -> engaged <-> browsing -> left. The engine emits
-these events: enter, leave, greet, engagement_start, engagement, wait_alert, walkout, party and handoff.
+A customer's live state (``status``) goes waiting -> greeted -> engaged <-> browsing: waiting until greeted,
+greeted until the first engagement, then engaged while an engagement is active and browsing between them. Entering
+and leaving are events. The engine emits enter, leave, greet, engagement_start, engagement, wait_alert, walkout,
+party and handoff.
 
 Each step runs in a fixed order, and the rules depend on it:
-  1. observe  - update presence and start a visit for every customer who isn't already in one
+  1. observe  - update presence and start a visit for every customer who isn't in one (or who has been
+                unseen for leave_after, which ends the old visit)
   2. leave    - customers absent long enough leave (a walkout if they were never greeted)
   3. pairs    - update the greet and engage streaks of every staff-customer pair, then confirm greets and
                 engagements
   4. free     - record which staff are free, for walkouts and wait alerts
   5. parties  - count party-window samples and confirm parties
-  6. wait     - at most one wait_alert per visit
+  6. wait     - at most one wait_alert per visit, for present customers who aren't being greeted
 """
 
 from __future__ import annotations
@@ -169,6 +172,8 @@ class _UnionFind:
         self._parent[self.find(a)] = self.find(b)
 
     def group(self, x: int) -> list[int]:
+        if x not in self._parent:  # never joined a party
+            return [x]
         root = self.find(x)
         return [y for y in list(self._parent) if self.find(y) == root]
 
@@ -216,9 +221,7 @@ class EventEngine:
         Customers still present get no leave or walkout, because they were still in the showroom.
         """
         self._process_leaves(t_end)
-        for key in sorted(self._pairs):
-            self._close_engagement(self._pairs[key])
-        self._pairs.clear()
+        self._end_pairs(lambda p: True)
         for cand in list(self._candidates):  # the clip ending also ends their party window
             self._resolve_party(cand, t_end)
         return self._flush()
@@ -233,11 +236,19 @@ class EventEngine:
                 out[pid] = {"role": "staff", "state": "busy" if pid in busy else "free"}
                 continue
             v = self._visits[pid]
-            state = "engaged" if pid in engaged else "greeted" if v.greeted else "waiting"
+            state = self._customer_state(v, engaged=pid in engaged)
             wait_s = t - v.enter_t if state == "waiting" and v.entry_known else None
             out[pid] = {"role": "customer", "state": state, "wait_s": wait_s,
                         "entry_known": v.entry_known, "greeted_by": v.greeted_by}
         return out
+
+    @staticmethod
+    def _customer_state(visit: _Visit, engaged: bool) -> str:
+        if engaged:
+            return "engaged"
+        if visit.engaged_by:
+            return "browsing"  # between engagements
+        return "greeted" if visit.greeted else "waiting"
 
     def active_pairs(self) -> list[tuple[int, int, str]]:
         """(staff, customer, "engaged" | "close") for pairs with an open engage streak and both present."""
@@ -251,16 +262,22 @@ class EventEngine:
 
     def _observe_staff(self, s: PersonState) -> None:
         visit = self._visits.pop(s.pid, None)
-        if visit is not None:  # relabelled from customer: that visit was never real, so drop it silently
-            self._drop_pairs(lambda p: p.customer == s.pid)
+        if visit is not None:  # relabelled from customer: no leave or walkout, but engagements still close
+            self._end_pairs(lambda p: p.customer == s.pid)
             self._candidates = [c for c in self._candidates if not c.involves(visit)]
         self._staff.add(s.pid)
 
     def _observe_customer(self, t: float, s: PersonState) -> None:
         if s.pid in self._staff:  # relabelled from staff: their pairs end, and a fresh visit starts below
             self._staff.discard(s.pid)
-            self._drop_pairs(lambda p: p.staff == s.pid)
-        visit = self._visits.get(s.pid) or self._start_visit(t, s.pid)
+            self._end_pairs(lambda p: p.staff == s.pid)
+        visit = self._visits.get(s.pid)
+        # Unseen for leave_after with no step in between (a live stall): that was a leave, so end the old visit.
+        # The faster frame-edge grace is not used here, or someone standing at the edge would be split at 1 fps.
+        if visit is not None and t - visit.last_seen >= self.th.leave_after - EPS:
+            self._end_visit(visit, t)
+            visit = None
+        visit = visit or self._start_visit(t, s.pid)
         visit.last_seen = t
         visit.at_edge = bool(s.at_edge)
 
@@ -283,9 +300,12 @@ class EventEngine:
         for visit in list(self._visits.values()):
             if visit.pid in self._present:
                 continue
-            grace = min(self.th.edge_leave, self.th.leave_after) if visit.at_edge else self.th.leave_after
-            if t - visit.last_seen >= grace - EPS:
+            if t - visit.last_seen >= self._leave_grace(visit) - EPS:
                 self._end_visit(visit, t)
+
+    def _leave_grace(self, visit: _Visit) -> float:
+        """Seconds unseen before a customer has left: shorter if their last box touched a frame edge."""
+        return min(self.th.edge_leave, self.th.leave_after) if visit.at_edge else self.th.leave_after
 
     def _end_visit(self, visit: _Visit, t: float) -> None:
         # Decide the party first: a companion's greeting covers this customer too, so it is not a walkout.
@@ -297,9 +317,7 @@ class EventEngine:
         if not visit.greeted and visit.entry_known:
             self._emit("walkout", visit.last_seen, customer=visit.pid,
                        data={"free_staff": list(visit.free_at_last_seen)})
-        for pair in [p for p in self._pairs.values() if p.customer == visit.pid]:
-            self._close_engagement(pair)
-        self._drop_pairs(lambda p: p.customer == visit.pid)
+        self._end_pairs(lambda p: p.customer == visit.pid)
 
     # ---- 3. pairs: greet, engagement, handoff
 
@@ -375,9 +393,10 @@ class EventEngine:
         if via != "party":
             self._greet_party_mates(visit, now)
 
-    def _drop_pairs(self, match) -> None:
-        for key in [k for k, p in self._pairs.items() if match(p)]:
-            del self._pairs[key]
+    def _end_pairs(self, match) -> None:
+        """Remove the matching pairs, emitting ``engagement`` for any engagement that was active."""
+        for key in sorted(k for k, p in self._pairs.items() if match(p)):
+            self._close_engagement(self._pairs.pop(key))
 
     # ---- 4. busy / free
 
@@ -414,8 +433,8 @@ class EventEngine:
 
     def _resolve_party(self, cand: _PartyCandidate, t: float) -> None:
         self._candidates.remove(cand)
-        if not cand.confirmed:
-            return
+        if not cand.confirmed or self._parties.find(cand.a.vid) == self._parties.find(cand.b.vid):
+            return  # not a party, or already in the same one (so nothing changes)
         self._parties.union(cand.a.vid, cand.b.vid)
         members = self._party_of(cand.a)
         self._emit("party", cand.window_start,
@@ -430,17 +449,28 @@ class EventEngine:
     def _greet_party_mates(self, greeted: _Visit, now: float) -> None:
         """Greeting one member greets every ungreeted member still in its visit, with the same staff and time.
 
-        A mate who arrived after that greeting counts as greeted on arrival, so no greet comes before its enter.
+        The time is clamped to the mate's own visit, so a greet never comes before their enter or after they were
+        last seen. A mate who arrived after the greeting counts as greeted on arrival. A mate out of view at the
+        greeting, often hidden behind the companion, counts as greeted at their last sighting.
         """
         for mate in self._party_of(greeted):
             if mate is not greeted and not mate.greeted and self._visits.get(mate.pid) is mate:
-                self._greet(mate, greeted.greeted_by, max(greeted.greet_t, mate.enter_t), now, via="party")
+                t_greet = min(max(greeted.greet_t, mate.enter_t), mate.last_seen)
+                self._greet(mate, greeted.greeted_by, t_greet, now, via="party")
 
     # ---- 6. wait alerts
 
     def _check_wait_alerts(self, t: float, free: list[int]) -> None:
-        for visit in self._visits.values():
-            if (visit.entry_known and not visit.greeted and not visit.wait_alerted
+        """Alert once per visit for a present, ungreeted customer whose known wait has passed wait_alert.
+
+        The check is held while a greet streak for the customer is open. Greets are backdated to the streak start,
+        so alerting now could contradict a greet that is about to be confirmed. If the streak closes without a
+        greet, the alert fires at the next step.
+        """
+        being_greeted = {p.customer for p in self._pairs.values() if p.greet.is_open}
+        for pid in self._present_customers():
+            visit = self._visits[pid]
+            if (visit.entry_known and not visit.greeted and not visit.wait_alerted and pid not in being_greeted
                     and t - visit.enter_t > self.th.wait_alert + EPS):
                 visit.wait_alerted = True
                 self._emit("wait_alert", t, customer=visit.pid,
