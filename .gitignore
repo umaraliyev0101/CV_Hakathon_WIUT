@@ -18,3 +18,7 @@ models/*
 *.pt
 *.pth
 *.npz
+jobs/
+*.egg-info/
+.coverage
+.superpowers/
