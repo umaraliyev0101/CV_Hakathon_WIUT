@@ -38,12 +38,13 @@ class PerceptionEngine:
         t0 = time.perf_counter()
         obs = self.tracker.update(dets, t, frame_idx)
         self._time("track", t0)
-        t0 = time.perf_counter()
         if obs:
+            t0 = time.perf_counter()
             kps = self.pose_est.pose(frame, [o.bbox for o in obs])
+            assert len(kps) == len(obs), "pose returned a different number of skeletons than boxes"
             for o, kp in zip(obs, kps):
                 o.keypoints = [[float(v) for v in row] for row in kp]
-        self._time("pose", t0)
+            self._time("pose", t0)
         return obs
 
     def detect_vehicles(self, frame: np.ndarray) -> list[Det]:

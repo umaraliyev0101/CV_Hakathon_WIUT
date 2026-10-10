@@ -9,6 +9,9 @@ import supervision as sv
 from .config import Config
 from .datatypes import Det, TrackObs
 
+# supervision's ByteTrack is deprecated and warns; filter once at import (thread-safe, targeted).
+warnings.filterwarnings("ignore", message=r".*ByteTrack.*deprecated", category=FutureWarning)
+
 
 class Tracker:
     def __init__(self, sample_fps: float, cfg: Config):
@@ -17,16 +20,14 @@ class Tracker:
         self._make()
 
     def _make(self) -> None:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self._bt = sv.ByteTrack(
-                track_activation_threshold=self.cfg.track_activation_thr,
-                lost_track_buffer=int(self.cfg.track_buffer_s * self.sample_fps),
-                minimum_matching_threshold=self.cfg.track_match_thr,
-                # supervision scales the buffer by frame_rate/30 (max_time_lost = frame_rate/30*buffer);
-                # frame_rate=30 makes lost_track_buffer an exact count of *sampled* frames (2 s).
-                frame_rate=30,
-            )
+        self._bt = sv.ByteTrack(
+            track_activation_threshold=self.cfg.track_activation_thr,
+            lost_track_buffer=int(self.cfg.track_buffer_s * self.sample_fps),
+            minimum_matching_threshold=self.cfg.track_match_thr,
+            # supervision scales the buffer by frame_rate/30 (max_time_lost = frame_rate/30*buffer);
+            # frame_rate=30 makes lost_track_buffer an exact count of *sampled* frames (2 s).
+            frame_rate=30,
+        )
 
     def reset(self) -> None:
         self._make()
@@ -39,9 +40,7 @@ class Tracker:
             xyxy = np.zeros((0, 4), np.float32)
             conf = np.zeros((0,), np.float32)
         sd = sv.Detections(xyxy=xyxy, confidence=conf, class_id=np.zeros(len(dets), dtype=int))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            out = self._bt.update_with_detections(sd)
+        out = self._bt.update_with_detections(sd)
         res = []
         for i in range(len(out)):
             b = tuple(float(v) for v in out.xyxy[i])

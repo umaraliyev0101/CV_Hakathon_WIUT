@@ -1,3 +1,4 @@
+import pytest
 from pulse.config import get_config
 from pulse.datatypes import Det
 from pulse.tracking import Tracker
@@ -39,3 +40,25 @@ def test_reset():
     tr.reset()
     obs = tr.update(_dets(0), 0.0, 0)
     assert len(obs) == 2
+
+
+def test_gap_longer_than_buffer_gives_new_id():
+    tr = Tracker(5.0, get_config("short"))  # buffer = 10 sampled frames
+    first = None
+    for i in range(30):
+        obs = tr.update(_dets(i, skip_b=6 <= i < 20), i * 0.2, i)
+        if i == 0:
+            first = [o.track_id for o in obs if round(o.bbox[1]) == 120][0]
+    last = [o.track_id for o in obs if round(o.bbox[1]) == 120][0]
+    assert last != first
+
+
+def test_obs_carry_detection_bbox_and_score():
+    tr = Tracker(5.0, get_config("short"))
+    for i in range(3):
+        dets = [Det((100 + 5 * i, 100, 160 + 5 * i, 260), 0.87, "person")]
+        obs = tr.update(dets, i * 0.2, i)
+    assert len(obs) == 1
+    assert obs[0].bbox == pytest.approx(dets[0].bbox, abs=1e-3)
+    assert obs[0].score == pytest.approx(0.87, abs=1e-6)
+    assert (obs[0].t, obs[0].frame_idx) == (pytest.approx(0.4), 2)

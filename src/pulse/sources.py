@@ -31,7 +31,11 @@ def _unreadable(path) -> VideoError:
 
 
 def _src_fps(cap) -> tuple[float, bool]:
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    return pick_fps(cap.get(cv2.CAP_PROP_FPS))
+
+
+def pick_fps(fps) -> tuple[float, bool]:
+    """Container fps, or (25, True) when it is 0/NaN/negative/missing."""
     if not fps or not math.isfinite(fps) or fps <= 0:
         return FALLBACK_FPS, True
     return float(fps), False
@@ -102,7 +106,12 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
 
 
 def decode_jpeg(data: bytes, max_width: int = 960) -> np.ndarray:
-    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if not data:
+        raise ValueError("empty image data")
+    try:
+        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    except cv2.error as e:
+        raise ValueError(f"not a decodable image: {e}") from e
     if img is None:
         raise ValueError("not a decodable image")
     return _resize(img, max_width)
