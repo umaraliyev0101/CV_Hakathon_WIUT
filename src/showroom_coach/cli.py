@@ -34,6 +34,36 @@ def _cmd_fetch_models(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _cmd_bench_detectors(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from .perception import bench
+
+    for label, p in (("video", args.video), ("geom", args.geom), ("types", args.types)):
+        if not Path(p).is_file():
+            print(f"{label} file not found: {p}", file=sys.stderr)
+            return 2
+    if args.frames < 1:
+        print("--frames must be at least 1", file=sys.stderr)
+        return 2
+    names = tuple(n.strip() for n in args.models.split(",") if n.strip())
+    unknown = [n for n in names if n not in bench.CANDIDATES]
+    if not names or unknown:
+        print(f"unknown detector(s): {', '.join(unknown) or args.models!r}; "
+              f"choose from {', '.join(bench.CANDIDATES)}", file=sys.stderr)
+        return 2
+    try:
+        result = bench.bench_detectors(Path(args.video), Path(args.geom), Path(args.types),
+                                       frames=args.frames, models=names,
+                                       out=Path(args.out) if args.out else None)
+    except RuntimeError as exc:
+        print(f"bench-detectors failed: {exc}", file=sys.stderr)
+        return 1
+    print(bench.format_table(result))
+    print(f"wrote {result['out']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="showroom-coach",
@@ -45,6 +75,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("fetch-models", help="download model weights into models/ and write MANIFEST.json")
     p.add_argument("names", nargs="*", help="model names (default: every registered model)")
     p.set_defaults(handler=_cmd_fetch_models)
+
+    p = sub.add_parser("bench-detectors",
+                       help="benchmark person detectors against MEVA geom boxes (recall, precision, ms/frame)")
+    p.add_argument("--video", required=True, help="MEVA .avi clip")
+    p.add_argument("--geom", required=True, help="MEVA <clip>.geom.yml")
+    p.add_argument("--types", required=True, help="MEVA <clip>.types.yml")
+    p.add_argument("--frames", type=int, default=60, help="frames sampled evenly across the clip (default 60)")
+    p.add_argument("--models", default="yolox_nano,yolox_tiny,yolox_s,rfdetr_nano",
+                   help="comma-separated detectors to compare")
+    p.add_argument("--out", help="result JSON (default runs/bench/detectors.json)")
+    p.set_defaults(handler=_cmd_bench_detectors)
     return parser
 
 

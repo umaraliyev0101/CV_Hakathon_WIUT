@@ -62,7 +62,7 @@ class RoleWeights:
     contact_min_s: float = 5.0
 
 
-DEFAULT_DETECTOR = "yolox_tiny"  # set from the M0 benchmark
+DEFAULT_DETECTOR = "yolox_s"  # M0 benchmark (runs/bench/detectors.json): fastest within 5 recall points of the best
 SAMPLE_FPS = 5.0
 MAX_WIDTH = 960
 MAX_SECONDS = 300.0
