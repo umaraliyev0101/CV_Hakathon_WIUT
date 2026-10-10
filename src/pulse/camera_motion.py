@@ -104,7 +104,7 @@ def segments(times, grays=None, key_idx: int | None = 0, move_thr: float = 0.01,
         while j + 1 < n and flags[j + 1] == flags[i]:
             j += 1
         t1 = times[j + 1] if j + 1 < n else times[j]
-        same = True
+        same = False
         if not flags[i]:
             d, cut = motion_score(grays[key_idx], grays[(i + j) // 2])
             same = (not cut) and d < SAME_VIEW_THR

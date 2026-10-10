@@ -21,3 +21,13 @@ def test_perceive_caches_and_builds_people(meva_10s, tmp_path, capsys):
     assert pc.meta["rtf"] > 0
     with capsys.disabled():
         print("\nMETA", {k: pc.meta[k] for k in ("rtf", "perception_seconds", "embed_seconds", "n_samples")})
+
+
+def test_reused_engine_starts_fresh(meva_10s, tmp_path):
+    from pulse.engine import PerceptionEngine
+    cfg = get_config("short")
+    eng = PerceptionEngine(cfg)
+    a = pipeline.perceive(meva_10s, tmp_path / "a", cfg, engine=eng)
+    b = pipeline.perceive(meva_10s, tmp_path / "b", cfg, engine=eng)
+    ids = lambda pc: sorted({o.track_id for o in pc.obs})
+    assert ids(a) and ids(a) == ids(b)

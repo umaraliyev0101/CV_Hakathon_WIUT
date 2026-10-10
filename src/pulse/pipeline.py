@@ -20,7 +20,6 @@ from .timeline import build_timeline
 
 CROPS_PER_TRACK = 3
 MIN_CROP_SCORE = 0.5
-MIN_TRACK_S = 1.0
 CROP_SPACING_S = 1.0
 _MAX_KEPT = 12
 _CROP_SIZE = (112, 112)
@@ -35,6 +34,9 @@ def _pick(items: list, k: int) -> list:
 def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], None] | None = None,
              engine: PerceptionEngine | None = None) -> PerceptionCache:
     video, cache_root = Path(video), Path(cache_root)
+    if not video.is_file():
+        raise sources.VideoError(f"Video not found: {video}")
+    info = sources.probe(video)                       # VideoError propagates (before any hashing/caching)
     sha1 = cache_mod.file_sha1(video)
     key = cache_mod.video_key(video, cfg, sha1)
     cdir = cache_root / key
@@ -44,15 +46,15 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
         return cache_mod.load(cdir)
 
     t_start = time.perf_counter()
-    info = sources.probe(video)                       # VideoError propagates
     cache_mod.count_run()
     engine = engine or PerceptionEngine(cfg)
+    engine.reset()
     n_est = max(1, round(min(info.duration or cfg.max_duration_s, cfg.max_duration_s) * cfg.sample_fps))
     step = max(1, n_est // 20)
 
     obs, times, grays = [], [], []
     crops: dict[int, list[tuple[float, np.ndarray]]] = {}
-    t_span: dict[int, list[float]] = {}
+    best: dict[int, tuple[float, np.ndarray]] = {}   # best sub-threshold crop per track
     frame_w = frame_h = 0
     for k, (t, frame) in enumerate(sources.iter_frames(video, cfg.sample_fps, cfg.max_width,
                                                        cfg.max_duration_s)):
@@ -62,8 +64,6 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
         grays.append(to_gray_small(frame))
         for o in engine.process(t, frame, k):
             obs.append(o)
-            sp = t_span.setdefault(o.track_id, [t, t])
-            sp[1] = t
             lst = crops.setdefault(o.track_id, [])
             if o.score >= MIN_CROP_SCORE and (not lst or t - lst[-1][0] >= CROP_SPACING_S):
                 c = torso_crop(frame, o, cfg.kp_thr)
@@ -71,6 +71,10 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
                     lst.append((t, cv2.resize(c, _CROP_SIZE, interpolation=cv2.INTER_AREA)))
                     if len(lst) > _MAX_KEPT:
                         del lst[1::2]
+            elif o.score < MIN_CROP_SCORE and not lst and o.score > best.get(o.track_id, (-1,))[0]:
+                c = torso_crop(frame, o, cfg.kp_thr)       # fallback when no crop ever reaches 0.5
+                if c is not None:
+                    best[o.track_id] = (o.score, cv2.resize(c, _CROP_SIZE, interpolation=cv2.INTER_AREA))
         if progress and k % step == 0:
             progress(min(0.99, k / n_est))
 
@@ -89,10 +93,12 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
 
     # embeddings (timed separately; budget <= 20% of perception time)
     t_e = time.perf_counter()
-    embedder = Embedder()
+    embedder = Embedder(providers=engine.providers)
     groups = {tid: [c for _, c in _pick(lst, CROPS_PER_TRACK)] for tid, lst in crops.items() if lst}
-    long_tracks = [tid for tid in groups if t_span[tid][1] - t_span[tid][0] >= MIN_TRACK_S]
-    embeddings = embedder.embed_many(groups, dino_keys=long_tracks)
+    for tid, (_, c) in best.items():
+        if not groups.get(tid):
+            groups[tid] = [c]
+    embeddings = embedder.embed_many(groups)
     embed_seconds = time.perf_counter() - t_e
 
     perception_seconds = time.perf_counter() - t_start

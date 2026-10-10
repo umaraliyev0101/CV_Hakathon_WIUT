@@ -38,3 +38,20 @@ def test_torso_crop_falls_back_to_box_rows():
     o = TrackObs(0.0, 0, 1, (50, 0, 150, 100), 0.9, None)
     c = torso_crop(frame, o, 0.3)
     assert c is not None and c.shape[:2] == (40, 100)  # rows 20%..60% of the box
+
+
+def test_embed_many_equal_length_and_absent_for_empty():
+    e = Embedder(use_dino=True)
+    if not e.uses_dino:
+        import pytest
+        pytest.skip("DINOv2 model not present")
+    out = e.embed_many({1: [solid((0, 0, 255))], 2: [solid((255, 0, 0)), solid((250, 5, 0))], 3: []})
+    assert set(out) == {1, 2}
+    assert out[1].shape == out[2].shape == (e.dim,) and e.dim == 64 + 384
+    assert abs(np.linalg.norm(out[1]) - 1) < 1e-6
+
+
+def test_hsv_fallback_same_length_for_all():
+    e = Embedder(use_dino=False)
+    out = e.embed_many({1: [solid((0, 0, 255))], 2: [solid((255, 0, 0))]})
+    assert out[1].shape == out[2].shape == (64,)

@@ -11,6 +11,9 @@ import numpy as np
 
 from pulse.datatypes import TrackObs
 
+from pathlib import Path
+
+MODELS_DIR = Path(__file__).resolve().parents[3] / "models"
 log = logging.getLogger("pulse.embed")
 
 HSV_BINS = (16, 4)
@@ -54,7 +57,7 @@ def torso_crop(frame: np.ndarray, obs: TrackObs, kp_thr: float) -> np.ndarray | 
 
 
 class Embedder:
-    def __init__(self, use_dino: bool = True, models_dir="models", providers=("CPUExecutionProvider",)):
+    def __init__(self, use_dino: bool = True, models_dir=MODELS_DIR, providers=("CPUExecutionProvider",)):
         self.session = None
         self.dim = HSV_DIM
         if use_dino:
@@ -82,25 +85,20 @@ class Embedder:
             out.append(res[:, 0])
         return np.concatenate(out) if out else np.zeros((0, DINO_DIM), np.float32)
 
-    def embed_many(self, groups: dict, dino_keys=None) -> dict:
-        """groups: key -> list of crops. Keys not in ``dino_keys`` (default: all) get HSV only
-        (zero DINO part, so every vector has the same length). Empty groups are dropped."""
+    def embed_many(self, groups: dict) -> dict:
+        """groups: key -> list of crops. Every non-empty group gets the full vector (HSV + DINOv2, or
+        HSV only for all groups when DINOv2 is unavailable); empty groups are absent from the result."""
         keys = [k for k, c in groups.items() if c]
-        use = set(keys if dino_keys is None else dino_keys) if self.uses_dino else set()
-        flat = [c for k in keys if k in use for c in groups[k]]
-        feats = self.dino(flat) if flat else None
+        feats = self.dino([c for k in keys for c in groups[k]]) if self.uses_dino and keys else None
         res, pos = {}, 0
         for k in keys:
             crops = groups[k]
             hsv = _unit(np.mean([hsv_hist(c) for c in crops], axis=0))
-            if not self.uses_dino:
+            if feats is None:
                 res[k] = hsv
                 continue
-            if k in use:
-                f = _unit(feats[pos:pos + len(crops)].astype(np.float64).mean(axis=0))
-                pos += len(crops)
-            else:
-                f = np.zeros(DINO_DIM)
+            f = _unit(feats[pos:pos + len(crops)].astype(np.float64).mean(axis=0))
+            pos += len(crops)
             res[k] = _unit(np.concatenate([0.5 * hsv, 0.5 * f]))
         return res
 

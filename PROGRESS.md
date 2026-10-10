@@ -35,8 +35,8 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 ### M2 / Task 13: embeddings, camera motion, perception cache
 - `pulse.pipeline.perceive` caches per video in `runs/cache/<key>/` (CPU, yolox_s + rtmpose_s + DINOv2-small, `sample_fps` 5, width 960).
 - Measured RTF (analysed seconds / perception seconds, includes embeddings and keyframe car detection):
-  - MEVA 10 s clip (60 s mark): RTF 1.44, perception 6.96 s, embed 0.43 s (6%).
-  - Full 300 s MEVA dev clip (G423): RTF 1.66, perception 180.6 s, embed 4.9 s (2.7%); 2197 obs, 68 embedded tracks, 52 persons, one stable segment, keyframe t=149.8 s, 0 vehicles (hallway). Cache kept at `runs/cache/` for later tasks.
+  - MEVA 10 s clip (60 s mark): RTF 1.49, perception 6.69 s, embed 0.43 s (6%).
+  - Full 300 s MEVA dev clip (G423): RTF 1.65, perception 181.6 s, embed 5.3 s (2.9%); 2197 obs, 69 embedded tracks, 51 persons, one stable segment, keyframe t=149.8 s, 0 vehicles (hallway). Cache kept at `runs/cache/` for later tasks.
 
 ## Decisions
 
@@ -68,3 +68,4 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11 (Task 13): crops per track = 3 (controller ruling, brief said 5), score >= 0.5, one candidate per second (thinned to 12), picked evenly; tracks < 1.0 s get HSV-only embeddings padded with a zero DINO part so all vectors have equal length (such a vector can never reach merge_sim_thr against a full one: cosine <= 0.71). Crops stored 112x112, not full frames.
 - 2026-10-11 (Task 13): camera-motion cut test uses a 64-bin grayscale histogram correlation (< 0.5), since only grays are kept (brief says HSV histogram). Cut displacement is reported as 1.0. Segment t1 = start of the next segment (contiguous cover). Keyframe = middle frame of the longest stable run; re-read afterwards with iter_frames. The raw keyframe is only written to the cache dir.
 - 2026-10-11 (Task 13): `PerceptionCache` has an extra `keyframe` field (raw BGR, saved but not loaded; use `keyframe_path`). `cache.save` writes to a temp dir and renames; `exists` requires all five data files. `video_key` = sha1(file sha1 + sample_fps, max_width, max_duration_s, detector, pose_model).
+- 2026-10-11 (Task 13 fix round 1, controller ruling): the zero-padded HSV-only scheme is removed. Every track with >= 1 crop gets the full HSV+DINOv2 embedding (<= 3 crops; if no crop reaches score 0.5 its best-score crop is used); a track with no crop has no embedding (never merged). DINOv2 unavailable -> HSV-only for all tracks. `PerceptionEngine.reset()` is called at the start of each perceive; missing/corrupt video raises VideoError before any hashing or cache dir; cache temp dir via tempfile.mkdtemp; Embedder uses the repo-relative models dir and the engine's providers; non-stable segments have same_view=False.

@@ -18,6 +18,7 @@ _WINDOW = 50
 class PerceptionEngine:
     def __init__(self, cfg: Config, providers=("CPUExecutionProvider",)):
         self.cfg = cfg
+        self.providers = tuple(providers)
         self.detector = Detector(cfg.detector, cfg, providers=providers)
         self.pose_est = PoseEstimator(cfg.pose_model, providers=providers)
         self.tracker = Tracker(cfg.sample_fps, cfg)
@@ -27,6 +28,12 @@ class PerceptionEngine:
     def timings(self) -> dict[str, float]:
         """Rolling mean ms per stage."""
         return {k: (float(np.mean(v)) if v else 0.0) for k, v in self._ms.items()}
+
+    def reset(self) -> None:
+        """Forget tracker state and timings (call before each new video)."""
+        self.tracker.reset()
+        for d in self._ms.values():
+            d.clear()
 
     def _time(self, key: str, t0: float) -> None:
         self._ms[key].append((time.perf_counter() - t0) * 1000.0)

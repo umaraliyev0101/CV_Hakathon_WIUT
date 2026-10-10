@@ -53,3 +53,10 @@ def test_segments_shifted_then_still():
     assert segs[0].t0 == 0.0 and segs[-1].t1 == times[-1]
     assert segs[0].same_view is False      # first segment sits at a different view than the keyframe
     assert segs[2].same_view is True
+
+
+def test_moving_segments_are_not_same_view():
+    a = textured()
+    grays = [a, shift(a, 12), shift(a, 24), shift(a, 24), shift(a, 24)]
+    segs = segments([i * 0.2 for i in range(5)], grays, key_idx=3, move_thr=0.01)
+    assert all(not s.same_view for s in segs if not s.stable)

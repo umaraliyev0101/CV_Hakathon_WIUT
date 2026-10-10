@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -68,10 +69,7 @@ def exists(d) -> bool:
 def save(pc: PerceptionCache) -> None:
     d = Path(pc.dir)
     d.parent.mkdir(parents=True, exist_ok=True)
-    tmp = d.parent / f".{d.name}.tmp{os.getpid()}"
-    if tmp.exists():
-        shutil.rmtree(tmp)
-    tmp.mkdir()
+    tmp = Path(tempfile.mkdtemp(prefix=f".{d.name}.", suffix=".tmp", dir=d.parent))
     try:
         n = len(pc.obs)
         kps = np.full((n, 17, 3), np.nan)
