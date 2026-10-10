@@ -5,7 +5,7 @@ import { renderDashboard, h } from "/static/dashboard.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = ["upload", "zones", "staff", "results"];
-const state = { jobId: null, fromResults: false, rolesSkipped: false, changed: {}, people: [], stopDash: null, polling: 0 };
+const state = { jobId: null, fromResults: false, changed: {}, people: [], stopDash: null, polling: 0 };
 
 async function req(url, opts) {
   let res;
@@ -33,7 +33,6 @@ function showStep(name) {
 function setJob(id) {
   state.jobId = id;
   location.hash = id ? `job=${id}` : "";
-  try { state.rolesSkipped = !!id && sessionStorage.getItem(`skip-${id}`) === "1"; } catch { state.rolesSkipped = false; }
 }
 
 // ------------------------------------------------------------------ 1. upload + progress
@@ -75,7 +74,10 @@ async function pollJob() {
   while (mine === state.polling) {
     let st;
     try { st = await req(`/api/jobs/${state.jobId}`); }
-    catch (err) { notice(err.message); $("upload-btn").disabled = false; return; }
+    catch {
+      try { await new Promise((r) => setTimeout(r, 1000)); st = await req(`/api/jobs/${state.jobId}`); }   // one retry
+      catch (err) { notice(err.message); $("upload-btn").disabled = false; return; }
+    }
     if (mine !== state.polling) return;
     if (st.state === "failed") {
       notice(st.message || "Analysis failed."); $("upload-btn").disabled = false; showStep("upload"); return;
@@ -128,6 +130,7 @@ async function openStaff() {
   } catch (err) { notice(err.message); }
 }
 
+const baseline = (p) => (p.suggested_role === "staff" ? "staff" : "customer");   // what the backend uses with no override
 function effectiveRole(p) { return state.changed[p.person_id] || (p.role === "staff" ? "staff" : "customer"); }
 
 function renderPeople() {
@@ -155,10 +158,10 @@ function renderPeople() {
 async function finishStaff(skip) {
   const ok = $("staff-ok"), sk = $("staff-skip"); ok.disabled = sk.disabled = true;
   try {
-    const overrides = skip ? {} : Object.fromEntries(Object.entries(state.changed));
+    // PUT replaces all overrides, so send the FULL set: everyone whose chosen role differs from the suggestion
+    const overrides = {};
+    if (!skip) for (const p of state.people) if (effectiveRole(p) !== baseline(p)) overrides[p.person_id] = effectiveRole(p);
     await putJson(`/api/jobs/${state.jobId}/roles`, { overrides, skip });
-    try { sessionStorage.setItem(`skip-${state.jobId}`, skip ? "1" : "0"); } catch { /* optional */ }
-    state.rolesSkipped = skip;
     await scoreNow();
   } catch (err) { notice(err.message); }
   finally { ok.disabled = sk.disabled = false; }
@@ -182,7 +185,7 @@ function showResults(report) {
   state.stopDash?.();
   showStep("results");
   state.stopDash = renderDashboard($("dashboard"), report, {
-    jobId: state.jobId, rolesSkipped: state.rolesSkipped,
+    jobId: state.jobId,
     getStatus: () => req(`/api/jobs/${state.jobId}`),
     onEditZones: () => { state.stopDash?.(); state.fromResults = true; openZones(); },
     onEditRoles: () => { state.stopDash?.(); state.fromResults = true; openStaff(); },

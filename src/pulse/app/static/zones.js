@@ -105,10 +105,9 @@ export class ZoneEditor {
     document.addEventListener("keydown", (e) => {
       if (this.els.panel.hidden) return;
       const tag = (e.target.tagName || "").toLowerCase();
+      if (["input", "select", "textarea", "button"].includes(tag)) return;   // never act while a control has focus
       if (e.key === "Escape") { this.draft = null; this.setMode("select"); this.draw(); return; }
-      if ((e.key === "Delete" || e.key === "Backspace") && !["input", "select", "textarea"].includes(tag)) {
-        if (this.selected !== null) { e.preventDefault(); this.deleteSelected(); }
-      }
+      if (e.key === "Delete" && this.selected !== null) { e.preventDefault(); this.deleteSelected(); }
     });
   }
 

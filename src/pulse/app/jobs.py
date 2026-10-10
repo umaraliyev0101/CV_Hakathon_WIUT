@@ -61,6 +61,7 @@ class Job:
     overrides: dict[int, str] = field(default_factory=dict)
     imported: dict[int, str] = field(default_factory=dict)
     generation: int = 0            # bumped on every score; stale background renders are discarded
+    roles_skipped: bool = False    # user chose "Skip": everyone is scored as a customer
     pc: object = None              # PerceptionCache, loaded lazily
     lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
@@ -79,7 +80,7 @@ class Job:
     def status(self) -> dict:
         return {"job_id": self.job_id, "state": self.state, "progress": round(self.progress, 4),
                 "message": self.message, "preset": self.preset, "warnings": list(self.warnings),
-                "video_state": self.video_state}
+                "video_state": self.video_state, "roles_skipped": self.roles_skipped}
 
     def set_analysis_warnings(self, ws: list[str]) -> None:
         """Status warnings = perception-time warnings + the latest analysis warnings, de-duplicated."""
@@ -106,7 +107,7 @@ class Job:
                 "video_state": self.video_state, "cache_dir": self.cache_dir,
                 "overrides": {str(k): v for k, v in self.overrides.items()},
                 "imported": {str(k): v for k, v in self.imported.items()},
-                "generation": self.generation}
+                "generation": self.generation, "roles_skipped": self.roles_skipped}
 
     def save(self) -> None:
         with self.lock:
@@ -152,7 +153,8 @@ class JobStore:
                       list(d.get("warnings", [])), list(d.get("base_warnings", [])),
                       d.get("video_state", "none"), d.get("cache_dir"),
                       {int(k): v for k, v in d.get("overrides", {}).items()},
-                      {int(k): v for k, v in d.get("imported", {}).items()}, int(d.get("generation", 0)))
+                      {int(k): v for k, v in d.get("imported", {}).items()}, int(d.get("generation", 0)),
+                      bool(d.get("roles_skipped", False)))
             if job.state in ("queued", "perceiving"):
                 job.state, job.message = "failed", "Interrupted by a server restart; please upload again."
             if job.video_state == "rendering":

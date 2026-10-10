@@ -40,6 +40,7 @@ CHUNK = 1024 * 1024
 ZONE_KINDS = ("car", "desk", "entrance", "lounge", "other")
 ROLES = ("staff", "customer")
 MIN_ZONE_AREA = 1e-4
+SKIP_WARNING = "Roles skipped: everyone counted as a customer"
 
 
 class ZoneError(ValueError):
@@ -341,7 +342,8 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                                     status_code=422)
             parsed[pid] = v
         with job.lock:
-            job.overrides = {} if body.get("skip") else parsed     # skip = keep suggested roles only
+            job.roles_skipped = bool(body.get("skip"))     # skip = everyone is a customer
+            job.overrides = {} if job.roles_skipped else parsed
             job.save()
         return {"overrides": {str(k): v for k, v in job.overrides.items()}, "skip": bool(body.get("skip"))}
 
@@ -397,8 +399,13 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                 cfg = get_config(preset)
                 pc = job.get_pc()
                 zones = zones_mod.load_zones(job.zones_path) if job.zones_path.is_file() else None
-                analysis = pipeline.score(pc, cfg, zones=zones, overrides=job.overrides or None,
-                                          imported_roles=job.imported or None)
+                if job.roles_skipped:     # spec 3: skip means everyone is a customer
+                    everyone = {p["person_id"]: "customer" for p in read_people(job)}
+                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=everyone)
+                    analysis.stats.warnings.append(SKIP_WARNING)
+                else:
+                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=job.overrides or None,
+                                              imported_roles=job.imported or None)
                 pipeline.write_outputs(pc, analysis, job.out_dir, cfg, video=job.input_path,
                                        render_video=False)
             except Exception as e:  # noqa: BLE001

@@ -152,7 +152,6 @@ export function renderDashboard(root, report, ctx) {
   const { jobId } = ctx;
   const st = report.store || {}, files = report.files || {};
   const warnings = [...(report.warnings || [])];
-  if (ctx.rolesSkipped) warnings.push("Roles skipped: everyone counted as a customer");
   root.textContent = "";
 
   const video = h("video", { controls: true, preload: "metadata", "aria-label": "Annotated showroom video" });

@@ -408,3 +408,49 @@ def test_rescore_without_render_removes_stale_video(make_client, video):
     assert c.get(f"/api/jobs/{jid}/files/annotated.mp4").status_code == 200
     c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
     assert c.get(f"/api/jobs/{jid}/files/annotated.mp4").status_code == 404
+
+
+def _roles_of(c, jid):
+    return {p["person_id"]: p["role"] for p in c.get(f"/api/jobs/{jid}/people").json()}
+
+
+def test_put_roles_replaces_so_full_set_applies(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    a, b = (p["person_id"] for p in c.get(f"/api/jobs/{jid}/people").json())
+    c.put(f"/api/jobs/{jid}/roles", json={"overrides": {str(a): "staff"}})
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    c.put(f"/api/jobs/{jid}/roles", json={"overrides": {str(a): "staff", str(b): "staff"}})
+    assert c.post(f"/api/jobs/{jid}/score", json={"render_video": False}).status_code == 200
+    assert _roles_of(c, jid) == {a: "staff", b: "staff"}
+    res = c.get(f"/api/jobs/{jid}/results").json()
+    assert {p["person_id"]: p["role"] for p in res["people"]} == {a: "staff", b: "staff"}
+    assert res["store"]["visitors"] == 0
+
+
+SKIP_WARNING = "Roles skipped: everyone counted as a customer"
+
+
+def test_skip_roles_makes_everyone_customer_and_warns(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    a = c.get(f"/api/jobs/{jid}/people").json()[0]["person_id"]
+    imported = ('{"persons": [{"person_id": %d, "role": "staff"}]}' % a).encode()
+    c.post(f"/api/jobs/{jid}/roles/import", files={"file": ("roles.json", imported, "application/json")})
+    assert c.put(f"/api/jobs/{jid}/roles", json={"overrides": {}, "skip": True}).status_code == 200
+    assert c.get(f"/api/jobs/{jid}").json()["roles_skipped"] is True
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    res = c.get(f"/api/jobs/{jid}/results").json()
+    assert res["store"]["staff"] == 0 and res["store"]["visitors"] == 2
+    assert all(p["role"] == "customer" for p in res["people"])
+    assert SKIP_WARNING in res["warnings"]
+    assert SKIP_WARNING in c.get(f"/api/jobs/{jid}").json()["warnings"]
+    assert SKIP_WARNING in c.get(f"/api/jobs/{jid}/files/report.json").text
+    # any non-skip PUT clears it; imported role applies again
+    c.put(f"/api/jobs/{jid}/roles", json={"overrides": {}})
+    assert c.get(f"/api/jobs/{jid}").json()["roles_skipped"] is False
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    res = c.get(f"/api/jobs/{jid}/results").json()
+    assert res["store"]["staff"] == 1 and SKIP_WARNING not in res["warnings"]
