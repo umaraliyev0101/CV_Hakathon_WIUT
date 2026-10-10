@@ -47,3 +47,4 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11 (Task 2): slow test uses MEVA dev frame 700, not 300: frame 300 of the dev clip has no GT person (first appears ~621); frame 700 has a GT person (CLIPS.md).
 - 2026-10-11 (Task 2): `labels/split.json` created now (dev = G423 03-11 + G420; test = other four) so `meva_dev_clip` can read it.
 - 2026-10-11 (Task 2): fixtures named `mini.*` (flow dialect) and `minidict.*` (quoted dict dialect); `pulse bench detectors --showroom` accepts several images.
+- 2026-10-11 (Task 3): `position_m` full mode uses the mean of confident ankles (same as the foot point) for height; falls back to box if hips/shoulders are inverted. `faces` returns None when facing is unknown or the two positions coincide. `facing_dir` torso height with missing hips = vertical extent of confident keypoints / 3 (the brief's "box/3" has no box argument).
