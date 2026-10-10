@@ -39,7 +39,7 @@ def _analyze(args) -> int:
     try:
         res = pipeline.analyze(args.video, args.out, args.preset, args.zones, args.roles, args.cache,
                                render_video=not args.no_video)
-    except (VideoError, ValueError, OSError) as e:
+    except VideoError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     s = res.stats.store

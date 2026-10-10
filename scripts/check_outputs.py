@@ -118,13 +118,19 @@ def check_dir(d: Path, video: bool = True, say=print) -> None:
     report = json.loads((d / "report.json").read_text())
     names = list(FIXED[1:])
     names += sorted(set(report["files"].values()) - set(FIXED) - {"annotated.mp4"})
-    for rel in names:
-        suffix = Path(rel).suffix
-        fn = {".json": check_json, ".csv": check_csv, ".png": check_image, ".jpg": check_image,
-              ".svg": check_svg}[suffix]
-        run(rel, fn)
+    handlers = {".json": check_json, ".csv": check_csv, ".png": check_image, ".jpg": check_image,
+                ".svg": check_svg}
     for rel in report["files"].values():
-        _need(rel == "annotated.mp4" and not video or (d / rel).is_file(), f"{d / rel}: listed in files but missing")
+        pr = Path(str(rel))
+        if pr.is_absolute() or ".." in pr.parts:
+            raise CheckError(f"{d / 'report.json'}: files entry {rel!r} escapes the output directory")
+        if pr.suffix not in handlers and rel != "annotated.mp4":
+            raise CheckError(f"{d / 'report.json'}: files entry {rel!r} has an unknown file type")
+    for rel in names:
+        run(rel, handlers[Path(rel).suffix])
+    for rel in report["files"].values():
+        _need((rel == "annotated.mp4" and not video) or (d / rel).is_file(),
+              f"{d / rel}: listed in files but missing")
     if video:
         run("annotated.mp4", lambda p, rel: check_video(p, report["meta"]))
 

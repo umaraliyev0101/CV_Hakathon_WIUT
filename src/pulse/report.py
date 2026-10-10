@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 from collections import Counter
 from pathlib import Path
 
@@ -51,13 +52,6 @@ def observations_by_t(pc) -> dict[float, list]:
     return out
 
 
-def _nearest(obs_t: dict[float, list], t: float) -> list:
-    if not obs_t:
-        return []
-    k = min(obs_t, key=lambda x: abs(x - t))
-    return obs_t[k] if abs(k - t) < 0.5 else []
-
-
 def build_overlays(analysis, pc, cfg: Config) -> dict[float, render_mod.FrameOverlay]:
     sample_fps = cfg.sample_fps
     n = int(pc.meta.get("n_samples", 0))
@@ -94,18 +88,36 @@ def build_overlays(analysis, pc, cfg: Config) -> dict[float, render_mod.FrameOve
     return overlays
 
 
-def _keyframe(pc, video, obs_t, size) -> np.ndarray:
-    """Face-blurred keyframe. Raw frame from the cache dir, else re-read from the video, else grey."""
+def _keyframe(pc, video, obs_t, cfg: Config, warnings: list[str]) -> np.ndarray:
+    """Face-blurred keyframe in analysis-frame size. Raw frame from the cache dir, else re-read from
+    the video at the analysis width. An image that cannot be reconciled with the analysis frame (so
+    the boxes would not line up) is replaced by a neutral grey background, never shown unblurred."""
+    fw, fh = int(pc.meta["frame_w"]), int(pc.meta["frame_h"])
     img = cv2.imread(str(pc.keyframe_path)) if pc.keyframe_path.is_file() else None
     if img is None and video is not None:
-        for t, frame in sources.iter_frames(video, pc.meta["sample_fps"], 10_000,
+        for t, frame in sources.iter_frames(video, cfg.sample_fps, cfg.max_width,
                                             pc.meta.get("analysed_duration")):
-            if t >= pc.keyframe_t:
+            if t >= pc.keyframe_t - 1e-6:
                 img = frame
                 break
+    if img is not None and img.shape[:2] != (fh, fw):
+        h, w = img.shape[:2]
+        if abs(w / h - fw / fh) <= 0.02 * fw / fh:
+            img = cv2.resize(img, (fw, fh), interpolation=cv2.INTER_AREA)
+        else:
+            img = None
+            warnings.append("Keyframe does not match the analysis frame; grey background used")
     if img is None:
-        img = np.full((size[1], size[0], 3), 128, np.uint8)
-    return render_mod.blur_faces(img, _nearest(obs_t, pc.keyframe_t))
+        return np.full((fh, fw, 3), 128, np.uint8)
+    key_t = round(pc.keyframe_t, 3)
+    boxes = obs_t.get(key_t)
+    if boxes is None:
+        near = [k for k in obs_t if abs(k - key_t) <= 0.5 / cfg.sample_fps]
+        boxes = obs_t[min(near, key=lambda k: abs(k - key_t))] if near else []
+        if obs_t:
+            warnings.append("Keyframe time has no detections of its own; faces blurred from the "
+                            "nearest sample, if any")
+    return render_mod.blur_faces(img, boxes)
 
 
 def _heatmap(key: np.ndarray, stats) -> np.ndarray:
@@ -188,6 +200,19 @@ def _thumbnails(analysis, pc, video, cfg, obs_t, out_dir: Path) -> dict[int, str
     return paths
 
 
+_OWNED = ["report.json", "stats.json", "insights.json", "zones.json", "roles.json", "people.json",
+          "visits.csv", "per_car.csv", "occupancy.csv", "heatmap.png", "occupancy.svg", "waiting.svg",
+          "journey_flow.json", "keyframe.jpg", "annotated.mp4", "annotated.part.mp4"]
+
+
+def _clean(out_dir: Path) -> None:
+    """Remove stale outputs of an earlier run; touches only the names this module writes."""
+    for name in _OWNED:
+        (out_dir / name).unlink(missing_ok=True)
+    for sub in ("thumbs", "contact_sheets"):
+        shutil.rmtree(out_dir / sub, ignore_errors=True)
+
+
 def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: bool = False) -> dict:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -200,7 +225,9 @@ def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: b
         files[name] = rel
         return out_dir / rel
 
-    key = _keyframe(pc, video, obs_t, size)
+    warnings = list(st.warnings)
+    _clean(out_dir)
+    key = _keyframe(pc, video, obs_t, cfg, warnings)
     cv2.imwrite(str(put("keyframe", "keyframe.jpg")), key, [cv2.IMWRITE_JPEG_QUALITY, 92])
     cv2.imwrite(str(put("heatmap", "heatmap.png")), _heatmap(key, st))
     _line_chart(put("occupancy_chart", "occupancy.svg"), st.occupancy, "Customers present", "customers")
@@ -252,8 +279,9 @@ def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: b
                 try:
                     render_mod.contact_sheet(video, ins.moments, overlays, put(f"contact_sheet_{k}", rel),
                                              cfg, obs_t)
-                except ValueError:
+                except ValueError as e:
                     files.pop(f"contact_sheet_{k}", None)
+                    warnings.append(f"Contact sheet for insight {k} failed: {e}")
     if render_video and video is not None:
         render_mod.render(video, overlays, put("annotated_video", "annotated.mp4"), cfg, obs_t)
 
@@ -263,7 +291,7 @@ def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: b
               "journey_flow": flow,
               "charts": {"occupancy": st.occupancy, "waiting": st.waiting, "crowding": st.crowding,
                          "time_buckets": st.time_buckets},
-              "files": files, "warnings": st.warnings}
+              "files": files, "warnings": warnings}
     files["report"] = "report.json"
     _dump(out_dir / "report.json", report)
     return report

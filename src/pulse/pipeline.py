@@ -173,7 +173,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
     extra = []
     if pc.meta.get("trimmed"):
         extra.append(f"Video trimmed to the first {int(cfg.max_duration_s)} s")
-    st = stats_mod.compute(persons, journeys, roles, cfg, timeline=stable, episodes=episodes,
+    st = stats_mod.compute(persons, journeys, roles, cfg, timeline=timeline, episodes=episodes,
                            assist=assist, zones=zones, duration=duration, frame_size=size,
                            analysed_share=share, extra_warnings=extra)
     ins = insights_mod.recommend(st, episodes, cfg)

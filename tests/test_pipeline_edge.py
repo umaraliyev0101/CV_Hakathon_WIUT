@@ -32,7 +32,21 @@ def test_trim_warning_in_stats(tmp_path):
     assert any("trimmed" in w for w in a.stats.warnings)
 
 
-def test_rescore_does_not_run_models(tmp_path):
+def test_rescore_does_not_run_models(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise AssertionError("model path touched during re-scoring")
+    monkeypatch.setattr(pipeline, "PerceptionEngine", boom)
+    monkeypatch.setattr(pipeline, "perceive", boom)
     before = cache.perception_runs()
     pipeline.score(synthetic_cache(tmp_path, []), get_config("dealership"), zones=[])
     assert cache.perception_runs() == before
+
+
+def test_entry_during_unstable_segment_still_counted(tmp_path):
+    from pulse.datatypes import StableSegment, TrackObs
+    obs = [TrackObs(round(4 + i * 0.2, 3), i, 1, (0, 200, 60, 400), 0.9, None) for i in range(20)]
+    pc = synthetic_cache(tmp_path, obs)
+    pc.segments = [StableSegment(0, 10, False, False), StableSegment(10, 20, True, True)]
+    a = pipeline.score(pc, get_config("short"), zones=[])
+    assert a.stats.store["visitors"] == 1 and a.stats.store["entries"] == 1
+    assert any("analysed" in w for w in a.stats.warnings)
