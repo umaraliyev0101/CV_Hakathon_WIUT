@@ -45,9 +45,10 @@ def _cos(a: np.ndarray | None, b: np.ndarray | None) -> float | None:
     if a is None or b is None:
         return None
     na, nb = float(np.linalg.norm(a)), float(np.linalg.norm(b))
-    if na == 0.0 or nb == 0.0:
+    if a.shape != b.shape or not (math.isfinite(na) and math.isfinite(nb)) or na == 0.0 or nb == 0.0:
         return None
-    return float(np.dot(a, b) / (na * nb))
+    sim = float(np.dot(a, b) / (na * nb))
+    return sim if math.isfinite(sim) else None
 
 
 def _plausible(end_foot, start_foot, gap: float, cfg: Config) -> bool:
@@ -107,13 +108,13 @@ def reattach(lost: list[TrackSummary], new: TrackSummary, now: float, cfg: Confi
     best, best_sim = None, -1.0
     for l in lost:
         gap = now - l.t_end
-        if gap > cfg.preset.leave_after:
+        if gap < 0 or gap > cfg.preset.leave_after:
             continue
         sim = _cos(l.emb, new.emb)
         if sim is None or sim < cfg.merge_sim_thr:
             continue
         if not _plausible(l.end_foot, new.start_foot, gap, cfg):
             continue
-        if sim > best_sim:
+        if sim > best_sim or (sim == best_sim and best is not None and l.track_id < best):
             best, best_sim = l.track_id, sim
     return best

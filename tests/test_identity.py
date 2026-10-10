@@ -49,3 +49,45 @@ def test_summarize_normalises_feet_and_skips_garbage():
     assert s[5].start_foot == pytest.approx((0.475, 1.0))
     assert s[5].end_foot == pytest.approx((0.925, 1.0))
     assert summarize(obs, {}, (200, 100))[5].emb is None
+
+
+def test_three_fragment_chain_merges_into_one_person():
+    tr = {1: ts(1, 0, 10), 2: ts(2, 11, 20), 3: ts(3, 21, 30)}
+    persons = merge(tr, CFG)
+    assert groups(persons) == [(1, 2, 3)]
+    assert (persons[0].first_t, persons[0].last_t) == (0, 30)
+
+
+def test_overlap_guard_rejects_join_via_other_member():
+    # 1~3 are a valid pair on their own, but 2 (in 1's cluster) overlaps 3.
+    tr = {1: ts(1, 0, 5), 2: ts(2, 3, 12), 3: ts(3, 6, 10)}
+    assert groups(merge(tr, CFG)) == [(1, 3), (2,)]
+
+
+def test_join_refused_when_a_is_not_latest_ending_of_its_cluster():
+    # 1+2 merge first (sim .9). Then (1,3) has no time overlap but 1 is not the cluster end.
+    tr = {1: ts(1, 0, 5, emb=(1.0, 0.0)),
+          2: ts(2, 6, 10, emb=(0.9, float(np.sqrt(1 - 0.81)))),
+          3: ts(3, 10.1, 15, emb=(0.8, -0.6))}
+    assert groups(merge(tr, CFG)) == [(1, 2), (3,)]
+
+
+def test_reattach_picks_highest_similarity_and_breaks_ties_by_id():
+    new = ts(20, 12, 12, a=(0.52, 0.8))
+    worse = ts(5, 0, 10, emb=(0.8, 0.6))      # cos .8
+    better = ts(9, 0, 10, emb=(0.99, 0.141))  # cos ~.99
+    assert reattach([worse, better], new, now=12, cfg=CFG) == 9
+    t1, t2 = ts(9, 0, 10), ts(4, 0, 10)
+    assert reattach([t1, t2], new, now=12, cfg=CFG) == 4
+
+
+def test_reattach_rejects_track_ending_after_now():
+    assert reattach([ts(7, 0, 13)], ts(20, 12, 12), now=12, cfg=CFG) is None
+
+
+def test_non_finite_or_mismatched_embeddings_never_merge():
+    nan = {1: ts(1, 0, 10), 2: ts(2, 11, 20, emb=(float("nan"), 0.0))}
+    assert groups(merge(nan, CFG)) == [(1,), (2,)]
+    dim = {1: ts(1, 0, 10), 2: ts(2, 11, 20, emb=(1.0, 0.0, 0.0))}
+    assert groups(merge(dim, CFG)) == [(1,), (2,)]
+    assert reattach([ts(7, 0, 10, emb=(float("inf"), 0.0))], ts(20, 12, 12), 12, CFG) is None
