@@ -1,0 +1,253 @@
+# Plain-language pages, Tier C. Names must match content/c-tier.txt.
+
+@ PlumeWatch
+tag: Spots trucks blowing black smoke or driving with uncovered loads, from road cameras.
+story: Existing roadside cameras watch passing trucks. PlumeWatch grades how dark each truck's exhaust smoke is, checks whether loads are covered, reads the plate, and keeps a list of repeat offenders for inspectors to send for repair.
+why: Vehicles cause about 16% of Tashkent's air pollution, and the city has a smog commission. Fixing the worst trucks gives the biggest gain.
+uses: An ecology inspector targets the dirtiest trucks || The smog commission tracks repairs || A city measures progress against smog
+buyers: The city's ecology committee and smog commission.
+
+@ SightTriangle
+tag: Checks whether drivers can really see pedestrians at a crossing, from a phone video.
+story: An auditor stands at the stop line and slowly pans a phone across the junction. SightTriangle finds what blocks the view, like kiosks or parked cars, and says whether a driver can see far enough to stop in time at that speed.
+why: A crossing is only safe if drivers can see who is about to cross. Blocked views cause crashes that cameras and fines don't prevent.
+uses: An auditor checks new AI-camera crossings || A city decides which kiosk to move || A school asks for a safer crossing
+buyers: Road-safety audit consultants, often on development-bank projects.
+
+@ SwerveMap
+tag: Finds potholes and road hazards by watching how drivers swerve around them.
+story: Fixed traffic cameras already film every road. SwerveMap tracks the cars, and when many drivers swerve at the same spot, it marks a hazard, like a pothole, open manhole or gravel, and ranks spots for repair.
+why: Tashkent's Safe City system has 42,750 cameras but no one watches for road damage. Drivers' behaviour reveals hazards without anyone labelling potholes.
+uses: The road agency gets a ranked repair list || A city finds dangerous spots early || An insurer sees accident-prone points
+buyers: The road agency and city hall.
+
+@ ForcedOnRoad
+tag: Maps sidewalks too narrow or blocked, forcing pedestrians into traffic.
+story: Someone walks a street filming the sidewalk. ForcedOnRoad measures the free width and finds where parked cars or kiosks leave less than 1.2 m, so pedestrians must step onto the road. It ranks blocks by danger.
+why: Pedestrians are involved in about 46% of crashes. Knowing exactly where to put bollards or move parking saves lives cheaply.
+uses: A city decides where to place bollards || The parking operator moves bays off sidewalks || Activists document unsafe streets
+buyers: City hall and the city's parking operator.
+
+@ Rain-Ready
+tag: Finds blocked storm drains before a big rain, so streets don't flood.
+story: Cameras on buses and city vehicles photograph storm drains as they drive. Rain-Ready grades how clogged each drain is and, before a forecast storm, gives the district a cleaning list starting with the lowest, most flood-prone streets.
+why: Clogged drains flood streets and underpasses, stranding cars. Cleaning the right drains before the rain is far cheaper than dealing with floods.
+uses: A district cleans the worst drains before a storm || Fleets get warnings about flooded underpasses || A city tracks drain upkeep
+buyers: District administrations and storm-water utilities.
+
+@ SchoolGate
+tag: Measures how dangerous a school's drop-off zone is, in a 10-minute phone video.
+story: A phone propped near the school gate records pickup time. SchoolGate counts double-parked cars, blocked crossings, U-turns and drivers who don't stop for children, then sends a one-page report with three fixes.
+why: Children are hard for drivers to see, and school zones get chaotic. Numbers before and after a change show what really works.
+uses: A school shows the city its danger hotspots || A city measures a new crossing's effect || Parents push for changes with real data
+buyers: City hall, school-safety programmes and donors.
+
+@ OverpassIgnored
+tag: Shows whether people actually use pedestrian bridges, or still cross the road below.
+story: A camera films a pedestrian bridge or underpass. OverpassIgnored follows the people and counts who uses the stairs and who crosses at street level, and where they climb fences, showing whether the investment works.
+why: Cities spend a lot on pedestrian bridges that many people avoid. Studies found usage anywhere from 11.6% to 93.7%.
+uses: A city decides where to add fences or crossings || Auditors check a bridge's value || Planners choose better designs
+buyers: City capital-works departments and auditors.
+
+@ Ruxsat
+tag: Audits EV charging sites against the regulator's checklist, from a phone video.
+story: An inspector films the charging site. Ruxsat reads the charger nameplates, finds the meter and the official verification marks, and checks everything against the rules, giving a pass, a fix-list or a hold.
+why: In March 2026, 101 Tashkent chargers were cut off over paperwork, and regular audits are planned. Operators want to pass before inspectors come.
+uses: An operator self-checks all sites before an audit || An inspector audits faster || A new site launches without paperwork surprises
+buyers: City inspection teams and charging operators.
+
+@ SunkenLid
+tag: Finds open, broken or sunken manhole covers and alerts the right utility.
+story: Dashcams or citizens' phones photograph the street. SunkenLid finds manhole covers, decides if each is flush, sunken, broken or open, and sends a ticket to the utility that owns it.
+why: Open or broken covers injure pedestrians and damage cars, especially at night. Several utilities own covers, so problems sit unreported.
+uses: A water utility gets a list of its broken covers || A citizen reports a dangerous hole in one photo || A district audits its streets
+buyers: City hall and the utilities that own the covers.
+
+@ DustVis
+tag: Turns existing road webcams into fog and dust-storm warning sensors.
+story: DustVis looks at fixed objects in each webcam image, like poles and buildings at known distances. The haze over them shows how far drivers can see, so it posts fog and dust-storm alerts when visibility drops.
+why: Low visibility causes chain crashes on highways. In January 2026, fog cut visibility to 50-100 m and diverted 26 flights.
+uses: A highway authority warns drivers on electronic signs || Emergency services prepare for bad visibility || Fleets delay trips through dust storms
+buyers: The road agency and the emergency ministry.
+
+@ GhostWorks
+tag: Checks whether road works actually happen during the hours a lane is closed.
+story: A camera films a road-work zone through the day. GhostWorks measures how much of the road is closed and whether workers and machines are actually working, then compares that with the permitted hours.
+why: Closed lanes with nobody working cause needless traffic jams. Tashkent is repairing 36 km of road in 2026.
+uses: The traffic centre checks contractors' real working hours || A city fines idle closures || Contractors get a fair record of their work
+buyers: The city traffic centre and city hall.
+
+@ PatchLedger
+tag: Proves a road repair was really done, using street photos from before and after.
+story: Street-level photos from past years are compared with a new drive. PatchLedger finds where a patch exists now that did not before, and records it with time and place so it can't be faked.
+why: Road repairs are sometimes paid for but never done. Auditors found signs of collusion in 200 road-testing tenders in Karakalpakstan.
+uses: An auditor checks repairs before paying a contractor || An anti-corruption body tracks road spending || A city verifies its repair map
+buyers: Audit and anti-corruption bodies.
+
+@ StopCount
+tag: Independently checks whether "green-wave" traffic lights really cut stops.
+story: Cameras or dashcam runs along a corridor record traffic. StopCount measures how many cars arrive on green, how often they stop and how long trips take, before and after a signal change.
+why: Cities announce big gains from smarter traffic lights without showing a method. One avenue claimed 29% less travel time with no evidence.
+uses: City leaders verify a contractor's claims || A lender checks a funded project's results || Engineers tune signals with real data
+buyers: City hall, and lenders' verification agents.
+
+@ FineFirewall
+tag: Checks whether a traffic light's yellow is long enough, before drivers are fined.
+story: A video of the junction is enough. FineFirewall measures the yellow light's duration, how fast cars approach, and how many drivers are caught in the zone where they can neither stop nor pass safely.
+why: A yellow just one second longer cut violations by 36% in one study. Fines from a short yellow are unfair and don't improve safety.
+uses: A city fixes signals that trap drivers || A fleet challenges unfair fines || A signal programme proves its timing is fair
+buyers: Signal-timing programmes and fleets.
+
+@ BumpRegistry
+tag: Maps speed bumps and flags ones that are illegal or dangerous.
+story: As vehicles drive, dashcams and phones record every speed bump: where it is, its spacing, signs, markings and lighting, plus a rough height from the phone's motion sensor. BumpRegistry builds a map and a list of bumps to fix or remove.
+why: Homemade bumps damage cars and slow ambulances; one 426 m street in Bukhara has 10 bumps. No one keeps a full register.
+uses: Ambulances get routes with fewer bumps || A district removes illegal bumps || Taxi fleets avoid damaging streets
+buyers: Emergency services or a district; taxi fleets for routing.
+
+@ Lane Clear
+tag: Checks whether a fire truck can get through a courtyard full of parked cars.
+story: Someone walks through the courtyard filming with a phone. Lane Clear builds a 3D map, finds the narrow spots under 3.5 m, and shows which parked cars or bays block a fire truck.
+why: In apartment courtyards, parked cars often block the way for fire trucks and ambulances. In a fire, minutes lost can cost lives.
+uses: A housing association decides where to ban parking || The fire service audits courtyards || Residents show the problem with real numbers
+buyers: Housing associations, mahalla committees and the fire service.
+
+@ Bead-Check
+tag: Measures how well a car's protective coating still repels water.
+story: A water drop is placed on the paint and filmed from the side. Bead-Check measures the drop's angle: a high angle means the coating still works. Repeat checks show when the car needs re-coating.
+why: Detailers sell expensive ceramic coatings but can't prove how they last. A lab device costs $4,990; this uses a phone.
+uses: A detailer gives customers a coating certificate || A studio reminds customers when to re-coat || A dealer backs a paint-protection warranty
+buyers: Detailing studios and dealers' paint programmes.
+
+@ Dent-Lines
+tag: Finds small dents and repainted areas using light stripes from a laptop screen.
+story: A laptop shows black-and-white stripes that reflect in the car's glossy paint. Where the panel is dented or filled, the stripes bend. Dent-Lines measures the bending and maps the problem area.
+why: Small dents and filler hide past damage, and dent-repair technicians quote by eye. A phone and laptop replace expensive scanning tunnels.
+uses: A buyer finds hidden filler in a door || A dent technician quotes accurately || An inspector documents panel condition
+buyers: Car inspectors and paintless-dent-repair technicians.
+
+@ WearMap
+tag: Tracks tyre wear on taxi cars every month to catch alignment problems.
+story: Each month the depot photographs all four tyres of each car with a coin for scale. WearMap measures how each tyre wears and flags uneven wear that means the wheels need alignment.
+why: Bad alignment eats tyres fast. Tyre apps already exist, so the fleet-level history is what is new; this is a low-priority idea.
+uses: A taxi park schedules alignment only when needed || A fleet cuts tyre spending || An alignment shop gets regular customers
+buyers: Taxi parks and alignment shops.
+
+@ BeamAim
+tag: Checks if headlights are cloudy or aimed wrong, from a photo of their beam on a wall.
+story: Park facing a wall and switch on the lights. BeamAim checks if the beam's cut-off line is too high or too low, and grades how cloudy the lenses are, suggesting adjustment or restoration.
+why: Headlights aimed too high blind oncoming drivers; one study found 75% of vehicles mis-aimed. Cloudy lenses make night driving darker.
+uses: A restoration shop shows customers the problem || A tyre shop adds a quick light check || A driver checks lights before a trip
+buyers: Headlight restoration and tyre shops.
+
+@ PlugLens
+tag: Reads a used spark plug's condition from a close-up photo.
+story: The mechanic photographs a removed spark plug. PlugLens measures the gap, classifies the deposits that show how the engine runs, and prints a job card with a re-order button.
+why: Gas-converted engines wear plugs differently than petrol ones, but mechanics read plugs by eye. This is a low-priority idea.
+uses: A conversion shop documents engine health || A mechanic orders the right plugs || A fleet tracks plug wear on gas cars
+buyers: Gas-conversion shops and independent mechanics.
+
+@ KitCheck
+tag: Checks a vehicle's safety kit: fire extinguisher, first-aid kit and warning triangle.
+story: The driver photographs the kit. KitCheck finds each item, reads the extinguisher's pressure gauge and the expiry dates, and sends Telegram reminders before anything expires.
+why: Expired extinguishers fail when needed, and passenger carriers are inspected. Reading expiry dates automatically is the hard, useful part.
+uses: A bus company keeps every vehicle's kit valid || A driver gets a reminder before inspection || A fleet manager sees kit status at a glance
+buyers: Passenger carriers, bundled with ShiftGate.
+
+@ Seen-at-Night
+tag: Tests whether workers' high-visibility clothing still reflects light.
+story: Take two photos of the vest or jacket, with and without flash. Seen-at-Night compares how strongly the reflective stripes shine against a reference swatch, and flags clothing that is worn out after many washes.
+why: Washed-out hi-vis looks fine by day but disappears in headlights. In one study, vests without good stripes were no better than black clothing.
+uses: A road crew checks its vests every month || A courier company replaces worn jackets || A cleaning contractor proves workers are visible
+buyers: Employers of night-shift road workers, cleaners and couriers.
+
+@ RideCoach
+tag: Coaches couriers on safe riding using their own phone's camera.
+story: With the phone on the handlebar, RideCoach checks lights and plate at shift start, then watches for red lights and stop lines during the ride. Couriers get a weekly score and bonuses for safe riding.
+why: Most courier fines are for lights, reflectors and passengers, and red-light running causes crashes. Other systems need extra hardware.
+uses: A delivery platform rewards safe couriers || A courier learns their risky habits || A platform cuts fines and crashes
+buyers: Delivery platforms.
+
+@ No-Start Doctor
+tag: Tests a car battery with a phone video of the headlights during engine start.
+story: Switch on the headlights and film them while starting the engine. As the battery strains, the lights dim; No-Start Doctor measures the dimming, estimates the battery voltage and warns if it will fail in winter.
+why: Weak batteries leave drivers stranded on cold mornings. Testers need hardware; this needs only a phone. It doesn't work with LED headlights.
+uses: A battery shop finds customers who need a new battery || A taxi park checks batteries before winter || A driver avoids a no-start morning
+buyers: Battery retailers and taxi parks.
+
+@ CouplingCheck
+tag: Checks that a truck and its trailer are coupled correctly before departure.
+story: The driver films the coupling area from the side for 10 seconds. CouplingCheck confirms the air hoses and electric plug are connected, the support legs are up and the latch is closed, and saves a signed log.
+why: A badly coupled trailer can detach on the road and cause a deadly crash. Today checks rely on memory or costly sensors.
+uses: A trucking company logs every departure check || A cargo insurer requires proof || A driver catches a missed connection
+buyers: Cargo insurers and freight companies on the China-Uzbekistan corridor.
+
+@ ShadeRent
+tag: Maps which parking spots stay in the shade, and for how long.
+story: A phone fixed above a parking lot takes a photo every 15-30 minutes. ShadeRent marks shaded bays and calculates shade hours per spot, showing where to build canopies, solar carports or chargers.
+why: In hot Uzbek summers, shaded spots are worth more and cars stay cooler. The airport lot alone holds about 1,500 vehicles.
+uses: A parking operator charges more for shaded bays || An installer plans solar carports || A mall decides where to add shade
+buyers: Parking operators and canopy or solar installers.
+
+@ ParkOK
+tag: Tells a driver whether stopping here is legal, from one photo of the street.
+story: The driver photographs the kerb ahead. ParkOK reads the signs, markings and paid-parking zone and time windows, and answers green, amber or red, quoting the rule and the fine.
+why: Stopping where it is banned costs 880,000 UZS. Courier and taxi drivers stop dozens of times a day and can't read every sign.
+uses: A courier checks a stop before parking || A fleet cuts its parking fines || A parking operator licenses the rules data
+buyers: Courier and taxi fleets.
+
+@ Joylash
+tag: Shows a building owner where EV chargers would earn money, from their own cameras.
+story: Joylash watches the venue's parking camera, measures how long cars stay in each bay and how many are electric, and calculates how fast a charger in each spot would pay for itself.
+why: Owners don't know if a charger will pay off, so they don't install one. Banks already offer 10% loans for chargers.
+uses: A mall picks the best bays for chargers || A charger seller qualifies leads || A hotel builds a business case for charging
+buyers: Charger sellers and installers (success fee).
+
+@ Yard Tetris
+tag: Finds any car in a crowded dealer yard and plans the fewest moves to get it out.
+story: A camera on the roof photographs the yard every few minutes. Yard Tetris knows where each car is, how long it has stood there and which cars block it, and plans the shortest sequence of moves to free it.
+why: In big yards, staff waste time searching for cars and shuffling others out of the way, and stock stands longer when sales slow.
+uses: A dealer finds a customer's car in seconds || A yard manager sees old stock || Staff move fewer cars per delivery
+buyers: Car dealers and import yards.
+
+@ DarkRoad
+tag: Warns night drivers about carts, tractors and animals on rural roads.
+story: Fleet dashcams record rural routes during the day and at dusk. DarkRoad finds slow carts, tractors and livestock on the roadside, maps where they usually are, and warns drivers on night trips through those spots.
+why: Unlit slow vehicles and animals cause deadly night crashes. Some regions ban heavy trucks by day, pushing them into night driving.
+uses: An intercity bus company warns drivers || A trucking firm plans safer night routes || An insurer prices route risk
+buyers: Intercity bus and trucking fleets; insurers buy risk reports.
+
+@ LoadGate
+tag: Checks a truck's load size and cover at the site exit before it hits the road.
+story: At the quarry or building site exit, two photos are taken from the side and back. LoadGate measures how far the load sticks out and how high it is, compares that with the legal limit, and checks the load is covered.
+why: Overhanging and uncovered loads cause crashes and dust. The exact Uzbek overhang limit still needs to be confirmed before use.
+uses: A quarry sends out only legal loads || A developer keeps proof for smog inspectors || A haulier avoids fines
+buyers: Quarries and construction developers.
+
+@ WeldTell
+tag: Tells factory welds from repair welds in photos, to reveal hidden body repairs.
+story: The inspector photographs one standard spot, such as the door frame. WeldTell compares the welds and sealant with factory-original examples of the same model and highlights areas that look like repair work for a person to check.
+why: Structural repairs after a serious crash are often hidden, and they make a car less safe. Only experts can spot them today.
+uses: An inspector checks the door frame for repair welds || A dealer screens trade-ins for major crashes || A buyer avoids a rebuilt car
+buyers: Car inspectors and dealers.
+
+@ DateCode Detective
+tag: Reads the date stamps on glass, belts and tyres to show which parts were replaced.
+story: Every car window, seatbelt and tyre carries a small production date. DateCode Detective reads these stamps from photos and compares them with the car's build year; a part much newer than the car was probably replaced.
+why: A replaced windscreen or belt can mean a past accident. Sellers can prove originality, and buyers can spot hidden history.
+uses: A seller proves all glass is original || A buyer finds a replaced windscreen || A dealer adds an originality certificate
+buyers: Dealers and trade-in desks.
+
+@ RepaintRadar
+tag: Shows which car panels were repainted, so inspectors know where to measure.
+story: Sweep a phone torch over each panel for 20 seconds. RepaintRadar compares the paint's texture and colour with neighbouring panels and ranks the three panels most likely repainted, for checking with a paint gauge.
+why: Repaint usually hides damage. In one study, about 38% of 15,236 cars had unrecorded repairs.
+uses: An inspector checks the right panels first || A buyer screens a car before inspection || A trade-in desk prices repainted cars fairly
+buyers: Car inspectors, trade-in desks and buyers.
+
+@ Podstava Radar
+tag: Measures braking in dashcam video to help settle staged rear-end crashes.
+story: Before a rear-end crash, the dashcam shows how the car in front behaved. Podstava Radar measures the distance, when the brake lights came on and how fast the gap closed, and builds a timeline. It reports facts only, not who is guilty.
+why: In staged crashes ("podstava"), a car brakes suddenly so you hit it. Clear measurements help taxi drivers and insurers settle such disputes.
+uses: A taxi park defends a driver in a dispute || An insurer reviews a suspicious rear-end claim || A driver shows the car ahead braked without reason
+buyers: Taxi parks and insurers.

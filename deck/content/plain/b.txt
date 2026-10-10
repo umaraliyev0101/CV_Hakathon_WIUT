@@ -1,0 +1,204 @@
+# Plain-language pages, Tier B. Names must match content/b-tier.txt.
+
+@ Sotiladi Scout
+tag: Finds cars for sale that are never posted online, from "for sale" notes in windows.
+story: Many sellers just put a "Sotiladi" (for sale) note with a phone number behind the windshield. A dealer walks a market or street with a phone; the app reads each note, identifies the car and ranks a call list by expected profit.
+why: These cars never appear on websites, so dealers who find them first get better deals. Today someone walks around writing numbers by hand.
+uses: A dealer finds ten unlisted cars in one market walk || A trade-in buyer fills stock faster || A marketplace invites offline sellers online
+buyers: Used-car dealers and car flippers.
+
+@ Ko'pik
+tag: Proves a gas-equipment leak test was really done, from a video of soapy joints.
+story: After fitting methane or propane equipment, the technician brushes soapy water on every joint and films it. Ko'pik checks every joint was covered, spots bubbles that grow (a leak) and saves a dated record tied to the gas cylinder.
+why: Gas leaks in cars can cause fires and explosions. The rules track cylinders but say nothing about proving the leak test, and a third of used-car listings run on gas.
+uses: A conversion workshop proves every car passed a leak test || An inspection centre reviews tests remotely || An insurer checks a car's gas safety record
+buyers: Gas-conversion workshops and inspection centres.
+
+@ BallonID
+tag: Reads a gas cylinder's stamped label and says if it is too old or untested.
+story: Every gas cylinder has numbers stamped into the metal: serial, dates, pressure and gas type. They are hard to read under rust and paint. BallonID takes two photos lit from the side, reads the stamp and applies the official rules: refill, retest or refuse.
+why: An out-of-date or wrong cylinder can explode; in Fergana a propane cylinder filled with methane did. Today checks look up the car's plate, not the cylinder itself.
+uses: A filling station checks the cylinder before refuelling || An inspector reads stamps in seconds || A car buyer checks a gas-converted car
+buyers: Inspection centres, car inspectors and gas stations.
+
+@ GapGauge
+tag: Measures the gaps between a car's body panels with a bank card as the ruler.
+story: You hold any bank card next to the gap between, say, the door and the fender, and take photos. Because every bank card is exactly the same size, GapGauge measures the gap in millimetres and compares the left side of the car with the right.
+why: After a crash and repair, panels rarely line up perfectly, so uneven gaps reveal hidden accidents. Inspectors check this by eye today.
+uses: A buyer checks for hidden crash repairs || An inspector backs up a verdict with numbers || A trade-in desk prices repaired cars correctly
+buyers: Car inspection firms and dealers' trade-in desks.
+
+@ BoltSeal
+tag: Tells whether a car panel was ever removed, from close-up photos of its bolts.
+story: At the factory, the bolts holding doors, hood and fenders are painted over. If a panel was removed for repair, a wrench leaves marks and cracks the paint. BoltSeal checks close-up photos of each bolt and flags the ones that were turned.
+why: It is a well-known trick of professional inspectors, but it needs expertise. Automating it gives any buyer or bank a quick hidden-repair check.
+uses: A bank checks a car before lending on it || A trade-in desk spots a replaced fender || A buyer checks a car before a full inspection
+buyers: Dealers' trade-in desks, auto lenders and inspectors.
+
+@ Proof-of-Inspection
+tag: Checks the inspector's work, not the car, so banks can trust inspection reports.
+story: When a car inspector films an inspection, this app checks that all required steps were done: VIN read, odometer shown, paint gauge used. It also catches reused videos and VINs that don't match the documents.
+why: Banks and marketplaces rely on inspection PDFs that nobody verifies. A lazy or dishonest inspector can approve a bad car.
+uses: A bank accepts only verified inspections for car loans || A marketplace labels trustworthy inspection reports || An inspection firm proves its quality
+buyers: Banks, leasing firms and car marketplaces.
+
+@ Lowside
+tag: Shows whether a used moped or motorcycle has been crashed, from photos.
+story: When a bike falls, it scrapes the same places: levers, foot pegs, mirrors, engine covers. Lowside finds these points in photos, tells crash scrapes from normal wear, and draws a simple damage map.
+why: Courier fleets buy and rent out many used mopeds, and hidden crash damage makes them unsafe and costly. There were 563 moped and scooter crashes in nine months of 2026.
+uses: A courier fleet checks mopeds at hand-over and return || A lessor documents damage fairly || A buyer avoids a crashed bike
+buyers: Moped leasing firms and courier fleets.
+
+@ LemonBack
+tag: A money-back guarantee for used cars, priced from a 10-minute photo check.
+story: The seller records a guided 10-minute video of the car. Checks for hidden repairs, mileage and damage price the risk. If the buyer later finds a problem the video should have shown, an insurer buys the car back within 30 days.
+why: Buyers fear hidden problems, which pushes prices down for honest sellers. A guarantee builds trust, and insurers need new products.
+uses: An honest seller sells faster with a guarantee || A buyer gets their money back if the car hid a repair || An insurer gains a new product line
+buyers: Private sellers pay; an insurer carries the risk.
+
+@ Drip-ID
+tag: Tells which fluid a car is leaking, using a printed card and two photos.
+story: Put the card under the car's engine and take two photos ten minutes apart. Water from the air-conditioner evaporates; oil, gearbox fluid and coolant stay and have typical colours. Drip-ID names the fluid and how serious it is.
+why: A leak can mean a cheap fix or a big repair. Most buyers cannot tell, and standard inspections often skip it.
+uses: A buyer checks a used car for leaks || An inspector adds a leak test to the report || A driver knows whether to visit a garage
+buyers: Car inspectors and used-car buyers.
+
+@ Razborka Lens
+tag: Recognises used car parts from a photo and writes the sale listing.
+story: Car breakers (razborka) sell thousands of used parts, many without part numbers. Razborka Lens recognises a bumper, lamp or mirror from its shape, finds which cars it fits, and drafts an Uzbek and Russian ad with a fair price.
+why: Listing parts by hand is slow, so most stock never gets listed. Buyers struggle to know if a part fits their car.
+uses: A breaker lists 100 parts a day instead of 10 || A buyer sees which models a part fits || A parts shop prices stock fairly
+buyers: Car breakers and used-parts sellers.
+
+@ Brake Peek
+tag: Checks brake-pad thickness during a tyre change, with one photo.
+story: When the wheel is off for a tyre change, the brake pads are visible. The mechanic takes one photo with a small marker card. Brake Peek measures the pad thickness and sends the customer a Telegram card: fine, soon, or replace now.
+why: Worn brakes are dangerous, and customers rarely believe a mechanic's word. A measured photo builds trust and sells a needed repair.
+uses: A tyre shop offers a brake check with every tyre change || A driver sees proof their pads are worn || A fleet tracks brake wear across cars
+buyers: Tyre shops and service centres.
+
+@ TremorLab
+tag: Measures a car engine's shaking from a phone video to check its engine mounts.
+story: Two small printed tags are stuck on the engine and the body. A phone films while someone revs the engine. TremorLab measures how far the engine rocks in millimetres and compares it with a healthy engine of the same model.
+why: Worn engine mounts cause vibration and damage, but mechanics judge them by feel. A measured number makes the diagnosis clear.
+uses: A garage shows a customer why the mounts need replacing || A taxi park checks engines regularly || A buyer checks a used car's engine
+buyers: Garages and taxi-park workshops.
+
+@ Orange Guard
+tag: Scores mechanics' safety drill before they work on high-voltage electric cars.
+story: Before touching an electric car's high-voltage system, a mechanic must follow strict steps: gloves, warning cones, lock and tag, in the right order. Orange Guard watches the drill on camera and scores each step against the manufacturer's checklist.
+why: Mistakes with EV high voltage can kill. Many service bays are new to EVs, and training needs a record. A person still checks the voltage.
+uses: A dealer trains new EV technicians || A training college grades practical exams || A service centre keeps safety records
+buyers: EV service academies, dealers and vocational colleges.
+
+@ FakeStop
+tag: Spots fake car parts from photos of their box and label.
+story: Genuine filters, brake pads and spark plugs have fine print and hologram details that fakes copy badly. FakeStop compares close-up photos of the box with genuine samples and says: genuine, suspect, or unknown product.
+why: Fake parts are common at bazaars and can fail dangerously, like brakes. A third of Russian repair shops met fakes in 2025.
+uses: A mechanic checks parts before fitting them || A brand owner maps where fakes are sold || A buyer checks a box at the bazaar
+buyers: Car-parts brand owners and official importers.
+
+@ Claim Pack
+tag: Catches fake or reused photos in dealers' warranty repair claims.
+story: When dealers ask the importer to pay for warranty repairs, they send photos of the VIN, odometer and parts. Claim Pack searches all dealers' photos and flags pictures used twice, odometers that go backwards, or parts that don't match.
+why: Each claim is reviewed alone, so a photo reused across dealers goes unseen. The importer pays for repairs that never happened.
+uses: An importer audits all dealers' warranty claims || A carmaker spots a dealer with suspicious claims || Honest dealers get paid faster
+buyers: Car importers and carmakers' warranty departments.
+
+@ Spot-Oil
+tag: Tells whether engine oil needs changing, from one drop on a paper card.
+story: The mechanic puts a drop of engine oil on a printed card. The oil spreads into rings; their colour and shape show how dirty or contaminated it is. Spot-Oil reads a photo of the card and says: change now, or suspected contamination.
+why: Fleets change oil by the calendar, often too early or too late. Gas-powered taxis wear oil differently from petrol cars.
+uses: A taxi fleet changes oil only when needed || A mechanic spots coolant in the oil early || A fleet tracks engine health over time
+buyers: Taxi parks and delivery fleets.
+
+@ Plomba Twin
+tag: Proves a fuel tanker's seal was not swapped during the trip.
+story: Fuel tankers are sealed at the depot. Plomba Twin photographs the seal at the start and at every stop and checks it is the same physical seal, not a lookalike with the same number.
+why: Fuel can be stolen by opening a tank and fitting a new seal with the same serial. A serial-number check alone does not catch it.
+uses: A fuel company checks seals at each delivery || A cargo insurer requires seal photos || A forwarder proves a trip was clean
+buyers: Fuel-tanker operators, forwarders and cargo insurers.
+
+@ CubeProof
+tag: Measures the volume of sand or gravel in a truck from one photo.
+story: Before the truck leaves the quarry, one photo is taken from above. CubeProof measures the load's volume and weight and flags short loads, so the buyer knows they got what they paid for.
+why: Buyers of building materials often receive less than they paid for; one quarry pilot found 2-3% under-delivery. Laser scanners are expensive; a phone photo is not.
+uses: A builder checks every delivered load || A trader proves full loads to customers || A city checks contractors' deliveries
+buyers: Construction companies, material traders and municipal contractors.
+
+@ QueueLedger
+tag: Tells truck drivers how long the border queue will take, from one photo.
+story: Someone near the border photographs the truck queue. QueueLedger counts the trucks, measures the line's length and, with the crossing's usual speed, estimates how many hours the wait will be. Results go to a Telegram bot.
+why: At some crossings 400+ trucks get stuck and waits pass 24 hours. Without an official e-queue, forwarders plan blind.
+uses: A forwarder picks the faster border crossing || A driver plans rest around the wait || A logistics firm warns its customer of delays
+buyers: Freight forwarders on Central Asian corridors.
+
+@ Cargo-Fit
+tag: Picks the right delivery vehicle and price from a photo of what you want to move.
+story: A customer photographs the items, such as a sofa, fridge or boxes. Cargo-Fit measures them, works out what fits, and suggests a Damas, Labo or bigger truck with the right number of loaders and a price.
+why: Dispatchers guess the vehicle size, so trucks arrive too small or too big. Wrong vehicles waste time and money.
+uses: A moving app quotes instantly from photos || A cargo-taxi dispatcher sends the right van || A customer compares prices before booking
+buyers: Cargo-taxi and moving platforms.
+
+@ ScaleGuard
+tag: Catches cheating at truck weighbridges using the camera already there.
+story: At a weighbridge, trucks are weighed full and empty. ScaleGuard watches the existing camera and flags tricks: a wheel off the scale, a person on the platform, or a different truck at the second weighing.
+why: Cheating at the scale costs grain, cotton and cement buyers real money on every load. It needs no new hardware.
+uses: A grain buyer stops paying for fake weight || A cement plant audits its scale || A cotton gin proves fair weighing to farmers
+buyers: Grain and cotton buyers and cement plants.
+
+@ Hakam
+tag: Checks electric-car charging bills against what the car actually received.
+story: The driver photographs the charger's screen and the car's "energy added" screen. Hakam compares the two numbers to catch charging someone else's car on the company card, or a charger that overbills.
+why: Fleets pay for charging on cards that are easy to misuse. One UK review found 31.5% of chargers out of tolerance.
+uses: An EV taxi fleet catches card misuse || A fleet ranks chargers that overbill || A charger operator proves its meters are accurate
+buyers: EV fleets and charging operators.
+
+@ Yield-to-Win
+tag: Rewards drivers who stop for pedestrians, instead of only fining those who don't.
+story: Drivers sign up with their plate number. A camera at a crossing sees a driver stop for waiting pedestrians and enters them into a prize draw funded by a bank's loyalty budget.
+why: Pedestrians are involved in about 46% of crashes. Rewards can change habits where fines alone do not, and a sponsor gets positive publicity.
+uses: A bank runs a road-safety loyalty campaign || A city rewards safe drivers at school crossings || A driver earns cashback for stopping
+buyers: Bank sponsors (such as Uzcard or MKBANK) with a city pilot.
+
+@ Dispatch Card
+tag: Turns a crash video into a quick summary card for emergency and assistance services.
+story: A bystander or dashcam sends a short crash video. Dispatch Card writes a short card in Uzbek or Russian: how many vehicles and people, any fire or smoke, and whether a gas cylinder may be involved.
+why: Responders often arrive without knowing what they will find. Gas-powered cars add a fire and explosion risk they should know about.
+uses: A roadside-assistance desk sends the right help || An insurer gets a first report within seconds || Responders know about gas risk early
+buyers: Roadside-assistance companies and insurers' claim desks.
+
+@ SeatProof
+tag: Checks from photos that a child car seat is installed correctly.
+story: A parent photographs the installed child seat. SeatProof checks common mistakes: wrong seat for the child's age, wrong direction, twisted straps, chest clip too low. It marks errors on the photo and always reminds you to check tightness by hand.
+why: Badly installed seats protect children much less. A new draft rule proposes fines, and most parents never get a check.
+uses: A shop checks the installation when a parent buys a seat || A parent checks before a long drive || A taxi company shows its child seats are installed well
+buyers: Child-seat retailers, and parents per check.
+
+@ GateWash
+tag: Proves construction trucks leave the site with clean wheels and covered loads.
+story: A camera at the site exit watches every truck pass the wheel wash. GateWash logs how long it washed, whether the load was covered and the plate, in a tamper-proof record inspectors can check.
+why: Mud and dust from building sites add to Tashkent's smog, and a draft rule covers about 1,700 sites. Developers need proof to avoid fines.
+uses: A developer shows inspectors a clean record || An inspector checks a site remotely || A contractor finds lazy drivers
+buyers: Construction developers and contractors.
+
+@ Plug-Ready
+tag: Checks if a new EV owner's home can safely charge the car, from a phone video.
+story: When someone buys an electric car, they film their parking spot, electricity meter, fuse box and socket. Plug-Ready reads the ratings, measures the cable distance with a bank card, flags dangers and quotes the right home charger.
+why: New EV owners often charge from unsafe sockets or extension cords, which manuals forbid. A survey visit costs time; a video doesn't.
+uses: A dealer sells a home charger with every EV || A bank adds a charger to the car loan || An owner learns they need an electrician first
+buyers: EV dealers and charger installers, plus banks.
+
+@ ChargeMD
+tag: Explains a charger's error message in plain language, from a photo.
+story: Public chargers often show error codes in Chinese or English that drivers cannot understand. The driver photographs the screen; ChargeMD explains the problem, says what to do, and reports it to the operator.
+why: An EV taxi stuck at a broken charger loses income. Operators also learn which chargers fail, helping build a reliable uptime map.
+uses: A taxi driver fixes a simple charging error on the spot || An operator gets precise fault reports || Drivers see which chargers really work
+buyers: EV taxi fleets and charging operators.
+
+@ YardAudit
+tag: Counts and checks a dealer's cars against the bank's list, from a walk-around video.
+story: Banks lend money to dealers against the cars in their yard. The bank's agent walks the yard filming; YardAudit reads every plate and VIN and compares them with the pledged list to find missing cars.
+why: If a dealer sells pledged cars without telling the bank, the loan loses its security. Counting by hand is slow and error-prone.
+uses: A bank audits a dealer's stock in 10 minutes || An import yard tracks cars without plates || A lender spots missing cars early
+buyers: Banks and leasing firms that lend to dealers, and import yards.

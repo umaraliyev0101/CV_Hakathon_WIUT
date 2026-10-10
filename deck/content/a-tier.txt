@@ -1,0 +1,235 @@
+# Tier A — fundable stories. Order = investor ranking; modules follow their lead idea.
+
+@ PledgePulse | A | Banks & lessors | 66 | [2][18][19][20]
+what: A monthly 30-second challenge video on Telegram proves a pledged car still exists, is the right car and is filmed live.
+how: Random challenge | touch mirror, show odometer on cue || Read identity | plate, VIN and odometer OCR || Replay check | screen-moiré and liveness model || Collateral flag | OK, retake or field visit
+why: Auto loans reached 34.6 trn UZS in Jan–Nov 2023. Truepic and DoxAI verify an asset once at origination; no monthly re-verification product was found. MKBANK, Uzcard and the Central Bank are partners.
+prac: 60 campus cars in varied light; spoof clips come free by filming laptop screens. Server check in a few seconds on one T4, under $0.02.
+pays: Banks and lessors, ~6,000 UZS per monthly check, recurring per loan.
+demo: Random challenge on a toy car, then film a laptop screen: replay caught.
+moat: per-car baselines plus a published red-team table of the attacks it catches
+
+@ Quvvat | A | EV dealers & lenders | 69 | [2][13][14][15]
+what: Battery-health band for used Chinese EVs from dashboard and DC-charger screen photos before and after a 15-minute charge.
+how: Two photo pairs | dashboard + charger screen || Read the numbers | OCR: SoC, range, kWh, time || Energy balance | capacity with error bars || Health band | ≥90 / 80–90 / <80%, price call
+why: 122.7k EVs are registered, 72% in Tashkent; 99.2% of H1-2026 EV imports are Chinese, and OBD apps like EVScanner skip BYD. BYD Royal Motors sponsors the hackathon.
+prac: 25+ logged sessions on friends' BYD and Chery cars, synthetic dashboards, spec sheets. CPU OCR ~0.3 s per image, about $0.002 per check.
+pays: Dealers, avtopodbor firms and EV-loan banks, ~30k UZS per check.
+demo: Upload our photo pairs: health band plus a listing-mismatch flag.
+moat: a model × charger calibration table that improves with every check
+
+@ Yorliq | A | Used-EV dealers & banks | 62 | [47][48][50]
+what: Decodes the Chinese nameplate of a grey-import EV into variant and nominal kWh, flagging listings that claim the wrong pack.
+how: Nameplate photo | Chinese + Latin text || OCR + parse | PP-OCRv6, small VLM || VIN + spec lookup | check digit, 15-model table || Mismatch flag | feeds Quvvat's kWh
+why: BYD VIN decoders give plant and date, not kWh: one Atto 3 body ships with 49.92, 60.48 or 74.8 kWh packs. Chinese brands took 17.8% of Jan–Jul 2026 sales.
+prac: Start with ~10 real cars (kill if the plate does not identify the pack), 2,000 synthetic plates, a hand-built table for 15 models. Server CPU ~0.3 s, under $0.001.
+pays: Inside Quvvat; ~15k UZS per plate standalone for dealers and banks.
+demo: Photograph our printed nameplate card: variant, kWh, mismatch.
+moat: a verified-mismatch database of listings that misstate the battery
+
+@ FlipperFinder | A | Car marketplaces | 68 | [29][30][31]
+what: Masks out the car and matches listing-photo backgrounds to expose "private sellers" who are really dealer rings.
+how: Mask the car | SAM 2.1 removes the vehicle || Embed background | DINOv3: walls, gates, garages || Verify + cluster | LightGlue match, HDBSCAN || Seller-ring graph | flags fake private ads
+why: The same-parking-lot tell is a known human red flag and Auto.ru already moves hidden resellers to paid terms, yet no automated matcher was found.
+prac: 2,000 public listing photos (faces and plates blurred); OLX.uz's Business filter gives free dealer ground truth. One T4 embedding per photo, under $0.001 per listing.
+pays: Marketplaces: ~5M UZS/month pilot plus a share of recovered dealer fees.
+demo: Paste five listing photos: shared backgrounds and the seller graph.
+moat: a seller graph that accumulates with every listing scanned
+
+@ CarTrail | A | Banks, dealers, buyers | 62 | [44][45][46]
+what: Finds the same car across OLX, Avtoelon and Telegram, flags price, mileage and seller conflicts, and grows a history report.
+how: Listing photos | OLX, Avtoelon, Telegram || Retrieve candidates | DINOv3 image search || Match the car | dents, rims, stickers, plates || History timeline | price, mileage, sellers
+why: Russia's Autoteka builds history from Avito's own data; Uzbekistan has no records-based equivalent. OLX alone lists 67,961 car ads to re-identify across platforms.
+prac: Public listing photos only, hashed embeddings, hosted in-country as the data law requires. T4 embeds once; CPU lookup under 1 s; under $0.002 per report.
+pays: Banks 8,000 UZS per API call; dealers; buyers 25,000 UZS per report.
+demo: Paste a listing screenshot: matched crops across platforms.
+moat: listings that vanish cannot be backfilled, so the dated archive is unique
+
+@ TwinCheck | A | Marketplaces & buyers | 57 | [34][49][192]
+what: Triage from listing photos: is this car worth a 300,000 UZS inspection? Left-right ageing mismatch hints at repairs.
+how: Paired parts | lamps, mirrors, rims || Mirror-flip align | left vs right crops || Siamese compare | DINOv3 haze, fade, age || Inspect or skip | ranked hint, never a verdict
+why: A Tashkent avtopodbor costs from 300,000 UZS, so buyers need a cheap first filter. UVeye patents symmetry checks and Auto.ru flags poor repairs: check freedom to operate.
+prac: ≥100 avtopodbor-labelled pairs; report coverage and AUC honestly. Server batch, ~$0.0001 per listing.
+pays: Marketplaces ~100 UZS per listing; buyers 5,000 UZS per check.
+demo: Photograph both headlamps of a parked car: mismatch score.
+moat: listing-to-inspection outcome pairs nobody else collects
+
+@ WearTruth | A | Auto-loan banks | 59 | [26][51]
+what: Mileage band from interior wear (wheel, pedals, bolster, gear knob) checked against the odometer, plus a former-taxi flag.
+how: Interior photos | wheel, pedals, bolster, knob || Zone embeddings | DINOv3-S per wear zone || Mileage interval | quantile regression, abstains || Plausibility | odometer fits? ex-taxi?
+why: Interior wear is independent evidence against odometer rollback. 576k taxi drivers registered as self-employed in 2024, so ex-taxi cars reach resale. OdoShield and AI Vahan lack local labels.
+prac: 30+ GPS-logged disposals from a taxi or leasing fleet; count taxi-decal ghosts on 100 cars first. In-browser WebGPU, ~zero cost.
+pays: Banks and trade-in desks via API, 8,000 UZS per check.
+demo: Photograph your wheel and pedals and play guess-the-mileage.
+moat: fleet-labelled wear curves for local models
+
+@ Trim Truth | A | Marketplaces & banks | 61 | [49][50]
+what: An "ad vs reality" badge that verifies only camera-visible trim claims on Cobalt LS/LT/LTZ and BYD variants.
+how: Car photos | listing or live capture || Part crops | SAM 3: wheels, sunroof, port || Retrieve trim | SigLIP 2 vs official galleries || Mismatch badge | claimed vs visible trim
+why: Overstated trims inflate asks. Auto.ru grades condition, not trim; Chinese brands took 17.8% of Jan–Jul 2026 sales, multiplying variants to check.
+prac: UzAuto and BYD galleries, 1,000 listing photos, 50 own cars. Browser retrieval, server ~1.5 s, ~$0.004.
+pays: Marketplaces; banks only if a loan officer confirms trim inflation.
+demo: Photograph your own car: model, equipment and trim appear.
+moat: a local trim taxonomy no global vendor maintains
+
+@ TruckProof | A | Freight forwarders | 69 | [27][28]
+what: A 20-second challenge video matches truck plate, registration document, vehicle type and driver before a load is booked.
+how: Challenge video | vehicle, plate, fresh code || Read + match | plate OCR, tech passport || Liveness | MyID face check || Book or block | verified carrier or flag
+why: Loads are booked through Telegram freight groups. Overhaul and KYT verify photos or licences, not a live plate–document–vehicle match. MyID reports 19M+ users.
+prac: Mock documents, 100 consented vehicle videos, the Central Asia plate set (CC BY). Server ~2 s per video, ≈$0.002.
+pays: Forwarders and Telegram freight marketplaces, $0.50 per verification.
+demo: Film your own car, plate and the random code: matched or failed.
+moat: a shared verified-carrier graph and fraud blacklist that grow with each booking
+
+@ Alibi | A | Motor insurers | 58 | [61][62]
+what: Photo liveness for Telegram-bot claims: physics checks prove a damage photo was taken now, here, not replayed.
+how: Claim photo | plus live location || Physics checks | sun vs shadows, weather || Replay tells | flash echo, parallax || Triage | fast-track, hold or retake
+why: Humans catch only 50% of manipulated damage photos. Amped's SunCalc check is manual; this one is automatic and holds up as image generators improve.
+prac: 300 own timed photos plus an attack set. Server CPU ~1.5 s, ~$0.002 per check; abstains often by design.
+pays: OSAGO and KASKO claims desks, $0.05–0.20 per claim.
+demo: Photograph your car, claim a false time: the sun overlay rejects it.
+moat: physics-based checks that do not decay as generators improve
+
+@ ScratchPrint | A | Insurers & fleets | 57 | [63][64]
+what: Re-identifies the same physical scratch across photos: same damage or new damage, at handovers and at claim time.
+how: Two photos | baseline vs new || Panel warp | SAM 2.1 aligns the panel || Damage + match | RF-DETR-Seg, LightGlue || Same / new / unsure | pre-existing or new
+why: One appraiser reused a photo in 170 claims. Inspektlabs, Click-Ins and Ravin sell baselines; geometry-level re-identification of the damage itself is the gap.
+prac: AutoDamageIQ (CC BY) plus ~40 self-shot revisit pairs. Modal T4 ~2 s, ~$0.001 per check.
+pays: Fleets per handover; insurers ~$0.25 per claim.
+demo: Photograph a pre-staged dent twice: same-vs-new verdict.
+moat: an embedding-only registry that grows across insurers via the Guarantee Fund
+
+@ BumperMatch | A | OSAGO claims teams | 58 | [58][59][60]
+what: Does the damage fit the other car? Plate-scaled height and shape of the damage on both cars flag impossible pairings.
+how: Damage photos | both cars, plates in view || Scale + depth | 520×110 mm plate, MoGe-2 || Damage masks | SAM 3 height and width || Plausible? | flags only impossible pairs
+why: Staged and misdescribed collisions show up as height mismatches. Cobalt took 30.1% of 2025 sales (unofficial source), so a local bumper catalogue covers much of the parc.
+prac: Tape-measured catalogue of ~25 models; tape vs MoGe-2 error on 30 cars. Server under 3 s, ~$0.001.
+pays: Claims teams and independent experts, ~$0.30 per two-car check.
+demo: Photograph a scratch near any plate, then pick the other car.
+moat: a measured local bumper-height catalogue
+
+@ WitnessHunt | A | Insurers & fleets | 63 | [181][182]
+what: A B2B exchange matching fleets' stored dashcam footage to insurer disputes by plate and time, with automatic privacy blur.
+how: Insurer request | plate, place, time || Search footage | timestamp OCR, plate search || Scene match | SigLIP 2 ranks clips || Blurred clip | faces and plates blurred
+why: OSAGO gives insurers 15 days to decide, and footage settles disputes. Singapore's mWitness pays $100 rewards with manual review.
+prac: ~20 volunteers and 10 staged incidents; measure time-to-footage. Server ~1 s per 10 s clip.
+pays: Insurers and fleets, ~$3–5 per resolved dispute.
+demo: Upload a clip or film a plate on a laptop: footage found.
+moat: a contributor network of fleets that already store video
+
+@ EuroScene | A | Insurers & fleets | 50 | [68][69]
+what: Two-phone accident notice: both drivers film a walk-around, get a pre-filled notice and sign by QR handshake. No fault call.
+how: Two walk-arounds | 30 seconds per driver || Read plates | detector + fast-plate-ocr || Damage zones | SAM 3 masks || Signed notice | QR handshake, form filled
+why: The 2026 reform gave the Insurance Guarantee Fund adjuster functions. Ukraine's Diia already files digital accident reports; video-first attestation is the twist.
+prac: Synthetic Uzbek plates (01 A 123 BC, 01 123 ABC); real plates at night and in rain. Server ~6 s, ~$0.01.
+pays: Guarantee Fund or NAPP pilot, ride-hailing fleets, ~$0.40 per notice.
+demo: Judge and a neighbour film a toy-car scene and get the notice.
+moat: becoming the accepted evidence format
+
+@ WashScan | A | Car washes → insurers | 66 | [32][33]
+what: Car washes become paid inspection stations: the attendant circles the clean car and stores a dated, plate-bound baseline.
+how: Walk-around | phone circles the car || Live gates | coverage, blur, glare || Bind the car | plate + VIN OCR, panels || Dated baseline | resold to insurers
+why: Wash-damage vendors sell fixed cameras at $23–63 per camera-month; this needs none. KASKO insurers signed 237,405 contracts in 2025.
+prac: 60 self-filmed walk-arounds at two washes; AutoDamageIQ for damage tags. In-browser gates at a 10+ FPS target; ~$0.001 per baseline.
+pays: Washes first (claim defence), then insurers ~5,000 UZS per baseline.
+demo: Circle any object: the coverage ring closes.
+moat: a wash network plus a library of dated baselines
+
+@ Columbo | A | Buyers & dealers | 63 | [34][41]
+what: A Telegram AI agent that inspects a car remotely, asking the seller for the most informative next photo until it can decide.
+how: Seller chat | Telegram or web || Next best photo | VLM planner, info gain || Run modules | GapGauge, RepaintRadar… || Verdict | buy, walk away, inspect
+why: An in-person avtopodbor costs from 300,000 UZS plus travel. Tractable's guided video asks insurers' customers for extra shots; nobody does it for buyers.
+prac: Inspector likelihoods, 50 team cases, scripted sellers. Server ~$0.01 per case. Must prove fewer photos than a fixed 12-shot protocol.
+pays: Regional buyers and dealers, 25,000 UZS per case.
+demo: Play the seller from our photo folder; watch each request.
+moat: a questioning policy that improves with every conversation
+
+@ BozorLens | A | Banks & insurers | 67 | [180]
+what: A fair-price index from offline car markets: read windshield price sheets, identify the car, compare with online asks.
+how: Market walk | phone at windshields || Read sheets | PaddleOCR-VL price, year, km || Identify car | SigLIP 2 model ID || Fair band | vs OLX and Avtoelon asks
+why: Banks and insurers price collateral without a local price guide. The market logs 5,000–7,000 daily arrivals by plate or QR. The premise is unverified: check first.
+prac: The first hour at Sergeli decides it: no price sheets, kill. Digits in-browser; hard sheets via VLM ~$0.0003.
+pays: Banks and KASKO insurers, ~3M UZS/month plus 5,000 UZS per valuation.
+demo: Point a phone at printed sheets on toy cars: fair band.
+moat: offline asking prices cannot be collected after the fact
+
+@ Shtraf Shield | A | Fleets of 50–500 cars | 63 | [98][99][100][101]
+what: A fine desk for rental, car-sharing and delivery fleets: checks each camera fine, then pays at the discount or transfers it.
+how: Fine notice | with photo evidence || Re-read plate | fast-plate-ocr, make, colour || Match register | catches misreads, clones || Pay or transfer | 50% off, or to the driver
+why: Fines can be transferred to the actual driver since 1 Apr 2026, and paying within 15 days halves them. RicorsoAI attacks paperwork, not the evidence image.
+prac: Central Asia plates (CC BY) plus synthetic mismatches. Server ~1.5 s, ~$0.003 per fine.
+pays: Fleets of 50–500 cars, ~$1 per vehicle-month.
+demo: Upload a car photo and a mock fine: pay or transfer.
+moat: per-site camera error patterns learned across fleets
+
+@ FuelTruth | A | Corporate fleets | 59 | [108][109][110]
+what: One 10-second clip (pump display, plate, odometer) fills the e-waybill fuel fields and catches blank-cheque receipts.
+how: 10-second clip | pump, plate, odometer || Read displays | seven-segment OCR || Rule checks | receipt QR, GPS, time || Flag | clean or suspect fill
+why: The e-waybill must carry fuel quantity, remainder and economy. Fuel-level sensors need hardware; methane costs 5,700–5,800 UZS per m³.
+prac: 50k synthetic pump renders plus consented station photos. Modal T4 ~0.4 s, ~$0.0005 per clip.
+pays: Corporate, municipal and logistics fleets, $3 per vehicle-month.
+demo: Photograph our pump card, edit one number: the verdict flips.
+moat: a cross-fleet station index
+
+@ Wrench-Proof | A | Taxi & delivery fleets | 59 | [78][79]
+what: A 20-second continuous clip proves a repair happened: plate, odometer, new part box and the removed old part in one take.
+how: Continuous clip | PWA capture, hashed || Read box + plate | OCR and barcode || Before / after | SAM 3 part masks || Receipt | or box-vs-part mismatch
+why: Fleet owners suspect phantom oil, brake and battery jobs. Service-book apps take the mechanic's word; this is CV-verified. Skip gas kits: UGaz already logs CNG sales.
+prac: 10–15 staged services. Server L4 ~5 s, ~$0.01 per receipt.
+pays: Taxi parks and delivery fleets, ~$0.10 per receipt.
+demo: Mock filter change; swapping the box fails the check.
+moat: verified service passports per car
+
+@ ShiftGate | A | Delivery platforms | 65 | [16][122]
+what: Courier pre-shift passport: a 15-second walk-around checks reflectors, lights, plate and documents before orders unlock.
+how: Walk-around | 15 seconds, phone || Detect items | RF-DETR Nano: reflectors, plate || Light test | brightness change on/off || Unlock or fix | shift opens or fix list
+why: 2026 courier fines total ~4.7bn UZS. Helbiz and Meituan gate on helmets only; no Uzbek helmet rule was found, so helmets stay secondary.
+prac: CC BY helmet sets, 300 self-shot clips, FLUX.2 klein dusk edits. In-browser WebGPU; FPS still to measure.
+pays: Delivery platforms and courier fleets, 2,000 UZS per courier-month.
+demo: Film a bag, bike or scooter: missing items and fine avoided.
+moat: compliance history and rule updates per platform
+
+@ Be-Seen | A | Delivery platforms | 67 | [16][17]
+what: A flash / no-flash photo pair isolates retroreflection and grades a courier moped's reflectors and tape before night shifts.
+how: Two photos | flash and no flash || Isolate reflection | difference image || Segment parts | SAM 3: tape, reflectors || Grade + fix list | before the night shift
+why: Yandex says 92% of 23,785 two-wheeler violations in 2026 were reflectors, lights, tint or passengers: ~4.7bn UZS in fines. Retroreflectometers are dedicated hardware.
+prac: 300 flash/no-flash pairs at dusk; certified vs white tape vs paint. In-browser under 1 s, zero server cost.
+pays: Platforms and fleets, 3,000 UZS per audit or 150k UZS per depot-month.
+demo: Photograph your vest or plate with and without flash.
+moat: per-phone flash calibration and depot compliance history
+
+@ CamAudit | A | Camera integrators | 70 | [8][9]
+what: Stress-tests road-camera AI under synthetic night, rain, dust and plate smear, scored against Resolution 148.
+how: Real clips | integrator's own footage || Synthetic weather | inpainting, corruptions || Rerun the model | VLM adjudicates misses || Audit report | pass/fail per condition
+why: Resolution 148 demands ≥95% plate capture day and night and suspends use at ≥5% data errors, yet "error" is undefined. Vendors self-claim 97–99%; no independent tester found.
+prac: ACDC, ZOD, BDD100K, Central Asia plates plus 50 Tashkent clips. 1,000 synthetic frames in ~1 hour on Modal L4 for under $2.
+pays: Integrators facing the 10-day trial, 15–40M UZS per audit.
+demo: Drag night and rain sliders: plate reader fails; audit downloads.
+moat: a local benchmark with a real-vs-synthetic calibration curve
+
+@ Navbat | A | Taxi & courier fleets | 70 | [24][25][26]
+what: Drivers' station clips become a live methane map: queue length, open or closed, and where to fill now.
+how: Station clips | drivers and dashcams || Count the queue | RF-DETR-Seg vehicles || Metres + status | MoGe-2, open / closed || Where to fill | throughput → wait time
+why: On 25 Dec 2025 only 11 of 33 CNG stations serving Tashkent public transport were open. State UGaz has no driver-facing feature; 576k taxi drivers registered in 2024.
+prac: ~400 queue clips from one drive-round of 10–15 stations. Server ~1 s per clip, under $0.001; the phone only captures.
+pays: Taxi and courier fleets, ~15k UZS per car-month.
+demo: Play a queue video on a laptop: count, status, "go to B".
+moat: per-station hourly throughput priors and winter history
+
+@ AutodromRef | A | Driving schools | 75 | [4][5][6][7]
+what: One overhead phone scores a driving school's practice yard on the exam manoeuvres and saves replay clips.
+how: Overhead phone | sees the whole yard || Track car + cones | RF-DETR Nano, SAM 2.1 || Yard geometry | homography, cm scale || Exam score | rollback, cones, lines
+why: The practical exam is sensor-scored on a 100-point scale with a 1.2M UZS retake; graduates' results carry 30 of 100 school-rating points. No cheap practice tool found.
+prac: Printed A3 mini-track with toy cars, plus 20 real yard clips. ~15 FPS on CPU/WebGPU; one phone or $60 camera, ~$15/month per track.
+pays: Driving schools, ~400k UZS per track-camera per month.
+demo: Push a toy car round our printed track: cone hits appear live.
+moat: a replay library calibrated to real exam outcomes
+
+@ MirrorMark | A | Driving schools | 56 | [4][133][134]
+what: On-road lesson module for AutodromRef: head pose and gyro score mirror and shoulder checks around turns.
+how: Cabin phone | faces the learner || Head pose | MediaPipe face landmarks || Turn windows | phone motion sensors || Missed checks | feedback + dashboard
+why: HAMS and Clutch already score mirror checks, so it wins only bundled with yard scoring. The Uzbek exam is sensor-scored, so schools sell measured feedback.
+prac: 60 consented cabin drives with labelled glances. In-browser, 15–30 FPS target, ~zero cost.
+pays: Driving schools, ~150k UZS per car-month, bundled.
+demo: Watch a route video while the webcam scores your checks.
+moat: learner histories inside the school's CRM

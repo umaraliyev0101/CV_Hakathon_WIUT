@@ -1,0 +1,262 @@
+# Tier B — solid B2B niches. Order = investor ranking.
+
+@ Sotiladi Scout | B | Used-car dealers | 67 | [36][37][38]
+what: Walk a car market with a phone: on-device OCR reads for-sale notes behind windshields and ranks a call list by margin.
+how: Phone walk | market or lot || Find notes | RF-DETR note detector || Read + identify | PP-OCRv6, SigLIP 2 model || Call list | ranked by margin
+why: 52–57k used-car deals happen a month, and many sellers never list online. Listing scrapers miss everyone who only puts a note in the window.
+prac: 500 self-collected sign frames plus synthetic notes on car photos. Phone WebGPU; phone numbers stay on-device and database rules apply.
+pays: Dealers and flippers, ~$30/month or $0.30 per verified lead.
+demo: Point a phone at printed windshield notes: tap-to-call list.
+moat: a map of unlisted supply with call outcomes
+
+@ Ko'pik | B | Gas-conversion workshops | 71 | [10][11][12]
+what: Films each soaped gas fitting, proves every joint was covered, spots growing bubbles and files a witnessed leak-test record.
+how: Soap-test video | 15–30 s per fitting || Segment fittings | SAM 3 prompts || Bubble growth | frame difference + texture || Witnessed record | tied to cylinder serial
+why: Resolution 315 routes cylinder status into Eco-Himoya and U-Gas but says nothing about leak tests. 33.9% of fuel-typed Avtoelon listings are petrol-gas.
+prac: 100 clips from a borrowed regulator with a syringe-made air micro-leak. Server ~10 fps (estimate), under $0.002 per test.
+pays: Conversion workshops and inspection centres, ~150k UZS per bay-month.
+demo: Blow through a straw at a plastic fitting: the leak lights up.
+moat: calibrated minimum-detectable-leak data plus workshop histories
+
+@ BallonID | B | Inspectors & stations | 59 | [10][79][174]
+what: Two raking-light photos of a cylinder stamp read serial, dates, pressure and type, then apply Resolution 315's refuse rules.
+how: Two torch photos | raking light on the stamp || Align frames | ECC alignment || Read stamp | PP-OCRv6 on synthetic stamps || Fill or refuse | over-age or untested
+why: UGaz checks by plate, not the physical cylinder. A propane cylinder filled with methane exploded in Fergana.
+prac: 50+ real cylinders, including rust and paint; measured read rate. CPU ~0.5 s, under $0.001.
+pays: Inspectors and avtopodbor firms, 20k UZS add-on; module for UGaz.
+demo: Torch-photograph our stamped plate: fields read, verdict shown.
+moat: stamp layouts by maker and year
+
+@ GapGauge | B | Inspectors & trade-in | 64 | [21][22][23]
+what: Hold a bank card beside a panel seam: the card gives millimetres, ten stations give taper, left vs right flags repair.
+how: Card at the seam | ID-1 card = 85.60 mm || Card homography | pixels → millimetres || Seam width | 10 stations, in-browser || Asymmetry flag | left vs right, per model
+why: An ID-1 card is 85.60 × 53.98 mm: a ruler everyone carries. Scope's 2019 beta and AI Vahan claim gap checks without a reference object or published accuracy.
+prac: Feeler-gauge truth on 30 campus cars, 8 seams each. Fully in-browser, under 1 s per seam (to measure), zero server cost.
+pays: Inspectors and trade-in desks, 10,000 UZS per car or 150k/seat-month.
+demo: Press your card to a car or laptop seam; check it with a ruler.
+moat: feeler-gauge-validated tolerance bands per Chevrolet and BYD model
+
+@ BoltSeal | B | Trade-in desks & lenders | 63 | [34][39][40]
+what: Guided macro photos of hinge and fender bolts flag wrench marks and cracked paint seals: was this panel removed?
+how: Macro photos | hinge and fender bolts || Find bolts | RF-DETR-Nano || Sealed or disturbed | DINOv3-S classifier || "Removed?" log | left-right twin control
+why: Bolt checks are a manual inspector trick and no fastener-level AI was found. Avtopodbor starts at 300,000 UZS; this costs a fraction.
+prac: Controlled before/after wrench test on scrap panels of 2 models. ONNX in browser with a server fallback (2.3 ms on a T4).
+pays: Trade-in desks and lenders, ~15,000 UZS per car.
+demo: Scan six bolts on our board; three were secretly wrenched.
+moat: per-model maps of bolts factories adjust legitimately
+
+@ Proof-of-Inspection | B | Banks & marketplaces | 63 | [42]
+what: Audits the inspector, not the car: checks live inspection video for required steps, reused footage and VIN contradictions.
+how: Inspection video | captured live || Step checks | Grounded-SAM-2, Qwen3-VL || Fingerprints | reused-footage search || Certificate | or flagged contradictions
+why: Banks, lessors and marketplaces rely on inspection PDFs nobody verifies. Inspektlabs checks its own capturer's media; third-party inspectors go unaudited.
+prac: Scripted staged inspections with deliberate omissions. Server ~40 s, under $0.05 per audit.
+pays: Banks, leasing firms and marketplaces, 10,000 UZS per audit.
+demo: Film a toy-car walk-around, type "no damage", get challenged.
+moat: an inspector reputation graph
+
+@ Lowside | B | Moped fleets & lessors | 63 | [16][43]
+what: Zone-by-zone scuff map for used mopeds and motorcycles plus fork symmetry: crash history at check-in and check-out.
+how: Bike photos | any angle || Contact points | SAM 3: levers, pegs, cases || Scuff vs wear | DINOv3 classifier || Heatmap | plus a price note
+why: 563 moped and scooter crashes in Jan–Sep 2026. Motoryk sells a $4.99 one-off report; fleets need a repeatable check-in loop.
+prac: Weakly labelled OLX photos; ~30 mechanic-inspected bikes for a hit rate. Server L4 ~0.8 s, ~$0.002.
+pays: Moped lessors and courier fleets, ~$2 per check.
+demo: Upload any bike photo: scuff heatmap.
+moat: two-wheeler crash-signature labels
+
+@ LemonBack | B | Sellers + insurer | 52 | [33][66][67]
+what: A seller-paid, insurer-backed 30-day buyback guarantee covering only what a dated 10-minute capture proves.
+how: 10-min capture | guided by the app || Run checks | bolts, gaps, lamps, wear || Price the risk | rules table, decline unsure || Guarantee | buyback at ~95% trade-in
+why: KASKO premiums fell 47% in 2025, so insurers need new products. Earlier buyback guarantees (2009, Carro) were not priced from photos.
+prac: 40 captured cars with inspector verdicts; a break-even claim-rate table. Server ~3 s, ~$0.01 per car.
+pays: Private sellers ~300,000 UZS; the insurer carries risk, we take commission.
+demo: Live capture; toggle a defect and watch the premium move.
+moat: loss data from issued guarantees
+
+@ Drip-ID | B | Inspectors & buyers | 66 | [34][35]
+what: Used-car drip test: a printed card under the car and two photos ten minutes apart identify the fluid that is leaking.
+how: Card under car | printed, calibrated || Two photos | 10 minutes apart || Stain analysis | Lab colour, spread, sheen || Fluid verdict | water, oil, ATF, coolant
+why: A Tashkent avtopodbor from 300,000 UZS lists no leak check. Fleet photo tools exist, but no consumer drip card was found.
+prac: Pour 6 fluids on cardboard, asphalt and tile in sun, shade and night: ~800 photos. Browser mask, under 2 s, below $0.001.
+pays: Inspectors and buyers, $1–2 per report plus card consumables.
+demo: Drip water or tea on our card: fluid class and verdict.
+moat: an aged-leak library per local engine
+
+@ Razborka Lens | B | Dismantlers | 63 | [46][72]
+what: Identifies number-less used parts by shape plus donor VIN, then drafts Uzbek and Russian listings with a fair-price band.
+how: Part photo | from the bench || Part mask | SAM 3 || Retrieve + fitment | SigLIP 2 / DINOv3 + VIN || Listing draft | Telegram + OLX, price band
+why: OLX lists 67,363 parts ads. Robzar reads part numbers, but bumpers, lamps and door cards have none.
+prac: 10–15 real donor teardowns plus OLX parts photos. Server L4 ~1 s, ~$0.002 per part.
+pays: Dismantlers and parts sellers, ~$25/month or per API call.
+demo: Photograph a part from our bench: listing drafted.
+moat: a fitment graph for local Chevrolet and Chinese platforms
+
+@ Brake Peek | B | Tyre shops | 62 | [73][74]
+what: While the wheel is off for a tyre swap, one photo with a marker card measures brake-pad thickness and sends a quote.
+how: Side-gap photo | ArUco card in view || Pad + rotor masks | SAM 2.1 || Measure | card scale, ±1 mm target || Brake card | pass, soon or now
+why: Chevrolet took 83% of Jan–Sep 2025 new sales, so two caliper families cover most cars. Always prints "inner pad unchecked".
+prac: 30+ caliper-measured pads across two Chevrolet caliper families. In-browser ~1.5 s, ~zero cost.
+pays: Tyre shops, ~$20/month; every swap becomes a brake upsell.
+demo: Photograph our mounted junkyard pad sets.
+moat: wear-by-mileage data; claim the guided capture (Nissan holds a US pad patent)
+
+@ TremorLab | B | Garages | 61 | [11][75]
+what: Engine-rock screening: a tripod phone films two printed tags during throttle blips and measures the rock in millimetres.
+how: Tripod video | 60–120 fps || Track tags | AprilTags on engine + body || Displacement | mm vs healthy reference || Screening flag | worn mounts suspected
+why: KCF's phone vibration app is industrial-only; nobody screens car engines this way. 33.9% of listings are petrol-gas, so idle on both fuels can be compared.
+prac: Friends' Nexia, Cobalt and Gentra plus synthetic sub-pixel motion. Modal L4, ~$0.002 per scan.
+pays: Garages and taxi-park workshops, 10,000 UZS per scan.
+demo: Film a buzzing phone or your own bonnet: rock in mm.
+moat: vibration signatures per Chevrolet engine
+
+@ Orange Guard | B | EV service academies | 61 | [13][76][77]
+what: Scores an EV technician's high-voltage lockout drill against the OEM checklist; a human still verifies zero voltage.
+how: Drill video | webcam in the bay || Detect props | gloves, cones, tags, people || Step machine | order of safety steps || Scored drill | audit log for compliance
+why: 122.7k EVs are on the road and many service bays are new to high voltage. Generic PPE vision exists; EV lockout drills go unscored.
+prac: 40 staged routines with right and wrong variants. Runs in the browser.
+pays: BYD/Royal Motors academies, colleges, dealers, ~$25 per bay-month.
+demo: Play mechanic with props: green only after all steps.
+moat: an OEM-endorsed checklist
+
+@ FakeStop | B | Brand owners | 57 | [80][81]
+what: Counterfeit scanner for one genuine-parts family: print microtexture and hologram tilt say genuine or suspect.
+how: Box photos | macro + tilt || Microtexture | per-SKU PatchCore || Hologram flip | colour change on tilt || Verdict | genuine, suspect, unknown
+why: 32% of Russian repair shops met fake parts in 2025. Authentic Vision needs its own labels; this retrofits existing packaging. Unknown SKUs are refused.
+prac: 10 genuine boxes per SKU; 20+ brand-confirmed bazaar suspects. In-browser ~0.5 s per patch.
+pays: Brand owner or importer, $300–800/month plus a hotspot dashboard.
+demo: Scan six boxes: which are fake?
+moat: a genuine reference library per SKU
+
+@ Claim Pack | B | Importers & OEMs | 56 | [84][85]
+what: Cross-dealer warranty auditor: flags reused, inflated or out-of-sequence claim photos across every dealer.
+how: Claim photos | VIN, odometer, part || Keyframes + OCR | PP-OCRv6 || Duplicate search | pHash + embeddings || Exception list | for the warranty desk
+why: Each dealer's claims are reviewed separately, so a photo reused across dealers goes unseen. GM's dealer app sees one dealer; the importer view is missing.
+prac: 30 mock repairs with duplicate traps. Browser OCR, server dedup, ~$0.01 per claim.
+pays: Royal Motors and UzAuto Motors warranty desks, $0.50 per claim.
+demo: Film a screen showing a VIN plate and odometer.
+moat: a cross-dealer duplicate graph
+
+@ Spot-Oil | B | Taxi & delivery fleets | 67 | [11][92]
+what: A printed blotter card plus a phone photo triages used engine oil: change now, or contamination suspected.
+how: Oil drop on card | standard spot test || Rectify | ArUco markers || Ring profile | radial rings → features || Flag | change now / suspect
+why: The ASTM D7899 spot test is read by eye and no phone product was found. 33.9% of fuel-typed listings are petrol-gas, where oil ages differently.
+prac: ≥30 lab-analysed samples from CNG/LPG taxis for an ROC curve. In-browser under 1 s; the card costs ~$0.02.
+pays: Taxi parks and delivery fleets, $0.15 per card plus trend dashboard.
+demo: Photograph our pre-dried cards: verdicts.
+moat: a fleet-outcome spot library; the card is a consumable
+
+@ Plomba Twin | B | Tanker operators | 64 | [93][94]
+what: Seal evidence ledger for fuel tankers: proves the seal at arrival is the same physical seal fitted at the depot.
+how: Seal photo | at each hop || Crop + serial | RF-DETR, OCR || Same object? | keypoints + RANSAC || Ledger | same, lookalike, re-sealed
+why: A same-serial lookalike passes a serial check. Alitheon fingerprints objects generically; EAEU GPS e-seals cover regulated transit, not domestic fuel legs.
+prac: 40 bought seals × 12 photos, including same-serial lookalikes; published ROC. On-device or server ~0.3 s.
+pays: Tanker operators, forwarders, cargo insurers, $0.30 per seal.
+demo: Photograph a seal; we swap in a lookalike: caught.
+moat: a ledger that spans every hop
+
+@ CubeProof | B | Developers & traders | 63 | [95][96][97]
+what: Buyer-side receipt for bulk loads: a top-down shot returns cubic metres, tonnes and a short-load flag before tarping.
+how: Top-down photo | loader cab or gate pole || Heap mask | SAM 3 || Volume | MoGe-2 depth + bed size || Receipt | m³, tonnes, short-load
+why: A quarry pilot found 2–3% under-delivery. LOADSCAN uses 700+ laser scanners; this needs only a phone, validated against weighbridge tickets.
+prac: 60 real loads vs weighbridge tickets. Server T4 ~1.5 s, ~$0.0003.
+pays: Developers, material traders, municipal contractors, $0.10 per load.
+demo: Photograph our rice box beside a marker: volume.
+moat: ticket-photo calibration per material
+
+@ QueueLedger | B | Corridor forwarders | 61 | [102][103][104]
+what: A single photo of a border queue gives trucks-ahead and an ETA in a Telegram bot.
+how: Queue photo | scouts or drivers || Count trucks | RF-DETR || Metres | MoGe-2 depth || ETA | trucks ahead × throughput
+why: 400+ trucks were stuck at Tazhen and Gisht-Kuprik waits exceed 24 hours. Belarus queue apps run on official e-queues; here none exists.
+prac: Scout photos plus Central Asia plates. Server T4 ~0.5 s per photo; benchmark against a GPS-only ETA.
+pays: Corridor forwarders, ~$3 per truck-crossing.
+demo: Photograph a toy-truck queue: trucks ahead and ETA.
+moat: per-crossing throughput history
+
+@ Cargo-Fit | B | Cargo platforms | 59 | [73][111]
+what: Suggests a Damas, Labo or Gazelle plus loaders from photos of the load, priced instantly.
+how: Load photo | or 20–30 s video || Item masks | SAM 3 || Dimensions | MoGe-2, banknote scale || Vehicle + price | bin-packing vs bays
+why: Damas and Labo were ~35% of Jan–Sep 2025 sales, and dispatchers guess vehicle size. Fraunhofer CargoSight measures truck fill, not vehicle choice.
+prac: 300 measured household items; ~30 real jobs vs a human dispatcher. Server ~2 s, ~$0.003.
+pays: Dispatch and marketplace platforms, ~$0.01 per quote.
+demo: Photograph a chair beside a banknote: vehicle and price.
+moat: dispatch outcome data
+
+@ ScaleGuard | B | Grain & cotton buyers | 56 | [113][114]
+what: Software retrofit on weighbridge CCTV: flags a wheel off the platform, extra people or a tare-vs-gross truck swap.
+how: Weighbridge CCTV | existing camera || Wheels + deck | RF-DETR-Seg || Same truck? | XFeat match, tare vs gross || Hold ticket | with an evidence pack
+why: Chinese unmanned-weighbridge vendors advertise these detections; no Central Asian retrofit was found. A lifted-axle CNN reached 87% precision.
+prac: Get real weighbridge footage before pitching; toy rig for the demo. Server; edge-board support unverified.
+pays: Grain and cotton buyers, cement receivers, ~$80 per scale-month.
+demo: Try to cheat our toy weighbridge.
+moat: site-level fraud patterns
+
+@ Hakam | B | EV fleets | 56 | [115][116][117]
+what: Fleet-card audit for EV fleets: billed kWh vs the car's own "energy added" screen catches charging someone else's car.
+how: Two screens | charger + car photos || Read both | PP-OCRv6 + small VLM || Energy balance | expected vs billed kWh || Flag | per session, charger bias
+why: 31.5% of reviewed UK chargers were out of tolerance. WEX uses telematics; mandatory metrological checks are planned here.
+prac: 3–5 real sessions against a wall meter. Server CPU ~0.3 s per photo.
+pays: EV fleets and charge-point operators, ~20k UZS per car-month.
+demo: Pick a session pair: expected vs billed kWh.
+moat: crowd-sourced charger-bias scores
+
+@ Yield-to-Win | B | Bank sponsors + city | 63 | [123][124]
+what: Rewards instead of fines: crossing cameras confirm opted-in drivers who stop for pedestrians and pay lottery-style prizes.
+how: Crossing camera | zebra + waiting people || Yield logic | RF-DETR + ByteTrack || Opted-in plate | fast-plate-ocr || Reward | prize from loyalty budget
+why: Pedestrians were in ~46% of crashes. AI cameras issued ~1,700 fines in 3 days at 10 crossings (blogger-reported); this flips punishment to reward.
+prac: 3 filmed Tashkent crossings, 200 labelled yields, synthetic Uzbek plates. ~$500 edge box or server.
+pays: A bank sponsor (Uzcard, MKBANK) plus a city pilot, ~3M UZS per crossing-month.
+demo: Register a toy plate; a crossing clip triggers the reward.
+moat: an opt-in user base and A/B safety evidence
+
+@ Dispatch Card | B | Roadside assistance | 63 | [126]
+what: A bystander or dashcam crash clip becomes an Uzbek/Russian triage card: vehicles, people, fire, smoke, CNG risk.
+how: Crash clip | bystander or dashcam || VLM + counts | Qwen3-VL, RF-DETR || Hazards | fire, smoke, CNG flag || Triage card | Uzbek / Russian
+why: Uzbek cylinder blasts happen while refuelling, so responders need to know the gas risk. 911 live-video tools send video without analysis.
+prac: DoTA, CCD, DAD, UCF-Crime; report recall and precision. L4 ~6 s per 10 s clip, ~$0.002.
+pays: Roadside-assistance and insurer desks, per seat.
+demo: Play a crash clip: the card arrives ~8 s later.
+moat: a CNG/LPG hazard library
+
+@ SeatProof | B | Seat retailers & fleets | 61 | [127][128]
+what: Child-seat installation coach: photos reveal visible errors and always print "tightness not verified".
+how: Seat photos | installed seat || Straps + clip | SAM 3 + keypoints || Rule checklist | Qwen3.5-4B + rules || Annotated errors | never "safe"
+why: Draft Art. 128-11 proposes 30 BRV fines. Chest-clip sensors only alert; this checks the installation itself.
+prac: 4 bought seats, a doll, 400 photos, half misinstalled. Modal ~1.5 s, ~$0.0003 per VLM call.
+pays: Child-seat retailers at point of sale; parents 5,000 UZS per check.
+demo: Photograph our doll setup: errors annotated.
+moat: a misinstallation case library
+
+@ GateWash | B | Developers | 62 | [144][145][146][147]
+what: Construction-gate kit that logs each truck's wheel-wash dwell, spray, tarp cover and plate with a signed clip hash.
+how: Gate camera | wash-bay exit || Track truck | RF-DETR-Seg / SAM 2.1 || Process checks | dwell, spray, tarp || Signed log | feed for inspectors
+why: Tashkent's draft rule covers ~1,700 construction sites in the smog push. UK Mud Cam and Delhi's dust portal prove demand; here the polluter pays for proof.
+prac: Consented truck exits at 2–3 sites. Gate mini-PC or Pi 5 with AI HAT+ 2 (~$505).
+pays: Developers and contractors, ~$40 per gate-month.
+demo: Point a phone at a toy truck: QR receipt.
+moat: an evidence format co-designed with inspectors
+
+@ Plug-Ready | B | Chinese-EV dealers | 63 | [172][173]
+what: Install-ready check at EV handover: film spot, meter, panel and socket; get amps, cable run, hazards and a wallbox quote.
+how: Home walk video | spot, meter, panel || Read ratings | PP-OCRv6 breakers || Measure the run | bank card + MoGe-2 || Quote | or "electrician first"
+why: EV manuals forbid extension cords, yet new owners improvise. US panel-photo quoting exists; nothing fits Uzbek limits. Never outputs a "pass".
+prac: 80 own clips; 30+ panels checked with tape. Browser OCR, serverless L4, ~$0.01.
+pays: Chinese-EV dealers via wallbox margin, EV-loan banks, ~$4 per survey.
+demo: Film any socket and fuse box with a bank card.
+moat: quote-vs-install feedback
+
+@ ChargeMD | B | EV taxi fleets | 57 | [13][175][176]
+what: A photo of a charger's error screen becomes a plain-language action, a one-tap operator report and a verified-uptime map.
+how: Screen photo | charger error || Find + read | RF-DETR, PP-OCRv6 || Fault dictionary | per model, Chinese + English || Action + ticket | and an uptime map
+why: 122.7k EVs are registered and imported chargers show codes drivers cannot read. Backend reliability scores exist; screen decoding does not.
+prac: Screens photographed at 40+ chargers. Server, under $0.001 per report.
+pays: EV taxi fleets; charge-point operators ~100k UZS per site-month.
+demo: Upload a charger photo: translated code and ticket.
+moat: fault dictionaries for imported models
+
+@ YardAudit | B | Lenders & import yards | 49 | [180][193]
+what: VIN-first existence audit: a walk video reads plates and VINs and reconciles them with the pledge or stock list.
+how: Walk video | lender's yard visit || Read IDs | plates + VIN OCR || Reconcile | vs pledge / stock list || Missing units | timestamped report
+why: Lenders with dealer credit lines need proof the stock exists. Sergeli already registers plate-less cars by QR; lender self-audit apps are not phone-only in UZS.
+prac: 3 staged yards with seeded missing cars; report recall. Server, under $0.05 per 2-minute video.
+pays: Banks and lessors with dealer credit lines, ~150,000 UZS per audit.
+demo: Film the venue car park: units found vs list.
+moat: per-dealer stock history

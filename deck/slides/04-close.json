@@ -1,0 +1,10 @@
+[
+ {"layout":"callout","eyebrow":"Pitching to investors","title":"How to pitch any of these",
+  "lead":"Lead with the money: who pays, how much, how often.",
+  "detail":"Put revenue math on one slide; cost per inspection is $0.0003–0.01, so gross margin can top 90%. Name a design partner in the room (MKBANK, Uzcard, BYD Royal Motors, the Central Bank). Show the path from one module to a platform and the next two markets.",
+  "source":"Report: shared build kit and hackathon intel"},
+ {"layout":"callout","eyebrow":"Before you quote a number","title":"What is still unverified",
+  "lead":"Every price is an estimate; no customer has confirmed they would pay.",
+  "detail":"Some facts rest on one weak source: the UZS rate, \"1,700 fines in 3 days\", Cobalt's 30.1% share. No source was found for the helmet rule, truck overhang limit, minimum yellow time or a CNG passenger-exit rule. Phone-browser speeds are unmeasured.",
+  "source":"Report writer's caveats, 10 Oct 2026"}
+]

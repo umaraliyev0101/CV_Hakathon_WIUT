@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 project_brain/diagrams/src/p?.drawio
+.DS_Store
+# deck build intermediates (regenerate with deck/build/build-all.sh)
+deck/build/shots/
+deck/build/qa/
+deck/build/qa.html
+deck/build/deck.html

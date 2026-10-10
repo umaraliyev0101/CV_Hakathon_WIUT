@@ -1,0 +1,909 @@
+[
+ {
+  "layout": "section",
+  "theme": "dark",
+  "num": "Tier C · 36 ideas",
+  "title": "Great demo, hard investor case",
+  "subtitle": "City hall is the only payer, the ticket is too small, or it is a feature of a bigger product."
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 56 / 91 · City hall: ecology",
+  "title": "PlumeWatch",
+  "subtitle": "Spots trucks blowing black smoke or driving with uncovered loads, from road cameras.",
+  "story": "Existing roadside cameras watch passing trucks. PlumeWatch grades how dark each truck's exhaust smoke is, checks whether loads are covered, reads the plate, and keeps a list of repeat offenders for inspectors to send for repair.",
+  "why": "Vehicles cause about 16% of Tashkent's air pollution, and the city has a smog commission. Fixing the worst trucks gives the biggest gain.",
+  "uses": [
+   "An ecology inspector targets the dirtiest trucks",
+   "The smog commission tracks repairs",
+   "A city measures progress against smog"
+  ],
+  "buyers": "The city's ecology committee and smog commission.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [140][141][142][143]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 56 / 91 · How it works",
+  "title": "PlumeWatch",
+  "subtitle": "Roadside cameras grade each truck's black smoke and tarp status, feeding a repeat-offender ledger and repair orders.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Roadside camera</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>existing feeds</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect trucks</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Plume grade</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>temporal classifier, Ringelmann</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Evidence pack</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>plate + offender ledger</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Vehicles are ~16% of Tashkent pollution</text><text class='dg-t' x='30' y='225'>and Decree UP-229 set up a smog</text><text class='dg-t' x='30' y='246'>commission. Hong Kong's roadside</text><text class='dg-t' x='30' y='267'>sensors got 96% of flagged vehicles</text><text class='dg-t' x='30' y='288'>repaired.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>The public 75k-image set is not</text><text class='dg-t' x='395' y='225'>downloadable: collect 300+ local clips with</text><text class='dg-t' x='395' y='246'>condensation negatives. T4, $5–15 per</text><text class='dg-t' x='395' y='267'>camera-month, daytime only.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Ecology committee and smog commission,</text><text class='dg-t' x='760' y='225'>$30–60 per camera-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Play a roadside clip: smoke grade and PDF.</text>",
+  "note": "**Moat** — a repeat-offender ledger  ·  Report score 62/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [140][141][142][143]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 57 / 91 · City hall: road safety",
+  "title": "SightTriangle",
+  "subtitle": "Checks whether drivers can really see pedestrians at a crossing, from a phone video.",
+  "story": "An auditor stands at the stop line and slowly pans a phone across the junction. SightTriangle finds what blocks the view, like kiosks or parked cars, and says whether a driver can see far enough to stop in time at that speed.",
+  "why": "A crossing is only safe if drivers can see who is about to cross. Blocked views cause crashes that cameras and fines don't prevent.",
+  "uses": [
+   "An auditor checks new AI-camera crossings",
+   "A city decides which kiosk to move",
+   "A school asks for a safer crossing"
+  ],
+  "buyers": "Road-safety audit consultants, often on development-bank projects.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [123][148]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 57 / 91 · How it works",
+  "title": "SightTriangle",
+  "subtitle": "\"Was it even visible?\" A phone pan at the stop line reports blockers and pass or fail at stopping sight distance.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Phone pan</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>at the stop line</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Road geometry</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>phone height + pitch</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Obstacles</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 2.1 + RF-DETR</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Sight verdict</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>pass/fail with error band</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Kiosks and parked cars can hide</text><text class='dg-t' x='30' y='225'>pedestrians at the new AI yield crossings.</text><text class='dg-t' x='30' y='246'>Mobile-LiDAR research does this; a phone</text><text class='dg-t' x='30' y='267'>audit does not exist yet.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>≥8 tape-measured corners; no far-field</text><text class='dg-t' x='395' y='225'>depth beyond ~40 m. Server, under 1 cent</text><text class='dg-t' x='395' y='246'>per audit.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Road-safety audit consultancies on</text><text class='dg-t' x='760' y='225'>development-bank projects, ~$15/audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Pan at a venue corner or hallway junction.</text>",
+  "note": "**Moat** — a per-phone depth-error model  ·  Report score 62/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [123][148]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 58 / 91 · City hall: roads",
+  "title": "SwerveMap",
+  "subtitle": "Finds potholes and road hazards by watching how drivers swerve around them.",
+  "story": "Fixed traffic cameras already film every road. SwerveMap tracks the cars, and when many drivers swerve at the same spot, it marks a hazard, like a pothole, open manhole or gravel, and ranks spots for repair.",
+  "why": "Tashkent's Safe City system has 42,750 cameras but no one watches for road damage. Drivers' behaviour reveals hazards without anyone labelling potholes.",
+  "uses": [
+   "The road agency gets a ranked repair list",
+   "A city finds dangerous spots early",
+   "An insurer sees accident-prone points"
+  ],
+  "buyers": "The road agency and city hall.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [149][150]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 58 / 91 · How it works",
+  "title": "SwerveMap",
+  "subtitle": "Fixed cameras reveal road hazards from behaviour: repeated swerves at one spot rank potholes, open lids and gravel.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Fixed camera</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>traffic video</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track vehicles</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR + trackers</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Lateral kinks</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>ground-plane residuals</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Hazard rank</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>VLM names the cause</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Tashkent Safe City runs 42,750 cameras.</text><text class='dg-t' x='30' y='225'>Pavement-image AI is a hard business</text><text class='dg-t' x='30' y='246'>(Michelin exited); behaviour needs no</text><text class='dg-t' x='30' y='267'>defect labels.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>UA-DETRAC, a staged cone-dodge,</text><text class='dg-t' x='395' y='225'>RDD2022 for causes. Server at 5 FPS;</text><text class='dg-t' x='395' y='246'>needs an L4 or edge box for margin.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Road agency or khokimiyat, ~$25 per</text><text class='dg-t' x='760' y='225'>camera-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Play a clip with a hidden obstacle: swerve</text><text class='dg-t' x='760' y='318'>heatmap.</text>",
+  "note": "**Moat** — label-free per-lane baselines  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [149][150]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 59 / 91 · City hall",
+  "title": "ForcedOnRoad",
+  "subtitle": "Maps sidewalks too narrow or blocked, forcing pedestrians into traffic.",
+  "story": "Someone walks a street filming the sidewalk. ForcedOnRoad measures the free width and finds where parked cars or kiosks leave less than 1.2 m, so pedestrians must step onto the road. It ranks blocks by danger.",
+  "why": "Pedestrians are involved in about 46% of crashes. Knowing exactly where to put bollards or move parking saves lives cheaply.",
+  "uses": [
+   "A city decides where to place bollards",
+   "The parking operator moves bays off sidewalks",
+   "Activists document unsafe streets"
+  ],
+  "buyers": "City hall and the city's parking operator.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [124][151][152]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 59 / 91 · How it works",
+  "title": "ForcedOnRoad",
+  "subtitle": "Map of sidewalks under 1.2 m free width, with error bands, ranking blocks where pedestrians are forced into traffic.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Sidewalk video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>street walk</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Segment</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>SAM 3: sidewalk, cars, kerb</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Measure width</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>marker + MoGe-2</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Bollard list</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>exposure-ranked blocks</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Pedestrians were in ~46% of crashes.</text><text class='dg-t' x='30' y='225'>Crowd labelling exists; measured width</text><text class='dg-t' x='30' y='246'>does not. Monocular width error is 0.252 m.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>20 blocks filmed at rush hour, 100 tape</text><text class='dg-t' x='395' y='225'>points. Server, ~1 cent per km.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Khokimiyat or the parking concessionaire,</text><text class='dg-t' x='760' y='225'>~$60 per street-km.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload a sidewalk video: width strip.</text>",
+  "note": "**Moat** — an exposure-ranked block database  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [124][151][152]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 60 / 91 · City utilities",
+  "title": "Rain-Ready",
+  "subtitle": "Finds blocked storm drains before a big rain, so streets don't flood.",
+  "story": "Cameras on buses and city vehicles photograph storm drains as they drive. Rain-Ready grades how clogged each drain is and, before a forecast storm, gives the district a cleaning list starting with the lowest, most flood-prone streets.",
+  "why": "Clogged drains flood streets and underpasses, stranding cars. Cleaning the right drains before the rain is far cheaper than dealing with floods.",
+  "uses": [
+   "A district cleans the worst drains before a storm",
+   "Fleets get warnings about flooded underpasses",
+   "A city tracks drain upkeep"
+  ],
+  "buyers": "District administrations and storm-water utilities.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][154]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 60 / 91 · How it works",
+  "title": "Rain-Ready",
+  "subtitle": "Bus dashcams score storm-drain clogging; before each forecast storm the district gets a cleaning list.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Dashcam frames</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>buses, municipal cars</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Find grates</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Nano</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Clog share</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3 debris mask</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Pre-storm list</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>ranked by low points</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Road-asset apps catalogue drains but not</text><text class='dg-t' x='30' y='225'>clog severity tied to a forecast; fleets also</text><text class='dg-t' x='30' y='246'>get underpass-closure alerts.</text><text class='dg-t' x='30' y='267'>Open-Meteo's free API is non-commercial.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>400 own grate photos plus public sets;</text><text class='dg-t' x='395' y='225'>back-test against a past flood. Server,</text><text class='dg-t' x='395' y='246'>~$0.02 per km.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>District hokimiyats and storm-water</text><text class='dg-t' x='760' y='225'>utilities, ~$0.50 per inlet.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph a street drain near the venue.</text>",
+  "note": "**Moat** — clog history linked to flood outcomes  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][154]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 61 / 91 · City hall & donors",
+  "title": "SchoolGate",
+  "subtitle": "Measures how dangerous a school's drop-off zone is, in a 10-minute phone video.",
+  "story": "A phone propped near the school gate records pickup time. SchoolGate counts double-parked cars, blocked crossings, U-turns and drivers who don't stop for children, then sends a one-page report with three fixes.",
+  "why": "Children are hard for drivers to see, and school zones get chaotic. Numbers before and after a change show what really works.",
+  "uses": [
+   "A school shows the city its danger hotspots",
+   "A city measures a new crossing's effect",
+   "Parents push for changes with real data"
+  ],
+  "buyers": "City hall, school-safety programmes and donors.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [155][156]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 61 / 91 · How it works",
+  "title": "SchoolGate",
+  "subtitle": "A propped phone at school pickup counts double-parking, blocked crossings, U-turns and yield rate; report via Telegram.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Propped phone</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>10 minutes at the gate</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect + track</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR + trackers</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Rule counts</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>two-mark homography</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>One-page PDF</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>three fixes</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>A 2023 decree orders cameras near</text><text class='dg-t' x='30' y='225'>schools. Studies rely on installed cameras;</text><text class='dg-t' x='30' y='246'>a 10-minute phone audit gives before/after</text><text class='dg-t' x='30' y='267'>numbers cheaply.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>1–2 consented gates plus one dusk or rain</text><text class='dg-t' x='395' y='225'>clip. T4 batch, ~$0.05 per audit.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Khokimiyat, school-safety programmes,</text><text class='dg-t' x='760' y='225'>donors, ~$20 per audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Record the venue entrance: counts and</text><text class='dg-t' x='760' y='318'>PDF.</text>",
+  "note": "**Moat** — a school-zone benchmark  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [155][156]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 62 / 91 · City capital works",
+  "title": "OverpassIgnored",
+  "subtitle": "Shows whether people actually use pedestrian bridges, or still cross the road below.",
+  "story": "A camera films a pedestrian bridge or underpass. OverpassIgnored follows the people and counts who uses the stairs and who crosses at street level, and where they climb fences, showing whether the investment works.",
+  "why": "Cities spend a lot on pedestrian bridges that many people avoid. Studies found usage anywhere from 11.6% to 93.7%.",
+  "uses": [
+   "A city decides where to add fences or crossings",
+   "Auditors check a bridge's value",
+   "Planners choose better designs"
+  ],
+  "buyers": "City capital-works departments and auditors.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [157][158][159]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 62 / 91 · How it works",
+  "title": "OverpassIgnored",
+  "subtitle": "Measures whether people use pedestrian bridges and underpasses or cross at grade, plus driver yield at zebras.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Site video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>bridge + road</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track people</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR + tracker</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Trajectory class</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>stairs, underpass, at-grade</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Effectiveness</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>detours, fence fixes</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Bridge use ranged from 11.6% to 93.7% in</text><text class='dg-t' x='30' y='225'>academic counts (one figure from a search</text><text class='dg-t' x='30' y='246'>snippet). Tashkent's RRFB pilot has no</text><text class='dg-t' x='30' y='267'>evaluation plan.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>1–2 pre-recorded sites, faces blurred. T4</text><text class='dg-t' x='395' y='225'>~10 min per 2-hour clip, ~$0.10.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Khokimiyat capital-works holders and</text><text class='dg-t' x='760' y='225'>auditors, ~$150 per site.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Play a 5-minute bridge clip: usage split.</text>",
+  "note": "**Moat** — a city-wide usage database  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [157][158][159]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 63 / 91 · City inspectors",
+  "title": "Ruxsat",
+  "subtitle": "Audits EV charging sites against the regulator's checklist, from a phone video.",
+  "story": "An inspector films the charging site. Ruxsat reads the charger nameplates, finds the meter and the official verification marks, and checks everything against the rules, giving a pass, a fix-list or a hold.",
+  "why": "In March 2026, 101 Tashkent chargers were cut off over paperwork, and regular audits are planned. Operators want to pass before inspectors come.",
+  "uses": [
+   "An operator self-checks all sites before an audit",
+   "An inspector audits faster",
+   "A new site launches without paperwork surprises"
+  ],
+  "buyers": "City inspection teams and charging operators.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [115][160][161]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 63 / 91 · How it works",
+  "title": "Ruxsat",
+  "subtitle": "Charger-site audit aimed at what the regulator checks: nameplate kW, verification mark, meter and feeder photos.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Site video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>pan across the site</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Find items</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>Grounding DINO / SAM 3</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Read nameplates</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>PP-OCRv6</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Verdict</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>pass, fix-list or hold</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>101 Tashkent chargers were cut off over</text><text class='dg-t' x='30' y='225'>paperwork in March 2026, and 2-year</text><text class='dg-t' x='30' y='246'>audits are planned.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>15 sites; the checklist confirmed by one</text><text class='dg-t' x='395' y='225'>operator first. Hosted VLM on 12</text><text class='dg-t' x='395' y='246'>keyframes, ~$0.004–0.014.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Hokimiyat teams and operators with 20+</text><text class='dg-t' x='760' y='225'>sites, ~200k UZS per audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Pan across our mock charger-site poster.</text>",
+  "note": "**Moat** — a decree-tracked checklist  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [115][160][161]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 64 / 91 · City utilities",
+  "title": "SunkenLid",
+  "subtitle": "Finds open, broken or sunken manhole covers and alerts the right utility.",
+  "story": "Dashcams or citizens' phones photograph the street. SunkenLid finds manhole covers, decides if each is flush, sunken, broken or open, and sends a ticket to the utility that owns it.",
+  "why": "Open or broken covers injure pedestrians and damage cars, especially at night. Several utilities own covers, so problems sit unreported.",
+  "uses": [
+   "A water utility gets a list of its broken covers",
+   "A citizen reports a dangerous hole in one photo",
+   "A district audits its streets"
+  ],
+  "buyers": "City hall and the utilities that own the covers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][162]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 64 / 91 · How it works",
+  "title": "SunkenLid",
+  "subtitle": "Night-first manhole alerts: classify each lid as flush, sunken, broken or open and route a ticket to the owning utility.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Street photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>dashcam or citizen</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Find lids</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Seg</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Lid state</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>ordinal risk classifier</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Ticket</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>to the owning utility</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Cologne's phone pilot found lids easier to</text><text class='dg-t' x='30' y='225'>detect than road damage. Road-asset apps</text><text class='dg-t' x='30' y='246'>list manholes; routing to the 3–4 owning</text><text class='dg-t' x='30' y='267'>utilities is the gap.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>20+ real Tashkent photos with precision</text><text class='dg-t' x='395' y='225'>and recall; FLUX.2 klein lid removal. Server</text><text class='dg-t' x='395' y='246'>~0.4 s.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Khokimiyat and the lid-owning utilities, as</text><text class='dg-t' x='760' y='225'>a district audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload a street photo: lid state.</text>",
+  "note": "**Moat** — a lid registry with owners  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][162]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 65 / 91 · Road & emergency agencies",
+  "title": "DustVis",
+  "subtitle": "Turns existing road webcams into fog and dust-storm warning sensors.",
+  "story": "DustVis looks at fixed objects in each webcam image, like poles and buildings at known distances. The haze over them shows how far drivers can see, so it posts fog and dust-storm alerts when visibility drops.",
+  "why": "Low visibility causes chain crashes on highways. In January 2026, fog cut visibility to 50-100 m and diverted 26 flights.",
+  "uses": [
+   "A highway authority warns drivers on electronic signs",
+   "Emergency services prepare for bad visibility",
+   "Fleets delay trips through dust storms"
+  ],
+  "buyers": "The road agency and the emergency ministry.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [163][164][165]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 65 / 91 · How it works",
+  "title": "DustVis",
+  "subtitle": "Existing webcams as visibility meters: 4–5 visibility classes from landmark contrast, posting fog and dust alerts.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Webcam frame</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>one per minute</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Landmarks</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>MoGe-2 distances</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Contrast law</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>Koschmieder</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Alert</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>class + trend, Telegram</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Fog cut visibility to 50–100 m and diverted</text><text class='dg-t' x='30' y='225'>26 flights on 8–9 Jan 2026. The best CCTV</text><text class='dg-t' x='30' y='246'>model scores 81.76% on five classes;</text><text class='dg-t' x='30' y='267'>nobody sells it as a service.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Finnish camera plus visibility-sensor pairs;</text><text class='dg-t' x='395' y='225'>replay a real fog event. CPU, under $2 per</text><text class='dg-t' x='395' y='246'>camera-month. Daylight only.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Road agency and emergency ministry,</text><text class='dg-t' x='760' y='225'>~$20 per camera-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Watch a recorded fog event beside the</text><text class='dg-t' x='760' y='318'>sensor trace.</text>",
+  "note": "**Moat** — per-camera calibration  ·  Report score 56/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [163][164][165]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 66 / 91 · Traffic centre",
+  "title": "GhostWorks",
+  "subtitle": "Checks whether road works actually happen during the hours a lane is closed.",
+  "story": "A camera films a road-work zone through the day. GhostWorks measures how much of the road is closed and whether workers and machines are actually working, then compares that with the permitted hours.",
+  "why": "Closed lanes with nobody working cause needless traffic jams. Tashkent is repairing 36 km of road in 2026.",
+  "uses": [
+   "The traffic centre checks contractors' real working hours",
+   "A city fines idle closures",
+   "Contractors get a fair record of their work"
+  ],
+  "buyers": "The city traffic centre and city hall.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [166][167]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 66 / 91 · How it works",
+  "title": "GhostWorks",
+  "subtitle": "Permit-hours compliance for road work zones: lane-metres closed vs active, compared with permitted hours.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Time-lapse</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>work-zone camera</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>OWLv2 cones, machines, workers</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Closed area</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 2.1</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Compliance</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>active vs idle vs permit</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Tashkent repairs 36 km of road in 2026.</text><text class='dg-t' x='30' y='225'>FHWA's WorkZoneX (mAP 74.1%) costs</text><text class='dg-t' x='30' y='246'>$4,885 a year city-wide; permit compliance</text><text class='dg-t' x='30' y='267'>is its own board's next step.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>1–2 pre-captured sites plus public</text><text class='dg-t' x='395' y='225'>time-lapses. T4 ~7 min per zone-day,</text><text class='dg-t' x='395' y='246'>~$0.07.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Traffic centre or khokimiyat, ~$100 per</text><text class='dg-t' x='760' y='225'>zone-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Scrub an 8-hour time-lapse: idle bands.</text>",
+  "note": "**Moat** — contractor history  ·  Report score 54/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [166][167]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 67 / 91 · Auditors",
+  "title": "PatchLedger",
+  "subtitle": "Proves a road repair was really done, using street photos from before and after.",
+  "story": "Street-level photos from past years are compared with a new drive. PatchLedger finds where a patch exists now that did not before, and records it with time and place so it can't be faked.",
+  "why": "Road repairs are sometimes paid for but never done. Auditors found signs of collusion in 200 road-testing tenders in Karakalpakstan.",
+  "uses": [
+   "An auditor checks repairs before paying a contractor",
+   "An anti-corruption body tracks road spending",
+   "A city verifies its repair map"
+  ],
+  "buyers": "Audit and anti-corruption bodies.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][168][169]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 67 / 91 · How it works",
+  "title": "PatchLedger",
+  "subtitle": "Repair-acceptance proof: multi-year street imagery plus a new pass proves a patch exists where it did not before.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Old vs new</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>Mapillary + new pass</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Align</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>DINOv3 + homography</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Detect patch</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>RF-DETR-Seg</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Signed record</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>timestamped, tamper-evident</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>200 Karakalpak road-testing tenders</text><text class='dg-t' x='30' y='225'>showed collusion signs. Road-asset apps</text><text class='dg-t' x='30' y='246'>track repairs, not acceptance evidence.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Mapillary Tashkent pairs (check coverage</text><text class='dg-t' x='395' y='225'>first, drop if none); RDD2022. Overnight</text><text class='dg-t' x='395' y='246'>server, ~0.5 cent per km.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Audit and anti-corruption bodies, per-km</text><text class='dg-t' x='760' y='225'>fee.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Slide between two visits of one street.</text>",
+  "note": "**Moat** — longitudinal segment history  ·  Report score 52/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [153][168][169]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 68 / 91 · City hall",
+  "title": "StopCount",
+  "subtitle": "Independently checks whether \"green-wave\" traffic lights really cut stops.",
+  "story": "Cameras or dashcam runs along a corridor record traffic. StopCount measures how many cars arrive on green, how often they stop and how long trips take, before and after a signal change.",
+  "why": "Cities announce big gains from smarter traffic lights without showing a method. One avenue claimed 29% less travel time with no evidence.",
+  "uses": [
+   "City leaders verify a contractor's claims",
+   "A lender checks a funded project's results",
+   "Engineers tune signals with real data"
+  ],
+  "buyers": "City hall, and lenders' verification agents.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [170][171]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 68 / 91 · How it works",
+  "title": "StopCount",
+  "subtitle": "Independent check of green-wave claims: measures arrival-on-green, stop rate and platoon travel time on live corridors.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Corridor clips</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>stop-line or dashcam</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track vehicles</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR + tracker</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Stops + signal</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>speed profiles, state</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Report</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>arrival-on-green</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Buyuk Ipak Yuli claimed −29% travel time</text><text class='dg-t' x='30' y='225'>with no method. Google Green Light</text><text class='dg-t' x='30' y='246'>claims up to 30% fewer stops; independent</text><text class='dg-t' x='30' y='267'>measurement is missing.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Own clips, no plates stored. T4 batch,</text><text class='dg-t' x='395' y='225'>~$3–15 per corridor-day.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Khokimiyat leadership or lender verification</text><text class='dg-t' x='760' y='225'>agents, ~$500/corridor.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>View a time-space diagram from our</text><text class='dg-t' x='760' y='318'>corridor clips.</text>",
+  "note": "**Moat** — corridor baselines  ·  Report score 49/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [170][171]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 69 / 91 · Signal-timing programmes",
+  "title": "FineFirewall",
+  "subtitle": "Checks whether a traffic light's yellow is long enough, before drivers are fined.",
+  "story": "A video of the junction is enough. FineFirewall measures the yellow light's duration, how fast cars approach, and how many drivers are caught in the zone where they can neither stop nor pass safely.",
+  "why": "A yellow just one second longer cut violations by 36% in one study. Fines from a short yellow are unfair and don't improve safety.",
+  "uses": [
+   "A city fixes signals that trap drivers",
+   "A fleet challenges unfair fines",
+   "A signal programme proves its timing is fair"
+  ],
+  "buyers": "Signal-timing programmes and fleets.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [187][188][189]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 69 / 91 · How it works",
+  "title": "FineFirewall",
+  "subtitle": "Junction video measures yellow duration, red-entry timing and dilemma-zone share against engineering requirements.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Junction video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>clear signal head</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Signal state</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>frame-counted classifier</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Approach speeds</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>calibrated tracks</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Verdict</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>histogram + record</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>A ~1 s longer yellow cut violations 36%.</text><text class='dg-t' x='30' y='225'>The Uzbek minimum yellow time was not</text><text class='dg-t' x='30' y='246'>found: confirm it before pitching.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Own clear-signal junction clip (the</text><text class='dg-t' x='395' y='225'>elimination camera's signal head is small</text><text class='dg-t' x='395' y='246'>and often occluded). T4 ~2 min per</text><text class='dg-t' x='395' y='267'>5-minute 4K clip.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Signal-timing programmes and fleets,</text><text class='dg-t' x='760' y='225'>~$200 per junction audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Open a junction page: yellow time and</text><text class='dg-t' x='760' y='318'>histogram.</text>",
+  "note": "**Moat** — a per-junction fairness record  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [187][188][189]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 70 / 91 · Emergency services",
+  "title": "BumpRegistry",
+  "subtitle": "Maps speed bumps and flags ones that are illegal or dangerous.",
+  "story": "As vehicles drive, dashcams and phones record every speed bump: where it is, its spacing, signs, markings and lighting, plus a rough height from the phone's motion sensor. BumpRegistry builds a map and a list of bumps to fix or remove.",
+  "why": "Homemade bumps damage cars and slow ambulances; one 426 m street in Bukhara has 10 bumps. No one keeps a full register.",
+  "uses": [
+   "Ambulances get routes with fewer bumps",
+   "A district removes illegal bumps",
+   "Taxi fleets avoid damaging streets"
+  ],
+  "buyers": "Emergency services or a district; taxi fleets for routing.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [183][184]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 70 / 91 · How it works",
+  "title": "BumpRegistry",
+  "subtitle": "Speed-bump inventory from dashcam video: presence, spacing, signs, markings, lighting and a coarse height class.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Dashcam video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>plus phone IMU</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Segment bumps</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Seg, paint</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Height class</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>IMU spike + reference</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Removal list</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>rule check</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Philadelphia found 2 of 140 cushions</text><text class='dg-t' x='30' y='225'>installed properly; one 426 m Bukhara</text><text class='dg-t' x='30' y='246'>street has 10 bumps. No CV legality audit</text><text class='dg-t' x='30' y='267'>was found.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>30 tape-measured bumps for error bars. T4</text><text class='dg-t' x='395' y='225'>~0.3 s per frame, ~1 cent per km.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Emergency services or one district; taxi</text><text class='dg-t' x='760' y='225'>fleets ~$5 per vehicle-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload our five-bump clip: registry rows.</text>",
+  "note": "**Moat** — a registry with owner status  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [183][184]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 71 / 91 · Housing associations",
+  "title": "Lane Clear",
+  "subtitle": "Checks whether a fire truck can get through a courtyard full of parked cars.",
+  "story": "Someone walks through the courtyard filming with a phone. Lane Clear builds a 3D map, finds the narrow spots under 3.5 m, and shows which parked cars or bays block a fire truck.",
+  "why": "In apartment courtyards, parked cars often block the way for fire trucks and ambulances. In a fire, minutes lost can cost lives.",
+  "uses": [
+   "A housing association decides where to ban parking",
+   "The fire service audits courtyards",
+   "Residents show the problem with real numbers"
+  ],
+  "buyers": "Housing associations, mahalla committees and the fire service.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [137][138][139]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 71 / 91 · How it works",
+  "title": "Lane Clear",
+  "subtitle": "A courtyard phone walk-through becomes a 3D free-space map: can a fire truck get through, and which bays to ban?",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Walk-through</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>phone video + scale card</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>3D map</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>MapAnything, metric</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Obstacles</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3: cars, trees, kerbs</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Fire-truck path</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>pinch points &lt; 3.5 m</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Tashkent has ~193 vehicles per 1,000</text><text class='dg-t' x='30' y='225'>people. Dahua alarms on fire-lane dwell;</text><text class='dg-t' x='30' y='246'>nobody measures passability in one pass.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Tape-measured widths in ≥10 courtyards;</text><text class='dg-t' x='395' y='225'>MapAnything width error 0.33–0.46 m.</text><text class='dg-t' x='395' y='246'>Serverless GPU ~10 s per clip, ~$0.05.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Housing associations, mahalla</text><text class='dg-t' x='760' y='225'>committees, fire service, $20–40/audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Film a corridor lined with chairs: pinch</text><text class='dg-t' x='760' y='318'>points.</text>",
+  "note": "**Moat** — a courtyard database by hour  ·  Report score 64/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [137][138][139]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 72 / 91 · Detailing studios",
+  "title": "Bead-Check",
+  "subtitle": "Measures how well a car's protective coating still repels water.",
+  "story": "A water drop is placed on the paint and filmed from the side. Bead-Check measures the drop's angle: a high angle means the coating still works. Repeat checks show when the car needs re-coating.",
+  "why": "Detailers sell expensive ceramic coatings but can't prove how they last. A lab device costs $4,990; this uses a phone.",
+  "uses": [
+   "A detailer gives customers a coating certificate",
+   "A studio reminds customers when to re-coat",
+   "A dealer backs a paint-protection warranty"
+  ],
+  "buyers": "Detailing studios and dealers' paint programmes.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [70][71]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 72 / 91 · How it works",
+  "title": "Bead-Check",
+  "subtitle": "Coating drift tracker: a pipetted water drop filmed side-on gives the contact angle; later drops flag a re-coat.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Side-on video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>backlit drop</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Silhouette</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>edge extraction</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Fit the angle</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>spherical cap / Young-Laplace</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Drift</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>vs own baseline → re-coat</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>A lab drop analyser costs $4,990 and the</text><text class='dg-t' x='30' y='225'>free Joninn app fails above 85°, exactly</text><text class='dg-t' x='30' y='246'>where ceramic coatings sit.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>12 coupons (bare, wax, sealant, ceramic),</text><text class='dg-t' x='395' y='225'>400 drops. In-browser under 1 s, ~zero</text><text class='dg-t' x='395' y='246'>cost.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Studios $15/month plus $2 per certificate;</text><text class='dg-t' x='760' y='225'>dealer paint programmes.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Drop water on our coupons or your phone</text><text class='dg-t' x='760' y='318'>screen.</text>",
+  "note": "**Moat** — coating-life curves per product  ·  Report score 63/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [70][71]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 73 / 91 · PDR & inspectors",
+  "title": "Dent-Lines",
+  "subtitle": "Finds small dents and repainted areas using light stripes from a laptop screen.",
+  "story": "A laptop shows black-and-white stripes that reflect in the car's glossy paint. Where the panel is dented or filled, the stripes bend. Dent-Lines measures the bending and maps the problem area.",
+  "why": "Small dents and filler hide past damage, and dent-repair technicians quote by eye. A phone and laptop replace expensive scanning tunnels.",
+  "uses": [
+   "A buyer finds hidden filler in a door",
+   "A dent technician quotes accurately",
+   "An inspector documents panel condition"
+  ],
+  "buyers": "Car inspectors and paintless-dent-repair technicians.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [86][87]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 73 / 91 · How it works",
+  "title": "Dent-Lines",
+  "subtitle": "Laptop-screen stripes reflected in a glossy panel map waviness: filler and repaint, or a dent for paintless repair.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Stripe reflection</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>laptop screen on panel</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Phase demodulation</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>Fourier</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Slope → depth</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>relative index</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Route</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>filler / repaint or PDR</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>52.6k used-car deals in Sep 2025 need</text><text class='dg-t' x='30' y='225'>cheap panel checks. A drive-through grid</text><text class='dg-t' x='30' y='246'>patent needs a tunnel; a phone and laptop</text><text class='dg-t' x='30' y='267'>are enough.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Dented sheets with dial-gauge depths; ~10</text><text class='dg-t' x='395' y='225'>gauge-checked panels. In-browser under 1</text><text class='dg-t' x='395' y='246'>s.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Avtopodbor per panel scan, or PDR</text><text class='dg-t' x='760' y='225'>technicians $15/month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph our dented sheet with stripes</text><text class='dg-t' x='760' y='318'>reflected.</text>",
+  "note": "**Moat** — panel-type outcome data  ·  Report score 55/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [86][87]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 74 / 91 · Taxi parks",
+  "title": "WearMap",
+  "subtitle": "Tracks tyre wear on taxi cars every month to catch alignment problems.",
+  "story": "Each month the depot photographs all four tyres of each car with a coin for scale. WearMap measures how each tyre wears and flags uneven wear that means the wheels need alignment.",
+  "why": "Bad alignment eats tyres fast. Tyre apps already exist, so the fleet-level history is what is new; this is a low-priority idea.",
+  "uses": [
+   "A taxi park schedules alignment only when needed",
+   "A fleet cuts tyre spending",
+   "An alignment shop gets regular customers"
+  ],
+  "buyers": "Taxi parks and alignment shops.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [88][89]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 74 / 91 · How it works",
+  "title": "WearMap",
+  "subtitle": "Monthly four-wheel tread scan per taxi-park car: per-wheel wear rate, alignment scheduling, tyre-spend savings.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Tyre photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>coin for scale</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Zone rules</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>inner, centre, outer</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Feathering</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>raking-light check</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Time series</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>alignment job</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>HVI and several 2025–26 tyre apps already</text><text class='dg-t' x='30' y='225'>hint at alignment, so only the fleet time</text><text class='dg-t' x='30' y='246'>series is new. Low priority.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>200 scrap tyres with depth-gauge truth.</text><text class='dg-t' x='395' y='225'>In-browser ~2 s, under $0.002.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Taxi parks $0.50 per vehicle-month;</text><text class='dg-t' x='760' y='225'>alignment shops $20/month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph cut tyre sections beside a</text><text class='dg-t' x='760' y='318'>coin.</text>",
+  "note": "**Moat** — fleet wear time series  ·  Report score 53/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [88][89]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 75 / 91 · Restoration shops",
+  "title": "BeamAim",
+  "subtitle": "Checks if headlights are cloudy or aimed wrong, from a photo of their beam on a wall.",
+  "story": "Park facing a wall and switch on the lights. BeamAim checks if the beam's cut-off line is too high or too low, and grades how cloudy the lenses are, suggesting adjustment or restoration.",
+  "why": "Headlights aimed too high blind oncoming drivers; one study found 75% of vehicles mis-aimed. Cloudy lenses make night driving darker.",
+  "uses": [
+   "A restoration shop shows customers the problem",
+   "A tyre shop adds a quick light check",
+   "A driver checks lights before a trip"
+  ],
+  "buyers": "Headlight restoration and tyre shops.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [90][91]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 75 / 91 · How it works",
+  "title": "BeamAim",
+  "subtitle": "Lens-haze grade plus a coarse low/OK/high headlight cut-off flag from a wall photo, sold as an upsell and pre-check.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Wall photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>gyro pitch + marker</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Cut-off contour</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>edge of the beam</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Coarse flag</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>low / OK / high</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Haze grade</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>flash-photo classifier</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>75% of vehicles in a TU Darmstadt study</text><text class='dg-t' x='30' y='225'>were mis-aimed. Lane testers such as</text><text class='dg-t' x='30' y='246'>Corghi PFT CAM need an inspection</text><text class='dg-t' x='30' y='267'>station.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>15 cars at known dial positions; 200 graded</text><text class='dg-t' x='395' y='225'>lenses. In-browser under 1 s.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Restoration and tyre shops, $0.30 per</text><text class='dg-t' x='760' y='225'>check or $15/month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Point a torch at our wall board with a</text><text class='dg-t' x='760' y='318'>cut-off mask.</text>",
+  "note": "**Moat** — a beam library including LED retrofits  ·  Report score 53/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [90][91]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 76 / 91 · CNG-conversion shops",
+  "title": "PlugLens",
+  "subtitle": "Reads a used spark plug's condition from a close-up photo.",
+  "story": "The mechanic photographs a removed spark plug. PlugLens measures the gap, classifies the deposits that show how the engine runs, and prints a job card with a re-order button.",
+  "why": "Gas-converted engines wear plugs differently than petrol ones, but mechanics read plugs by eye. This is a low-priority idea.",
+  "uses": [
+   "A conversion shop documents engine health",
+   "A mechanic orders the right plugs",
+   "A fleet tracks plug wear on gas cars"
+  ],
+  "buyers": "Gas-conversion shops and independent mechanics.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [82][83]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 76 / 91 · How it works",
+  "title": "PlugLens",
+  "subtitle": "Spark-plug evidence card for petrol-gas conversions: gap measured against the 14 mm thread, deposit class, re-order.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Macro photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>used plug</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Segment</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>electrode + thread</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Gap</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>keypoints, 14 mm scale</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Job card</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>deposit class, re-order</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Chart-based plug apps exist and</text><text class='dg-t' x='30' y='225'>mechanics read plugs by eye. The novelty</text><text class='dg-t' x='30' y='246'>is the first CNG-vs-petrol wear curves. Low</text><text class='dg-t' x='30' y='267'>priority.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>~300 used plugs with mileage and fuel</text><text class='dg-t' x='395' y='225'>type; an open BSD-3 plug set for</text><text class='dg-t' x='395' y='246'>pretraining. In-browser ~1 s.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>CNG-conversion shops and independent</text><text class='dg-t' x='760' y='225'>mechanics, $12/month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph our used plugs: gap and</text><text class='dg-t' x='760' y='318'>deposit class.</text>",
+  "note": "**Moat** — a CNG wear library  ·  Report score 56/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [82][83]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 77 / 91 · Passenger carriers",
+  "title": "KitCheck",
+  "subtitle": "Checks a vehicle's safety kit: fire extinguisher, first-aid kit and warning triangle.",
+  "story": "The driver photographs the kit. KitCheck finds each item, reads the extinguisher's pressure gauge and the expiry dates, and sends Telegram reminders before anything expires.",
+  "why": "Expired extinguishers fail when needed, and passenger carriers are inspected. Reading expiry dates automatically is the hard, useful part.",
+  "uses": [
+   "A bus company keeps every vehicle's kit valid",
+   "A driver gets a reminder before inspection",
+   "A fleet manager sees kit status at a glance"
+  ],
+  "buyers": "Passenger carriers, bundled with ShiftGate.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [131][132]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 77 / 91 · How it works",
+  "title": "KitCheck",
+  "subtitle": "In-vehicle kit module for ShiftGate: extinguisher gauge zone and expiry date, first-aid kit, triangle, reminders.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Kit photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>extinguisher, kit, triangle</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect items</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR Nano</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Gauge + dates</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>zone classifier, OCR</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Reminders</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>Telegram expiry clock</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>A YOLOv8n study found gauges and labels</text><text class='dg-t' x='30' y='225'>but could not read dates; expiry-date OCR</text><text class='dg-t' x='30' y='246'>is the real gap. Taxis stay outside the</text><text class='dg-t' x='30' y='267'>voluntary-inspection regime.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>60 own extinguishers and kits; synthetic</text><text class='dg-t' x='395' y='225'>gauge renders. In-browser ONNX ~0.3 s, $0</text><text class='dg-t' x='395' y='246'>server.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Passenger carriers under mandatory</text><text class='dg-t' x='760' y='225'>inspection, ~$1 per vehicle-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Point a phone at any extinguisher in the</text><text class='dg-t' x='760' y='318'>building.</text>",
+  "note": "**Moat** — thin; sold bundled into ShiftGate  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [131][132]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 78 / 91 · Night-shift employers",
+  "title": "Seen-at-Night",
+  "subtitle": "Tests whether workers' high-visibility clothing still reflects light.",
+  "story": "Take two photos of the vest or jacket, with and without flash. Seen-at-Night compares how strongly the reflective stripes shine against a reference swatch, and flags clothing that is worn out after many washes.",
+  "why": "Washed-out hi-vis looks fine by day but disappears in headlights. In one study, vests without good stripes were no better than black clothing.",
+  "uses": [
+   "A road crew checks its vests every month",
+   "A courier company replaces worn jackets",
+   "A cleaning contractor proves workers are visible"
+  ],
+  "buyers": "Employers of night-shift road workers, cleaners and couriers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [129][130]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 78 / 91 · How it works",
+  "title": "Seen-at-Night",
+  "subtitle": "Wash-cycle audit of hi-vis clothing: flash and no-flash pairs give a retro-gain index against a reference swatch.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>flash and no flash</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Difference</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>retroreflection only</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Garment masks</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3 + MediaPipe Pose</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Index</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>vs reference swatch</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Vests without stripes were no better than</text><text class='dg-t' x='30' y='225'>black clothing in one study. Remote</text><text class='dg-t' x='30' y='246'>retroreflectometers target road signs, not</text><text class='dg-t' x='30' y='267'>clothing.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>A 60-outfit night trial before quoting any</text><text class='dg-t' x='395' y='225'>distance. In-browser ~1 s; photos stay on</text><text class='dg-t' x='395' y='246'>the phone.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Road crews, cleaning contractors and</text><text class='dg-t' x='760' y='225'>fleets, per audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph a shoe or lanyard with and</text><text class='dg-t' x='760' y='318'>without flash.</text>",
+  "note": "**Moat** — a field-calibrated index  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [129][130]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 79 / 91 · Delivery platforms",
+  "title": "RideCoach",
+  "subtitle": "Coaches couriers on safe riding using their own phone's camera.",
+  "story": "With the phone on the handlebar, RideCoach checks lights and plate at shift start, then watches for red lights and stop lines during the ride. Couriers get a weekly score and bonuses for safe riding.",
+  "why": "Most courier fines are for lights, reflectors and passengers, and red-light running causes crashes. Other systems need extra hardware.",
+  "uses": [
+   "A delivery platform rewards safe couriers",
+   "A courier learns their risky habits",
+   "A platform cuts fines and crashes"
+  ],
+  "buyers": "Delivery platforms.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][120]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 79 / 91 · How it works",
+  "title": "RideCoach",
+  "subtitle": "Shift-start check of a courier's lights and plate plus one riding behaviour: red lights and stop lines.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Handlebar phone</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>courier's own</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR Nano + light test</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Stop-line events</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>Grounding DINO + speed</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Weekly score</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>bonus or coaching</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>92% of courier violations involve reflectors,</text><text class='dg-t' x='30' y='225'>lights, tint or passengers. Drover AI</text><text class='dg-t' x='30' y='246'>mounts hardware on scooters; this uses</text><text class='dg-t' x='30' y='267'>couriers' own phones.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Consented public POV footage; recall per</text><text class='dg-t' x='395' y='225'>event. Phone FPS to measure; event clips</text><text class='dg-t' x='395' y='246'>only.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Delivery platforms, 3,000 UZS per active</text><text class='dg-t' x='760' y='225'>courier-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Point a phone at a laptop ride: red-light run</text><text class='dg-t' x='760' y='318'>flagged.</text>",
+  "note": "**Moat** — courier-view violation data  ·  Report score 53/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][120]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 80 / 91 · Battery retailers",
+  "title": "No-Start Doctor",
+  "subtitle": "Tests a car battery with a phone video of the headlights during engine start.",
+  "story": "Switch on the headlights and film them while starting the engine. As the battery strains, the lights dim; No-Start Doctor measures the dimming, estimates the battery voltage and warns if it will fail in winter.",
+  "why": "Weak batteries leave drivers stranded on cold mornings. Testers need hardware; this needs only a phone. It doesn't work with LED headlights.",
+  "uses": [
+   "A battery shop finds customers who need a new battery",
+   "A taxi park checks batteries before winter",
+   "A driver avoids a no-start morning"
+  ],
+  "buyers": "Battery retailers and taxi parks.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [105][106][107]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 80 / 91 · How it works",
+  "title": "No-Start Doctor",
+  "subtitle": "Camera as voltmeter: film the headlights during a start and get a cranking-sag battery score before winter.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Start video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>headlights in view</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Lamp luminance</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>exposure locked</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Volts</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>light ∝ V^3.4</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Battery score</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>swap lead before winter</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Cold-cranking ratings assume ≥7.2 V while</text><text class='dg-t' x='30' y='225'>cranking; deeper sag means a weak</text><text class='dg-t' x='30' y='246'>battery. OBD dongles need hardware.</text><text class='dg-t' x='30' y='267'>LED-only and EV cars are out of scope.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Bench halogen on a variable supply; 3–5</text><text class='dg-t' x='395' y='225'>cars logged with an OBD voltage PID.</text><text class='dg-t' x='395' y='246'>Server ~2 s.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Battery retailers and taxi parks, ~2,000 UZS</text><text class='dg-t' x='760' y='225'>per check plus swap leads.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Film our bench lamp while we sag its</text><text class='dg-t' x='760' y='318'>voltage.</text>",
+  "note": "**Moat** — paired video and OBD data  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [105][106][107]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 81 / 91 · Corridor trucking",
+  "title": "CouplingCheck",
+  "subtitle": "Checks that a truck and its trailer are coupled correctly before departure.",
+  "story": "The driver films the coupling area from the side for 10 seconds. CouplingCheck confirms the air hoses and electric plug are connected, the support legs are up and the latch is closed, and saves a signed log.",
+  "why": "A badly coupled trailer can detach on the road and cause a deadly crash. Today checks rely on memory or costly sensors.",
+  "uses": [
+   "A trucking company logs every departure check",
+   "A cargo insurer requires proof",
+   "A driver catches a missed connection"
+  ],
+  "buyers": "Cargo insurers and freight companies on the China-Uzbekistan corridor.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [135][136]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 81 / 91 · How it works",
+  "title": "CouplingCheck",
+  "subtitle": "Signed pre-departure coupling log from a 10-second side view: hoses, plug, landing gear, latch, no gap.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Side view</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>10 seconds</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect items</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR on SAM 3 labels</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Go / no-go</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>per item</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Signed log</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>timestamped</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Coupling is verified by vibration sensors</text><text class='dg-t' x='30' y='225'>today. The kingpin lock needs a look under</text><text class='dg-t' x='30' y='246'>the trailer, so it is not claimed.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>200+ own photos from truck yards. Phone</text><text class='dg-t' x='395' y='225'>WebGPU ~0.3 s, $0 server.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Cargo insurers and forwarders on the</text><text class='dg-t' x='760' y='225'>China–Uzbekistan corridor.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Unplug a toy hose: fail.</text>",
+  "note": "**Moat** — per-trailer history  ·  Report score 55/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [135][136]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 82 / 91 · Parking operators",
+  "title": "ShadeRent",
+  "subtitle": "Maps which parking spots stay in the shade, and for how long.",
+  "story": "A phone fixed above a parking lot takes a photo every 15-30 minutes. ShadeRent marks shaded bays and calculates shade hours per spot, showing where to build canopies, solar carports or chargers.",
+  "why": "In hot Uzbek summers, shaded spots are worth more and cars stay cooler. The airport lot alone holds about 1,500 vehicles.",
+  "uses": [
+   "A parking operator charges more for shaded bays",
+   "An installer plans solar carports",
+   "A mall decides where to add shade"
+  ],
+  "buyers": "Parking operators and canopy or solar installers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [190][191]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 82 / 91 · How it works",
+  "title": "ShadeRent",
+  "subtitle": "Measured shade maps: a fixed phone shoots a lot every 15–30 minutes to site canopies, solar carports and chargers.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Time-lapse</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>fixed phone, 15–30 min</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Shade masks</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>luminance + SAM 3</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Sun-path model</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>interpolate the day</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Shade-hours</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>per bay, per season</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The airport lot holds ~1,500 vehicles at a</text><text class='dg-t' x='30' y='225'>48.78bn UZS yearly start price. ShadeMap</text><text class='dg-t' x='30' y='246'>simulates shadows; this measures them</text><text class='dg-t' x='30' y='267'>per bay.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Own time-lapse shot during the sprint.</text><text class='dg-t' x='395' y='225'>Server ~$0.05 per lot.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Airport lot operator, canopy and</text><text class='dg-t' x='760' y='225'>solar-carport installers, ~$20+/survey.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Predicted 16:30 shade over the real 16:30</text><text class='dg-t' x='760' y='318'>photo, IoU shown.</text>",
+  "note": "**Moat** — per-bay shade and occupancy history  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [190][191]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 83 / 91 · Courier & taxi fleets",
+  "title": "ParkOK",
+  "subtitle": "Tells a driver whether stopping here is legal, from one photo of the street.",
+  "story": "The driver photographs the kerb ahead. ParkOK reads the signs, markings and paid-parking zone and time windows, and answers green, amber or red, quoting the rule and the fine.",
+  "why": "Stopping where it is banned costs 880,000 UZS. Courier and taxi drivers stop dozens of times a day and can't read every sign.",
+  "uses": [
+   "A courier checks a stop before parking",
+   "A fleet cuts its parking fines",
+   "A parking operator licenses the rules data"
+  ],
+  "buyers": "Courier and taxi fleets.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [101][185][186]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 83 / 91 · How it works",
+  "title": "ParkOK",
+  "subtitle": "One-photo stopping check: reads signs, paid zone and time windows and cites the rule and the fine.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Street photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>the kerb ahead</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Signs + markings</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR, SAM 3</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Distances</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>plate-scaled MoGe-2, ±1 m</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Green / amber / red</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>rule + fine cited</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Stopping where banned costs 880,000</text><text class='dg-t' x='30' y='225'>UZS. US sign-reader apps exist; Uzbek</text><text class='dg-t' x='30' y='246'>signs derive from GOST, so the rules must</text><text class='dg-t' x='30' y='267'>be local.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>600 own kerb photos; Russian sign sets as</text><text class='dg-t' x='395' y='225'>a proxy. Modal L4 ~2 s, ~$0.002.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Fleets ~40,000 UZS per vehicle-month;</text><text class='dg-t' x='760' y='225'>concessionaire licenses rules.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph the street outside the venue.</text>",
+  "note": "**Moat** — a geotagged sign corpus  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [101][185][186]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 84 / 91 · Charger distributors",
+  "title": "Joylash",
+  "subtitle": "Shows a building owner where EV chargers would earn money, from their own cameras.",
+  "story": "Joylash watches the venue's parking camera, measures how long cars stay in each bay and how many are electric, and calculates how fast a charger in each spot would pay for itself.",
+  "why": "Owners don't know if a charger will pay off, so they don't install one. Banks already offer 10% loans for chargers.",
+  "uses": [
+   "A mall picks the best bays for chargers",
+   "A charger seller qualifies leads",
+   "A hotel builds a business case for charging"
+  ],
+  "buyers": "Charger sellers and installers (success fee).",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [177][178][179]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 84 / 91 · How it works",
+  "title": "Joylash",
+  "subtitle": "Charger siting from a venue's own CCTV: per-bay dwell and EV share feed a payback simulator.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Venue CCTV</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>parking lot</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track bays</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Seg + tracker</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>EV share</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SigLIP 2 badges</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Payback</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>in UZS, grid step</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>There were 1,399 stations in May 2025 and</text><text class='dg-t' x='30' y='225'>banks offer 10% charger loans.</text><text class='dg-t' x='30' y='246'>Session-data siting tools need chargers to</text><text class='dg-t' x='30' y='267'>exist first.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Consented lot clips; 500 hand-labelled</text><text class='dg-t' x='395' y='225'>badge crops. T4 or L4 batch, ~$1–2 per lot.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Charger distributors and installers,</text><text class='dg-t' x='760' y='225'>success fee per installed unit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Drag a charger-count slider; bays light up.</text>",
+  "note": "**Moat** — a dwell benchmark by venue type  ·  Report score 54/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [177][178][179]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 85 / 91 · Dealer & import yards",
+  "title": "Yard Tetris",
+  "subtitle": "Finds any car in a crowded dealer yard and plans the fewest moves to get it out.",
+  "story": "A camera on the roof photographs the yard every few minutes. Yard Tetris knows where each car is, how long it has stood there and which cars block it, and plans the shortest sequence of moves to free it.",
+  "why": "In big yards, staff waste time searching for cars and shuffling others out of the way, and stock stands longer when sales slow.",
+  "uses": [
+   "A dealer finds a customer's car in seconds",
+   "A yard manager sees old stock",
+   "Staff move fewer cars per delivery"
+  ],
+  "buyers": "Car dealers and import yards.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [50][121]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 85 / 91 · How it works",
+  "title": "Yard Tetris",
+  "subtitle": "A rooftop photo every few minutes shows where car X is, how long it sat and who blocks it, plus a minimal-moves plan.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Rooftop photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>every N minutes</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Footprints</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Seg</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Lot map</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>homography + plate / QR ID</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Move plan</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>BFS on blocking graph</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>New-car sales fell 3.6% in Jan–Jul 2026, so</text><text class='dg-t' x='30' y='225'>stock sits longer. Cox Lot Vision is</text><text class='dg-t' x='30' y='246'>GPS/OBD; this is camera-only.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>COCO weights plus photos of two real</text><text class='dg-t' x='395' y='225'>yards; measure find-time saved. In-browser</text><text class='dg-t' x='395' y='246'>nano segmenter; solver under 50 ms.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Dealers and import yards, ~$50–80 per</text><text class='dg-t' x='760' y='225'>lot-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Snap a toy-car grid, tap a car: move</text><text class='dg-t' x='760' y='318'>sequence.</text>",
+  "note": "**Moat** — lot layout and dwell history  ·  Report score 53/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [50][121]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 86 / 91 · Intercity fleets",
+  "title": "DarkRoad",
+  "subtitle": "Warns night drivers about carts, tractors and animals on rural roads.",
+  "story": "Fleet dashcams record rural routes during the day and at dusk. DarkRoad finds slow carts, tractors and livestock on the roadside, maps where they usually are, and warns drivers on night trips through those spots.",
+  "why": "Unlit slow vehicles and animals cause deadly night crashes. Some regions ban heavy trucks by day, pushing them into night driving.",
+  "uses": [
+   "An intercity bus company warns drivers",
+   "A trucking firm plans safer night routes",
+   "An insurer prices route risk"
+  ],
+  "buyers": "Intercity bus and trucking fleets; insurers buy risk reports.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [118][119]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 86 / 91 · How it works",
+  "title": "DarkRoad",
+  "subtitle": "Route-level night-hazard map: carts, tractors and livestock on shoulders found by day and dusk, warned about at night.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Day / dusk drives</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>fleet dashcams</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Seed labels</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>OWLv2</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Detector</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>RF-DETR, rural classes</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Route advisory</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>geotagged hotspots</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Surkhandarya bans heavy trucks</text><text class='dg-t' x='30' y='225'>10:00–19:00, pushing them into the night.</text><text class='dg-t' x='30' y='246'>Night fleet dashcams exist; local slow road</text><text class='dg-t' x='30' y='267'>users are unlabelled.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Own day and dusk drives; ZOD and ACDC</text><text class='dg-t' x='395' y='225'>night frames for evaluation. Quantized</text><text class='dg-t' x='395' y='246'>phone detector, FPS to measure.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Fleets ~60k UZS per vehicle-month;</text><text class='dg-t' x='760' y='225'>insurers buy route-risk reports.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Open a rural clip: hazards plus the map.</text>",
+  "note": "**Moat** — non-Western road-user data  ·  Report score 55/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [118][119]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 87 / 91 · Quarries & developers",
+  "title": "LoadGate",
+  "subtitle": "Checks a truck's load size and cover at the site exit before it hits the road.",
+  "story": "At the quarry or building site exit, two photos are taken from the side and back. LoadGate measures how far the load sticks out and how high it is, compares that with the legal limit, and checks the load is covered.",
+  "why": "Overhanging and uncovered loads cause crashes and dust. The exact Uzbek overhang limit still needs to be confirmed before use.",
+  "uses": [
+   "A quarry sends out only legal loads",
+   "A developer keeps proof for smog inspectors",
+   "A haulier avoids fines"
+  ],
+  "buyers": "Quarries and construction developers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [112]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 87 / 91 · How it works",
+  "title": "LoadGate",
+  "subtitle": "Exit-gate pass from a side and rear photo pair: overhang, height and width against the legal limit, plus a tarp check.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>side + rear, marker</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Masks</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>SAM 3 cargo + tarp</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Dimensions</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>marker-scaled</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Limit check</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>PDF for the smog file</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The Uzbek overhang limit was not found:</text><text class='dg-t' x='30' y='225'>source it first. Fraunhofer's photo check</text><text class='dg-t' x='30' y='246'>covers straps, not dimensions and tarp.</text><text class='dg-t' x='30' y='267'>Pairs with GateWash.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>60–100 self-shot loads, tape-measured on</text><text class='dg-t' x='395' y='225'>20+ trucks. Server T4 ~3 s, ~$0.001.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Developers and quarries, ~$10 per</text><text class='dg-t' x='760' y='225'>vehicle-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph a toy truck with overhanging</text><text class='dg-t' x='760' y='318'>sticks.</text>",
+  "note": "**Moat** — a local rules library  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [112]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 88 / 91 · Inspectors & dealers",
+  "title": "WeldTell",
+  "subtitle": "Tells factory welds from repair welds in photos, to reveal hidden body repairs.",
+  "story": "The inspector photographs one standard spot, such as the door frame. WeldTell compares the welds and sealant with factory-original examples of the same model and highlights areas that look like repair work for a person to check.",
+  "why": "Structural repairs after a serious crash are often hidden, and they make a car less safe. Only experts can spot them today.",
+  "uses": [
+   "An inspector checks the door frame for repair welds",
+   "A dealer screens trade-ins for major crashes",
+   "A buyer avoids a rebuilt car"
+  ],
+  "buyers": "Car inspectors and dealers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [52][53]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 88 / 91 · How it works",
+  "title": "WeldTell",
+  "subtitle": "Heat map separating factory spot welds and seam sealer from repair welds on one repeatable region of two models.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Region photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>door jamb or strut tower</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Quality gate</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>abstain on dirt, undercoat</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Anomaly model</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>PatchCore, factory refs</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Heat map</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>flagged areas for a human</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Vendor guides list weld tells and rate AI</text><text class='dg-t' x='30' y='225'>only \"partial\". Factory references need</text><text class='dg-t' x='30' y='246'>dealer access, which is also the moat.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Factory-new references at a sponsor</text><text class='dg-t' x='395' y='225'>dealer; 40 labelled panels; AUC reported.</text><text class='dg-t' x='395' y='246'>CPU ~0.3 s per patch.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Avtopodbor firms and dealers, ~20,000 UZS</text><text class='dg-t' x='760' y='225'>per car.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph our factory vs repaired sample</text><text class='dg-t' x='760' y='318'>jambs.</text>",
+  "note": "**Moat** — per-model factory references  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [52][53]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 89 / 91 · Dealers & trade-in",
+  "title": "DateCode Detective",
+  "subtitle": "Reads the date stamps on glass, belts and tyres to show which parts were replaced.",
+  "story": "Every car window, seatbelt and tyre carries a small production date. DateCode Detective reads these stamps from photos and compares them with the car's build year; a part much newer than the car was probably replaced.",
+  "why": "A replaced windscreen or belt can mean a past accident. Sellers can prove originality, and buyers can spot hidden history.",
+  "uses": [
+   "A seller proves all glass is original",
+   "A buyer finds a replaced windscreen",
+   "A dealer adds an originality certificate"
+  ],
+  "buyers": "Dealers and trade-in desks.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [54][55]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 89 / 91 · How it works",
+  "title": "DateCode Detective",
+  "subtitle": "Seller-side originality certificate: glass, seat-belt and VIN-plate date codes consistent with the build year.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Stamp photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>glass, belts, tyres</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Locate stamps</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>OWLv2 + raking torch</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Read codes</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>PP-OCRv6 / PaddleOCR-VL</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Timeline</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>vs VIN year</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Anyline reads tyre DOT codes; every dated</text><text class='dg-t' x='30' y='225'>part together tells the car's replacement</text><text class='dg-t' x='30' y='246'>story. Tyre age is the live demo hook.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>150+ real stamps with a per-source</text><text class='dg-t' x='395' y='225'>read-rate table, including \"unreadable\".</text><text class='dg-t' x='395' y='246'>Tyre OCR in browser; hard stamps</text><text class='dg-t' x='395' y='267'>~$0.0003 via VLM.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Dealers and trade-in desks, ~20,000 UZS</text><text class='dg-t' x='760' y='225'>per car.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph any tyre sidewall in the car</text><text class='dg-t' x='760' y='318'>park.</text>",
+  "note": "**Moat** — decoder tables for glass makers seen locally  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [54][55]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 90 / 91 · Inspectors & trade-in",
+  "title": "RepaintRadar",
+  "subtitle": "Shows which car panels were repainted, so inspectors know where to measure.",
+  "story": "Sweep a phone torch over each panel for 20 seconds. RepaintRadar compares the paint's texture and colour with neighbouring panels and ranks the three panels most likely repainted, for checking with a paint gauge.",
+  "why": "Repaint usually hides damage. In one study, about 38% of 15,236 cars had unrecorded repairs.",
+  "uses": [
+   "An inspector checks the right panels first",
+   "A buyer screens a car before inspection",
+   "A trade-in desk prices repainted cars fairly"
+  ],
+  "buyers": "Car inspectors, trade-in desks and buyers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [56][57]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 90 / 91 · How it works",
+  "title": "RepaintRadar",
+  "subtitle": "Triage before the paint gauge: a 20-second torch sweep per panel ranks the three panels worth checking.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Torch sweep</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>20 s per panel</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Highlight sharpness</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>orange-peel texture</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Colour delta</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>vs neighbour panel</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Top 3 panels</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>check with the gauge</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Heydealer found unrecorded repairs on</text><text class='dg-t' x='30' y='225'>~38% of 15,236 cars. Oto Dedektif claims</text><text class='dg-t' x='30' y='246'>repaint flags: publish a head-to-head.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Cheap-gauge labels on 40 cars × 12</text><text class='dg-t' x='395' y='225'>panels; held-out-car AUC. In-browser ~1 s</text><text class='dg-t' x='395' y='246'>per panel; abstains on dark metallics.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Inspectors and trade-in desks 15,000 UZS</text><text class='dg-t' x='760' y='225'>per car; buyers 5,000 UZS.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Sweep a torch over a glossy door.</text>",
+  "note": "**Moat** — gauge-labelled local finishes  ·  Report score 55/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [56][57]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier C · 91 / 91 · Taxi parks & insurers",
+  "title": "Podstava Radar",
+  "subtitle": "Measures braking in dashcam video to help settle staged rear-end crashes.",
+  "story": "Before a rear-end crash, the dashcam shows how the car in front behaved. Podstava Radar measures the distance, when the brake lights came on and how fast the gap closed, and builds a timeline. It reports facts only, not who is guilty.",
+  "why": "In staged crashes (\"podstava\"), a car brakes suddenly so you hit it. Clear measurements help taxi drivers and insurers settle such disputes.",
+  "uses": [
+   "A taxi park defends a driver in a dispute",
+   "An insurer reviews a suspicious rear-end claim",
+   "A driver shows the car ahead braked without reason"
+  ],
+  "buyers": "Taxi parks and insurers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [65]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier C · 91 / 91 · How it works",
+  "title": "Podstava Radar",
+  "subtitle": "Measurement-only braking-and-headway timeline from a dashcam clip before a rear-end crash; no scam verdict.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Dashcam clip</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>before the crash</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track lead car</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR + trackers</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Time to contact</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>optical expansion</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Dispute report</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>brake-light timing</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Staged rear-end crashes (\"podstava\") turn</text><text class='dg-t' x='30' y='225'>on who braked and why. GoFleet markets</text><text class='dg-t' x='30' y='246'>brake-check flags without validation; an</text><text class='dg-t' x='30' y='267'>open, measured timeline is the twist.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>DoTA, CCD and Nexar clips, CARLA</text><text class='dg-t' x='395' y='225'>scenes; validate against GPS on ~5 drives.</text><text class='dg-t' x='395' y='246'>T4 ~5 s per 15 s clip. Interview two taxi</text><text class='dg-t' x='395' y='267'>parks first.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Taxi parks ~$1 per car-month; insurers</text><text class='dg-t' x='760' y='225'>~$0.50 per clip.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload a dashcam clip: deceleration chart.</text>",
+  "note": "**Moat** — a local scenario library  ·  Report score 53/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [65]"
+ }
+]

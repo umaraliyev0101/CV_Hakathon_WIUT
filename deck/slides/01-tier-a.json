@@ -1,0 +1,659 @@
+[
+ {
+  "layout": "section",
+  "theme": "dark",
+  "num": "Tier A · 26 ideas",
+  "title": "Fundable stories",
+  "subtitle": "Clear payer, repeat revenue, a moat that compounds and a market beyond Uzbekistan. Pitch one of these."
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 01 / 91 · Banks & lessors",
+  "title": "PledgePulse",
+  "subtitle": "A monthly check that a car bought on credit still exists and is in safe hands.",
+  "story": "Once a month, the borrower gets a Telegram link and films the car for 30 seconds while following random instructions, like \"touch the left mirror\" or \"show the odometer\". The app checks it is the right car, filmed live right now, not an old video or a screen.",
+  "why": "The car is the bank's only safety net, yet nobody looks at it again after the loan is signed. This replaces costly field visits with a 30-second video.",
+  "uses": [
+   "A bank checks thousands of car loans a month without field visits",
+   "A leasing firm spots a car that was secretly sold",
+   "A lender catches someone filming a screen instead of the real car"
+  ],
+  "buyers": "Banks, leasing companies and microfinance lenders that give car loans.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [2][18][19][20]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 01 / 91 · How it works",
+  "title": "PledgePulse",
+  "subtitle": "A monthly 30-second challenge video on Telegram proves a pledged car still exists, is the right car and is filmed live.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='60' text-anchor='middle'>Random challenge</text><text class='dg-t-s' x='128' y='82' text-anchor='middle'>touch mirror, show odometer on</text><text class='dg-t-s' x='128' y='99' text-anchor='middle'>cue</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read identity</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>plate, VIN and odometer OCR</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Replay check</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>screen-moiré and liveness model</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Collateral flag</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>OK, retake or field visit</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Auto loans reached 34.6 trn UZS in</text><text class='dg-t' x='30' y='225'>Jan–Nov 2023. Truepic and DoxAI verify an</text><text class='dg-t' x='30' y='246'>asset once at origination; no monthly</text><text class='dg-t' x='30' y='267'>re-verification product was found.</text><text class='dg-t' x='30' y='288'>MKBANK, Uzcard and the Central Bank are</text><text class='dg-t' x='30' y='309'>partners.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>60 campus cars in varied light; spoof clips</text><text class='dg-t' x='395' y='225'>come free by filming laptop screens. Server</text><text class='dg-t' x='395' y='246'>check in a few seconds on one T4, under</text><text class='dg-t' x='395' y='267'>$0.02.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Banks and lessors, ~6,000 UZS per</text><text class='dg-t' x='760' y='225'>monthly check, recurring per loan.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Random challenge on a toy car, then film a</text><text class='dg-t' x='760' y='318'>laptop screen: replay caught.</text>",
+  "note": "**Moat** — per-car baselines plus a published red-team table of the attacks it catches  ·  Report score 66/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [2][18][19][20]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 02 / 91 · EV dealers & lenders",
+  "title": "Quvvat",
+  "subtitle": "Tells the buyer of a used electric car how healthy its battery really is.",
+  "story": "The buyer takes four photos: the dashboard and the charger screen, before and after a 15-minute charge. From the energy that went in and how much the range moved, Quvvat estimates the battery's real capacity and gives a simple grade with a fair-price hint.",
+  "why": "The battery is the most expensive part of an EV and it wears out. Most used EVs here are Chinese imports that normal diagnostic apps cannot read.",
+  "uses": [
+   "A buyer checks a used BYD before paying",
+   "A bank sets a fair loan amount for a used EV",
+   "A dealer proves its trade-in EVs are healthy"
+  ],
+  "buyers": "Used-car dealers, car inspectors and banks that finance electric cars.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [2][13][14][15]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 02 / 91 · How it works",
+  "title": "Quvvat",
+  "subtitle": "Battery-health band for used Chinese EVs from dashboard and DC-charger screen photos before and after a 15-minute charge.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two photo pairs</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>dashboard + charger screen</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read the numbers</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>OCR: SoC, range, kWh, time</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Energy balance</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>capacity with error bars</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Health band</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>≥90 / 80–90 / &lt;80%, price call</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>122.7k EVs are registered, 72% in Tashkent;</text><text class='dg-t' x='30' y='225'>99.2% of H1-2026 EV imports are Chinese,</text><text class='dg-t' x='30' y='246'>and OBD apps like EVScanner skip BYD.</text><text class='dg-t' x='30' y='267'>BYD Royal Motors sponsors the</text><text class='dg-t' x='30' y='288'>hackathon.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>25+ logged sessions on friends' BYD and</text><text class='dg-t' x='395' y='225'>Chery cars, synthetic dashboards, spec</text><text class='dg-t' x='395' y='246'>sheets. CPU OCR ~0.3 s per image, about</text><text class='dg-t' x='395' y='267'>$0.002 per check.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Dealers, avtopodbor firms and EV-loan</text><text class='dg-t' x='760' y='225'>banks, ~30k UZS per check.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload our photo pairs: health band plus a</text><text class='dg-t' x='760' y='318'>listing-mismatch flag.</text>",
+  "note": "**Moat** — a model × charger calibration table that improves with every check  ·  Report score 69/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [2][13][14][15]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 03 / 91 · Used-EV dealers & banks",
+  "title": "Yorliq",
+  "subtitle": "Reads the Chinese label on an imported EV and tells you which battery it really has.",
+  "story": "Many Chinese EV models are sold with two or three battery sizes that look identical from outside. You photograph the small metal label (nameplate) inside the car; Yorliq reads the Chinese text and tells you the exact version and battery size.",
+  "why": "Sellers sometimes advertise the big battery while selling the small one, and a VIN check does not show the battery size. A wrong battery means overpaying by thousands of dollars.",
+  "uses": [
+   "A buyer checks that the \"big battery\" in an ad is real",
+   "A dealer documents grey-import EVs before selling",
+   "Quvvat uses it to know the battery's original size"
+  ],
+  "buyers": "Used-EV dealers, importers, car inspectors and banks; it also powers Quvvat.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [47][48][50]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 03 / 91 · How it works",
+  "title": "Yorliq",
+  "subtitle": "Decodes the Chinese nameplate of a grey-import EV into variant and nominal kWh, flagging listings that claim the wrong pack.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Nameplate photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>Chinese + Latin text</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>OCR + parse</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>PP-OCRv6, small VLM</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>VIN + spec lookup</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>check digit, 15-model table</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Mismatch flag</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>feeds Quvvat's kWh</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>BYD VIN decoders give plant and date, not</text><text class='dg-t' x='30' y='225'>kWh: one Atto 3 body ships with 49.92,</text><text class='dg-t' x='30' y='246'>60.48 or 74.8 kWh packs. Chinese brands</text><text class='dg-t' x='30' y='267'>took 17.8% of Jan–Jul 2026 sales.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Start with ~10 real cars (kill if the plate</text><text class='dg-t' x='395' y='225'>does not identify the pack), 2,000 synthetic</text><text class='dg-t' x='395' y='246'>plates, a hand-built table for 15 models.</text><text class='dg-t' x='395' y='267'>Server CPU ~0.3 s, under $0.001.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Inside Quvvat; ~15k UZS per plate</text><text class='dg-t' x='760' y='225'>standalone for dealers and banks.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph our printed nameplate card:</text><text class='dg-t' x='760' y='318'>variant, kWh, mismatch.</text>",
+  "note": "**Moat** — a verified-mismatch database of listings that misstate the battery  ·  Report score 62/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [47][48][50]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 04 / 91 · Car marketplaces",
+  "title": "FlipperFinder",
+  "subtitle": "Exposes dealers who pretend to be private sellers on car marketplaces.",
+  "story": "FlipperFinder ignores the car in each listing photo and looks at the background: the same wall, gate or garage. When dozens of \"private\" ads were all shot in the same yard, it groups them and shows that one dealer is behind them.",
+  "why": "Buyers trust private sellers more and pay accordingly, and marketplaces charge dealers higher fees. Hidden dealers cheat both, and today people spot them only by eye.",
+  "uses": [
+   "A marketplace makes hidden dealers pay dealer fees",
+   "A buyer sees that a \"private\" car comes from a reseller",
+   "Moderators review fake private ads faster"
+  ],
+  "buyers": "Car marketplaces such as OLX and Avtoelon.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [29][30][31]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 04 / 91 · How it works",
+  "title": "FlipperFinder",
+  "subtitle": "Masks out the car and matches listing-photo backgrounds to expose \"private sellers\" who are really dealer rings.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Mask the car</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>SAM 2.1 removes the vehicle</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Embed background</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>DINOv3: walls, gates, garages</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Verify + cluster</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>LightGlue match, HDBSCAN</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Seller-ring graph</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>flags fake private ads</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The same-parking-lot tell is a known</text><text class='dg-t' x='30' y='225'>human red flag and Auto.ru already moves</text><text class='dg-t' x='30' y='246'>hidden resellers to paid terms, yet no</text><text class='dg-t' x='30' y='267'>automated matcher was found.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>2,000 public listing photos (faces and</text><text class='dg-t' x='395' y='225'>plates blurred); OLX.uz's Business filter</text><text class='dg-t' x='395' y='246'>gives free dealer ground truth. One T4</text><text class='dg-t' x='395' y='267'>embedding per photo, under $0.001 per</text><text class='dg-t' x='395' y='288'>listing.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Marketplaces: ~5M UZS/month pilot plus a</text><text class='dg-t' x='760' y='225'>share of recovered dealer fees.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Paste five listing photos: shared</text><text class='dg-t' x='760' y='318'>backgrounds and the seller graph.</text>",
+  "note": "**Moat** — a seller graph that accumulates with every listing scanned  ·  Report score 68/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [29][30][31]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 05 / 91 · Banks, dealers, buyers",
+  "title": "CarTrail",
+  "subtitle": "A car history report built from old and current online listings.",
+  "story": "The same car is often sold several times, on OLX, Avtoelon and Telegram. CarTrail recognises the car across listings by its dents, rims, stickers and plate pieces, then shows its past prices, mileage and sellers on one timeline.",
+  "why": "Uzbekistan has no Carfax-style history service. If the mileage went down between two listings, or the car keeps getting resold, the buyer and the bank should know.",
+  "uses": [
+   "A buyer sees the mileage was lower in last year's ad",
+   "A bank checks a car's history before a loan",
+   "A dealer checks a trade-in's past"
+  ],
+  "buyers": "Banks (per check), car buyers and dealers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [44][45][46]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 05 / 91 · How it works",
+  "title": "CarTrail",
+  "subtitle": "Finds the same car across OLX, Avtoelon and Telegram, flags price, mileage and seller conflicts, and grows a history report.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Listing photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>OLX, Avtoelon, Telegram</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Retrieve candidates</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>DINOv3 image search</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Match the car</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>dents, rims, stickers, plates</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>History timeline</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>price, mileage, sellers</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Russia's Autoteka builds history from</text><text class='dg-t' x='30' y='225'>Avito's own data; Uzbekistan has no</text><text class='dg-t' x='30' y='246'>records-based equivalent. OLX alone lists</text><text class='dg-t' x='30' y='267'>67,961 car ads to re-identify across</text><text class='dg-t' x='30' y='288'>platforms.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Public listing photos only, hashed</text><text class='dg-t' x='395' y='225'>embeddings, hosted in-country as the data</text><text class='dg-t' x='395' y='246'>law requires. T4 embeds once; CPU lookup</text><text class='dg-t' x='395' y='267'>under 1 s; under $0.002 per report.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Banks 8,000 UZS per API call; dealers;</text><text class='dg-t' x='760' y='225'>buyers 25,000 UZS per report.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Paste a listing screenshot: matched crops</text><text class='dg-t' x='760' y='318'>across platforms.</text>",
+  "note": "**Moat** — listings that vanish cannot be backfilled, so the dated archive is unique  ·  Report score 62/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [44][45][46]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 06 / 91 · Marketplaces & buyers",
+  "title": "TwinCheck",
+  "subtitle": "A quick photo test that tells a buyer whether a car needs a full inspection.",
+  "story": "Cars are symmetrical, so the left headlamp, mirror and wheel should age like the right ones. TwinCheck compares each pair in the listing photos. If one side looks newer, that part was probably replaced after a crash.",
+  "why": "A full inspection costs around 300,000 UZS, too much to do for every car you look at. This cheap first filter tells you which cars deserve it.",
+  "uses": [
+   "A buyer screens ten listings and inspects only two",
+   "A marketplace adds a \"check this car\" badge",
+   "Inspectors get pre-qualified customers"
+  ],
+  "buyers": "Car marketplaces, used-car buyers and inspection firms.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [34][49][192]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 06 / 91 · How it works",
+  "title": "TwinCheck",
+  "subtitle": "Triage from listing photos: is this car worth a 300,000 UZS inspection? Left-right ageing mismatch hints at repairs.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Paired parts</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>lamps, mirrors, rims</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Mirror-flip align</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>left vs right crops</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Siamese compare</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>DINOv3 haze, fade, age</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Inspect or skip</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>ranked hint, never a verdict</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>A Tashkent avtopodbor costs from 300,000</text><text class='dg-t' x='30' y='225'>UZS, so buyers need a cheap first filter.</text><text class='dg-t' x='30' y='246'>UVeye patents symmetry checks and</text><text class='dg-t' x='30' y='267'>Auto.ru flags poor repairs: check freedom</text><text class='dg-t' x='30' y='288'>to operate.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>≥100 avtopodbor-labelled pairs; report</text><text class='dg-t' x='395' y='225'>coverage and AUC honestly. Server batch,</text><text class='dg-t' x='395' y='246'>~$0.0001 per listing.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Marketplaces ~100 UZS per listing; buyers</text><text class='dg-t' x='760' y='225'>5,000 UZS per check.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph both headlamps of a parked</text><text class='dg-t' x='760' y='318'>car: mismatch score.</text>",
+  "note": "**Moat** — listing-to-inspection outcome pairs nobody else collects  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [34][49][192]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 07 / 91 · Auto-loan banks",
+  "title": "WearTruth",
+  "subtitle": "Spots a car whose odometer has been rolled back, from photos of its interior.",
+  "story": "A steering wheel, pedals and driver's seat wear down with every kilometre. WearTruth photographs them, estimates how far the car has really been driven, and compares that with the odometer. It also spots marks left by old taxi stickers.",
+  "why": "Rolled-back odometers and ex-taxis sold as \"family cars\" make buyers and banks overpay. Interior wear is hard to fake.",
+  "uses": [
+   "A bank checks mileage before approving a car loan",
+   "A trade-in desk avoids overpaying for a worn car",
+   "A buyer finds out a car used to be a taxi"
+  ],
+  "buyers": "Auto-loan banks and dealers' trade-in desks.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [26][51]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 07 / 91 · How it works",
+  "title": "WearTruth",
+  "subtitle": "Mileage band from interior wear (wheel, pedals, bolster, gear knob) checked against the odometer, plus a former-taxi flag.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Interior photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>wheel, pedals, bolster, knob</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Zone embeddings</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>DINOv3-S per wear zone</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Mileage interval</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>quantile regression, abstains</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Plausibility</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>odometer fits? ex-taxi?</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Interior wear is independent evidence</text><text class='dg-t' x='30' y='225'>against odometer rollback. 576k taxi drivers</text><text class='dg-t' x='30' y='246'>registered as self-employed in 2024, so</text><text class='dg-t' x='30' y='267'>ex-taxi cars reach resale. OdoShield and AI</text><text class='dg-t' x='30' y='288'>Vahan lack local labels.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>30+ GPS-logged disposals from a taxi or</text><text class='dg-t' x='395' y='225'>leasing fleet; count taxi-decal ghosts on</text><text class='dg-t' x='395' y='246'>100 cars first. In-browser WebGPU, ~zero</text><text class='dg-t' x='395' y='267'>cost.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Banks and trade-in desks via API, 8,000</text><text class='dg-t' x='760' y='225'>UZS per check.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph your wheel and pedals and</text><text class='dg-t' x='760' y='318'>play guess-the-mileage.</text>",
+  "note": "**Moat** — fleet-labelled wear curves for local models  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [26][51]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 08 / 91 · Marketplaces & banks",
+  "title": "Trim Truth",
+  "subtitle": "Checks that a used-car ad's equipment level matches what the car really has.",
+  "story": "The same model, like a Cobalt, comes in cheap and expensive versions. Trim Truth looks at photos and checks the visible clues, such as wheels, sunroof, roof rails and rear camera, then marks whether the advertised version matches the car.",
+  "why": "Sellers often claim a higher version to raise the price. Buyers and banks then pay too much for a basic car.",
+  "uses": [
+   "A marketplace shows an \"ad matches the car\" badge",
+   "A buyer checks a \"top version\" claim from photos",
+   "A bank avoids lending on an inflated price"
+  ],
+  "buyers": "Car marketplaces, and banks once a loan officer confirms the problem.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [49][50]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 08 / 91 · How it works",
+  "title": "Trim Truth",
+  "subtitle": "An \"ad vs reality\" badge that verifies only camera-visible trim claims on Cobalt LS/LT/LTZ and BYD variants.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Car photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>listing or live capture</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Part crops</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>SAM 3: wheels, sunroof, port</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Retrieve trim</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SigLIP 2 vs official galleries</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Mismatch badge</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>claimed vs visible trim</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Overstated trims inflate asks. Auto.ru</text><text class='dg-t' x='30' y='225'>grades condition, not trim; Chinese brands</text><text class='dg-t' x='30' y='246'>took 17.8% of Jan–Jul 2026 sales,</text><text class='dg-t' x='30' y='267'>multiplying variants to check.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>UzAuto and BYD galleries, 1,000 listing</text><text class='dg-t' x='395' y='225'>photos, 50 own cars. Browser retrieval,</text><text class='dg-t' x='395' y='246'>server ~1.5 s, ~$0.004.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Marketplaces; banks only if a loan officer</text><text class='dg-t' x='760' y='225'>confirms trim inflation.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph your own car: model,</text><text class='dg-t' x='760' y='318'>equipment and trim appear.</text>",
+  "note": "**Moat** — a local trim taxonomy no global vendor maintains  ·  Report score 61/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [49][50]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 09 / 91 · Freight forwarders",
+  "title": "TruckProof",
+  "subtitle": "Proves a truck and driver are real before they get a cargo load.",
+  "story": "Before booking a load, the freight forwarder sends the driver a link. The driver films the truck, its plate, the documents and a fresh random code. TruckProof checks that the plate, the papers, the truck type and the driver's face all match.",
+  "why": "Many loads in Central Asia are booked through Telegram groups where anyone can claim to be a carrier. A fake carrier can disappear with the cargo.",
+  "uses": [
+   "A forwarder verifies a new carrier in two minutes",
+   "A Telegram freight group shows a \"verified\" badge",
+   "A cargo insurer requires a check before trips"
+  ],
+  "buyers": "Freight forwarders, logistics marketplaces and cargo insurers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [27][28]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 09 / 91 · How it works",
+  "title": "TruckProof",
+  "subtitle": "A 20-second challenge video matches truck plate, registration document, vehicle type and driver before a load is booked.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Challenge video</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>vehicle, plate, fresh code</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read + match</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>plate OCR, tech passport</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Liveness</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>MyID face check</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Book or block</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>verified carrier or flag</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Loads are booked through Telegram freight</text><text class='dg-t' x='30' y='225'>groups. Overhaul and KYT verify photos or</text><text class='dg-t' x='30' y='246'>licences, not a live</text><text class='dg-t' x='30' y='267'>plate–document–vehicle match. MyID</text><text class='dg-t' x='30' y='288'>reports 19M+ users.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Mock documents, 100 consented vehicle</text><text class='dg-t' x='395' y='225'>videos, the Central Asia plate set (CC BY).</text><text class='dg-t' x='395' y='246'>Server ~2 s per video, ≈$0.002.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Forwarders and Telegram freight</text><text class='dg-t' x='760' y='225'>marketplaces, $0.50 per verification.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Film your own car, plate and the random</text><text class='dg-t' x='760' y='318'>code: matched or failed.</text>",
+  "note": "**Moat** — a shared verified-carrier graph and fraud blacklist that grow with each booking  ·  Report score 69/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [27][28]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 10 / 91 · Motor insurers",
+  "title": "Alibi",
+  "subtitle": "Proves an insurance claim photo was really taken at the scene, today.",
+  "story": "When a driver sends damage photos to an insurer's Telegram bot, Alibi checks the physics. Do the shadows match the sun's position at that place and time? Does the weather match? Was the photo taken of a real car, not a screen?",
+  "why": "Fraudsters reuse old photos or edit damage in. Even trained staff miss half of edited damage photos.",
+  "uses": [
+   "An insurer fast-tracks honest claims and holds suspicious ones",
+   "A claims team catches an old photo sent as new",
+   "Remote claims become safe without an inspector visit"
+  ],
+  "buyers": "Car insurers (OSAGO and KASKO claims departments).",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [61][62]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 10 / 91 · How it works",
+  "title": "Alibi",
+  "subtitle": "Photo liveness for Telegram-bot claims: physics checks prove a damage photo was taken now, here, not replayed.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Claim photo</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>plus live location</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Physics checks</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>sun vs shadows, weather</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Replay tells</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>flash echo, parallax</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Triage</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>fast-track, hold or retake</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Humans catch only 50% of manipulated</text><text class='dg-t' x='30' y='225'>damage photos. Amped's SunCalc check</text><text class='dg-t' x='30' y='246'>is manual; this one is automatic and holds</text><text class='dg-t' x='30' y='267'>up as image generators improve.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>300 own timed photos plus an attack set.</text><text class='dg-t' x='395' y='225'>Server CPU ~1.5 s, ~$0.002 per check;</text><text class='dg-t' x='395' y='246'>abstains often by design.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>OSAGO and KASKO claims desks,</text><text class='dg-t' x='760' y='225'>$0.05–0.20 per claim.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph your car, claim a false time: the</text><text class='dg-t' x='760' y='318'>sun overlay rejects it.</text>",
+  "note": "**Moat** — physics-based checks that do not decay as generators improve  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [61][62]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 11 / 91 · Insurers & fleets",
+  "title": "ScratchPrint",
+  "subtitle": "Tells whether a scratch is new or was already there before.",
+  "story": "Every scratch and dent has a unique shape, like a fingerprint. ScratchPrint compares new photos with earlier ones and says whether a damage mark is the same old one or a new one.",
+  "why": "People claim old damage as new, or the same damage twice. Rental and taxi companies argue with drivers about who caused which scratch.",
+  "uses": [
+   "A taxi fleet settles \"who scratched it\" at shift change",
+   "An insurer spots damage that existed before the policy",
+   "A rental company checks returns fairly"
+  ],
+  "buyers": "Insurers, taxi fleets, rental and car-sharing companies.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [63][64]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 11 / 91 · How it works",
+  "title": "ScratchPrint",
+  "subtitle": "Re-identifies the same physical scratch across photos: same damage or new damage, at handovers and at claim time.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>baseline vs new</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Panel warp</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>SAM 2.1 aligns the panel</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Damage + match</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>RF-DETR-Seg, LightGlue</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Same / new / unsure</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>pre-existing or new</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>One appraiser reused a photo in 170</text><text class='dg-t' x='30' y='225'>claims. Inspektlabs, Click-Ins and Ravin</text><text class='dg-t' x='30' y='246'>sell baselines; geometry-level</text><text class='dg-t' x='30' y='267'>re-identification of the damage itself is the</text><text class='dg-t' x='30' y='288'>gap.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>AutoDamageIQ (CC BY) plus ~40 self-shot</text><text class='dg-t' x='395' y='225'>revisit pairs. Modal T4 ~2 s, ~$0.001 per</text><text class='dg-t' x='395' y='246'>check.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Fleets per handover; insurers ~$0.25 per</text><text class='dg-t' x='760' y='225'>claim.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph a pre-staged dent twice:</text><text class='dg-t' x='760' y='318'>same-vs-new verdict.</text>",
+  "note": "**Moat** — an embedding-only registry that grows across insurers via the Guarantee Fund  ·  Report score 57/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [63][64]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 12 / 91 · OSAGO claims teams",
+  "title": "BumperMatch",
+  "subtitle": "Checks whether the damage on two cars could really come from the same crash.",
+  "story": "Using the licence plate as a ruler, BumperMatch measures how high the damage sits on each car. A dent at knee height cannot come from a bumper that sits much higher, so impossible combinations are flagged.",
+  "why": "Some accidents are staged or described falsely to get insurance money. A simple height check catches many of them.",
+  "uses": [
+   "An insurer flags a claim where the dents don't line up",
+   "An independent expert gets measurements for a report",
+   "A hit-and-run victim learns what kind of car hit them"
+  ],
+  "buyers": "Car insurers' claims and fraud teams, and independent damage experts.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [58][59][60]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 12 / 91 · How it works",
+  "title": "BumperMatch",
+  "subtitle": "Does the damage fit the other car? Plate-scaled height and shape of the damage on both cars flag impossible pairings.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Damage photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>both cars, plates in view</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Scale + depth</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>520×110 mm plate, MoGe-2</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Damage masks</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3 height and width</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Plausible?</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>flags only impossible pairs</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Staged and misdescribed collisions show</text><text class='dg-t' x='30' y='225'>up as height mismatches. Cobalt took</text><text class='dg-t' x='30' y='246'>30.1% of 2025 sales (unofficial source), so</text><text class='dg-t' x='30' y='267'>a local bumper catalogue covers much of</text><text class='dg-t' x='30' y='288'>the parc.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Tape-measured catalogue of ~25 models;</text><text class='dg-t' x='395' y='225'>tape vs MoGe-2 error on 30 cars. Server</text><text class='dg-t' x='395' y='246'>under 3 s, ~$0.001.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Claims teams and independent experts,</text><text class='dg-t' x='760' y='225'>~$0.30 per two-car check.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph a scratch near any plate, then</text><text class='dg-t' x='760' y='318'>pick the other car.</text>",
+  "note": "**Moat** — a measured local bumper-height catalogue  ·  Report score 58/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [58][59][60]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 13 / 91 · Insurers & fleets",
+  "title": "WitnessHunt",
+  "subtitle": "Finds dashcam video of an accident from other vehicles that were nearby.",
+  "story": "Taxi and delivery fleets record dashcam video all day. When an insurer needs evidence for a crash, WitnessHunt searches the fleets' footage for that place and time, finds the clip, and blurs faces and plates before sharing it.",
+  "why": "Many accident disputes come down to one driver's word against the other's. Video settles them fast, and insurers must decide within 15 days.",
+  "uses": [
+   "An insurer gets video of a disputed crash",
+   "A fleet earns money from footage it already has",
+   "A driver proves the other car ran the red light"
+  ],
+  "buyers": "Insurers pay per clip; fleets join as video suppliers.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [181][182]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 13 / 91 · How it works",
+  "title": "WitnessHunt",
+  "subtitle": "A B2B exchange matching fleets' stored dashcam footage to insurer disputes by plate and time, with automatic privacy blur.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Insurer request</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>plate, place, time</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Search footage</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>timestamp OCR, plate search</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Scene match</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SigLIP 2 ranks clips</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Blurred clip</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>faces and plates blurred</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>OSAGO gives insurers 15 days to decide,</text><text class='dg-t' x='30' y='225'>and footage settles disputes. Singapore's</text><text class='dg-t' x='30' y='246'>mWitness pays $100 rewards with manual</text><text class='dg-t' x='30' y='267'>review.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>~20 volunteers and 10 staged incidents;</text><text class='dg-t' x='395' y='225'>measure time-to-footage. Server ~1 s per</text><text class='dg-t' x='395' y='246'>10 s clip.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Insurers and fleets, ~$3–5 per resolved</text><text class='dg-t' x='760' y='225'>dispute.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload a clip or film a plate on a laptop:</text><text class='dg-t' x='760' y='318'>footage found.</text>",
+  "note": "**Moat** — a contributor network of fleets that already store video  ·  Report score 63/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [181][182]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 14 / 91 · Insurers & fleets",
+  "title": "EuroScene",
+  "subtitle": "Lets two drivers report a small accident with their phones, without police.",
+  "story": "After a minor crash, both drivers film a short walk-around of the scene. EuroScene reads both plates, marks the damage on each car, fills in the accident notice form, and both drivers sign it with a QR handshake.",
+  "why": "Waiting for police after a fender-bender wastes hours and blocks traffic. A recorded, signed notice is also better evidence for insurers. It does not decide who is at fault.",
+  "uses": [
+   "Two drivers file a notice in five minutes",
+   "A taxi company handles its drivers' small accidents",
+   "An insurer receives clean, filmed evidence"
+  ],
+  "buyers": "Insurers, the Insurance Guarantee Fund and ride-hailing fleets.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [68][69]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 14 / 91 · How it works",
+  "title": "EuroScene",
+  "subtitle": "Two-phone accident notice: both drivers film a walk-around, get a pre-filled notice and sign by QR handshake. No fault call.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two walk-arounds</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>30 seconds per driver</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read plates</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>detector + fast-plate-ocr</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Damage zones</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3 masks</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Signed notice</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>QR handshake, form filled</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The 2026 reform gave the Insurance</text><text class='dg-t' x='30' y='225'>Guarantee Fund adjuster functions.</text><text class='dg-t' x='30' y='246'>Ukraine's Diia already files digital accident</text><text class='dg-t' x='30' y='267'>reports; video-first attestation is the twist.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Synthetic Uzbek plates (01 A 123 BC, 01</text><text class='dg-t' x='395' y='225'>123 ABC); real plates at night and in rain.</text><text class='dg-t' x='395' y='246'>Server ~6 s, ~$0.01.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Guarantee Fund or NAPP pilot, ride-hailing</text><text class='dg-t' x='760' y='225'>fleets, ~$0.40 per notice.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Judge and a neighbour film a toy-car scene</text><text class='dg-t' x='760' y='318'>and get the notice.</text>",
+  "note": "**Moat** — becoming the accepted evidence format  ·  Report score 50/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [68][69]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 15 / 91 · Car washes → insurers",
+  "title": "WashScan",
+  "subtitle": "Turns car washes into places where a car's condition gets photographed and recorded.",
+  "story": "When a car arrives at a wash, the attendant walks around it with a phone. The app makes sure every panel is filmed clearly and saves a dated record of the car's condition, linked to its plate.",
+  "why": "Car washes are often blamed for scratches that were already there; the record protects them. Insurers also want up-to-date condition photos and can buy these records.",
+  "uses": [
+   "A car wash proves a scratch was there before washing",
+   "An insurer gets fresh condition photos without an inspector",
+   "A lender sees a car's recent state"
+  ],
+  "buyers": "Car washes first, then insurers who buy the condition records.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [32][33]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 15 / 91 · How it works",
+  "title": "WashScan",
+  "subtitle": "Car washes become paid inspection stations: the attendant circles the clean car and stores a dated, plate-bound baseline.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Walk-around</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>phone circles the car</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Live gates</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>coverage, blur, glare</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Bind the car</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>plate + VIN OCR, panels</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Dated baseline</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>resold to insurers</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Wash-damage vendors sell fixed cameras</text><text class='dg-t' x='30' y='225'>at $23–63 per camera-month; this needs</text><text class='dg-t' x='30' y='246'>none. KASKO insurers signed 237,405</text><text class='dg-t' x='30' y='267'>contracts in 2025.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>60 self-filmed walk-arounds at two</text><text class='dg-t' x='395' y='225'>washes; AutoDamageIQ for damage tags.</text><text class='dg-t' x='395' y='246'>In-browser gates at a 10+ FPS target;</text><text class='dg-t' x='395' y='267'>~$0.001 per baseline.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Washes first (claim defence), then insurers</text><text class='dg-t' x='760' y='225'>~5,000 UZS per baseline.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Circle any object: the coverage ring closes.</text>",
+  "note": "**Moat** — a wash network plus a library of dated baselines  ·  Report score 66/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [32][33]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 16 / 91 · Buyers & dealers",
+  "title": "Columbo",
+  "subtitle": "A chat assistant that inspects a used car remotely by asking for the right photos.",
+  "story": "A buyer in another city sends Columbo a listing. Columbo asks the seller for one photo at a time, always the one that tells it the most, and runs checks for repairs and repaint. It ends with: buy, walk away, or inspect in person.",
+  "why": "A professional inspection costs 300,000 UZS plus travel. Most bad cars can be ruled out remotely before anyone travels.",
+  "uses": [
+   "A buyer in Samarkand checks a car listed in Tashkent",
+   "A dealer screens many cars without visiting them",
+   "Inspectors get only the cars worth a trip"
+  ],
+  "buyers": "Used-car buyers in the regions and dealers buying cars from afar.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [34][41]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 16 / 91 · How it works",
+  "title": "Columbo",
+  "subtitle": "A Telegram AI agent that inspects a car remotely, asking the seller for the most informative next photo until it can decide.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Seller chat</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>Telegram or web</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Next best photo</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>VLM planner, info gain</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Run modules</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>GapGauge, RepaintRadar…</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Verdict</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>buy, walk away, inspect</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>An in-person avtopodbor costs from</text><text class='dg-t' x='30' y='225'>300,000 UZS plus travel. Tractable's guided</text><text class='dg-t' x='30' y='246'>video asks insurers' customers for extra</text><text class='dg-t' x='30' y='267'>shots; nobody does it for buyers.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Inspector likelihoods, 50 team cases,</text><text class='dg-t' x='395' y='225'>scripted sellers. Server ~$0.01 per case.</text><text class='dg-t' x='395' y='246'>Must prove fewer photos than a fixed</text><text class='dg-t' x='395' y='267'>12-shot protocol.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Regional buyers and dealers, 25,000 UZS</text><text class='dg-t' x='760' y='225'>per case.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Play the seller from our photo folder; watch</text><text class='dg-t' x='760' y='318'>each request.</text>",
+  "note": "**Moat** — a questioning policy that improves with every conversation  ·  Report score 63/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [34][41]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 17 / 91 · Banks & insurers",
+  "title": "BozorLens",
+  "subtitle": "A fair-price guide for used cars, built from the prices at car markets.",
+  "story": "At car markets, sellers put price sheets behind the windshield. Walking with a phone, BozorLens reads each sheet, identifies the car, and compares the price with online ads, building a fair-price index over time.",
+  "why": "Uzbekistan has no trusted price guide, so banks and insurers value cars blind. First check the price sheets really exist at the market.",
+  "uses": [
+   "A bank values a car before a loan",
+   "An insurer sets the insured value",
+   "A buyer sees if an asking price is fair"
+  ],
+  "buyers": "Banks and insurers via subscription; buyers use it for free.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [180]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 17 / 91 · How it works",
+  "title": "BozorLens",
+  "subtitle": "A fair-price index from offline car markets: read windshield price sheets, identify the car, compare with online asks.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Market walk</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>phone at windshields</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read sheets</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>PaddleOCR-VL price, year, km</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Identify car</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SigLIP 2 model ID</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Fair band</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>vs OLX and Avtoelon asks</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Banks and insurers price collateral without</text><text class='dg-t' x='30' y='225'>a local price guide. The market logs</text><text class='dg-t' x='30' y='246'>5,000–7,000 daily arrivals by plate or QR.</text><text class='dg-t' x='30' y='267'>The premise is unverified: check first.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>The first hour at Sergeli decides it: no price</text><text class='dg-t' x='395' y='225'>sheets, kill. Digits in-browser; hard sheets</text><text class='dg-t' x='395' y='246'>via VLM ~$0.0003.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Banks and KASKO insurers, ~3M</text><text class='dg-t' x='760' y='225'>UZS/month plus 5,000 UZS per valuation.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Point a phone at printed sheets on toy</text><text class='dg-t' x='760' y='318'>cars: fair band.</text>",
+  "note": "**Moat** — offline asking prices cannot be collected after the fact  ·  Report score 67/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [180]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 18 / 91 · Fleets of 50–500 cars",
+  "title": "Shtraf Shield",
+  "subtitle": "Handles traffic-camera fines for company cars: check, pay early or pass on.",
+  "story": "Fleets with many cars receive many camera fines. Shtraf Shield reads each fine's photo, checks the plate, make and colour match the fleet's car, flags mistakes and cloned plates, then pays early at the discount or transfers the fine to the driver.",
+  "why": "Paying within 15 days halves the fine, and since April 2026 fines can go to the actual driver. Fleets lose money missing deadlines or paying for wrong fines.",
+  "uses": [
+   "A car-rental firm transfers fines to customers automatically",
+   "A delivery fleet stops paying for misread plates",
+   "A fleet never misses the 50% discount"
+  ],
+  "buyers": "Rental, car-sharing, taxi and delivery fleets with 50 to 500 cars.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [98][99][100][101]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 18 / 91 · How it works",
+  "title": "Shtraf Shield",
+  "subtitle": "A fine desk for rental, car-sharing and delivery fleets: checks each camera fine, then pays at the discount or transfers it.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Fine notice</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>with photo evidence</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Re-read plate</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>fast-plate-ocr, make, colour</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Match register</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>catches misreads, clones</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Pay or transfer</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>50% off, or to the driver</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Fines can be transferred to the actual driver</text><text class='dg-t' x='30' y='225'>since 1 Apr 2026, and paying within 15</text><text class='dg-t' x='30' y='246'>days halves them. RicorsoAI attacks</text><text class='dg-t' x='30' y='267'>paperwork, not the evidence image.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Central Asia plates (CC BY) plus synthetic</text><text class='dg-t' x='395' y='225'>mismatches. Server ~1.5 s, ~$0.003 per</text><text class='dg-t' x='395' y='246'>fine.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Fleets of 50–500 cars, ~$1 per</text><text class='dg-t' x='760' y='225'>vehicle-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Upload a car photo and a mock fine: pay or</text><text class='dg-t' x='760' y='318'>transfer.</text>",
+  "note": "**Moat** — per-site camera error patterns learned across fleets  ·  Report score 63/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [98][99][100][101]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 19 / 91 · Corporate fleets",
+  "title": "FuelTruth",
+  "subtitle": "Catches fuel theft in company vehicles with one short video at the pump.",
+  "story": "At each refuel, the driver films the pump display, the plate and the odometer in one 10-second clip. FuelTruth reads the numbers, checks them against the receipt and the trip, and flags fills that don't add up.",
+  "why": "Drivers can inflate receipts or fill other cars on the company's money. Fuel sensors cost money and need installing; a phone video does not.",
+  "uses": [
+   "A fleet manager sees which fills look suspicious",
+   "A company fills in fuel data for its digital waybill",
+   "A municipal fleet audits fuel spending"
+  ],
+  "buyers": "Corporate, municipal and logistics fleets.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [108][109][110]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 19 / 91 · How it works",
+  "title": "FuelTruth",
+  "subtitle": "One 10-second clip (pump display, plate, odometer) fills the e-waybill fuel fields and catches blank-cheque receipts.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>10-second clip</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>pump, plate, odometer</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read displays</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>seven-segment OCR</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Rule checks</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>receipt QR, GPS, time</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Flag</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>clean or suspect fill</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The e-waybill must carry fuel quantity,</text><text class='dg-t' x='30' y='225'>remainder and economy. Fuel-level</text><text class='dg-t' x='30' y='246'>sensors need hardware; methane costs</text><text class='dg-t' x='30' y='267'>5,700–5,800 UZS per m³.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>50k synthetic pump renders plus</text><text class='dg-t' x='395' y='225'>consented station photos. Modal T4 ~0.4 s,</text><text class='dg-t' x='395' y='246'>~$0.0005 per clip.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Corporate, municipal and logistics fleets,</text><text class='dg-t' x='760' y='225'>$3 per vehicle-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph our pump card, edit one</text><text class='dg-t' x='760' y='318'>number: the verdict flips.</text>",
+  "note": "**Moat** — a cross-fleet station index  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [108][109][110]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 20 / 91 · Taxi & delivery fleets",
+  "title": "Wrench-Proof",
+  "subtitle": "Proves a repair on a company car was really done.",
+  "story": "The mechanic records one continuous 20-second video: the plate, the odometer, the new part's box and the old part removed. Wrench-Proof checks everything is in one take and that the box matches the part, then issues a sealed receipt.",
+  "why": "Fleet owners pay for oil changes, brake pads and batteries they never see. Today they simply have to trust the mechanic.",
+  "uses": [
+   "A taxi company checks a garage's invoice",
+   "A delivery fleet keeps a verified service history per car",
+   "A buyer sees proven maintenance on a used fleet car"
+  ],
+  "buyers": "Taxi parks and delivery fleets.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [78][79]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 20 / 91 · How it works",
+  "title": "Wrench-Proof",
+  "subtitle": "A 20-second continuous clip proves a repair happened: plate, odometer, new part box and the removed old part in one take.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Continuous clip</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>PWA capture, hashed</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Read box + plate</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>OCR and barcode</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Before / after</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3 part masks</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Receipt</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>or box-vs-part mismatch</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Fleet owners suspect phantom oil, brake</text><text class='dg-t' x='30' y='225'>and battery jobs. Service-book apps take</text><text class='dg-t' x='30' y='246'>the mechanic's word; this is CV-verified.</text><text class='dg-t' x='30' y='267'>Skip gas kits: UGaz already logs CNG</text><text class='dg-t' x='30' y='288'>sales.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>10–15 staged services. Server L4 ~5 s,</text><text class='dg-t' x='395' y='225'>~$0.01 per receipt.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Taxi parks and delivery fleets, ~$0.10 per</text><text class='dg-t' x='760' y='225'>receipt.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Mock filter change; swapping the box fails</text><text class='dg-t' x='760' y='318'>the check.</text>",
+  "note": "**Moat** — verified service passports per car  ·  Report score 59/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [78][79]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 21 / 91 · Delivery platforms",
+  "title": "ShiftGate",
+  "subtitle": "A 15-second safety check couriers pass before their shift starts.",
+  "story": "Before taking orders, the courier films their scooter or bike for 15 seconds. ShiftGate checks the reflectors, lights, number plate and documents. If something is missing, the shift stays locked and the courier gets a fix list.",
+  "why": "Couriers' fines in 2026 add up to about 4.7 billion UZS, mostly for missing lights and reflectors. Unsafe bikes are also hard to see at night.",
+  "uses": [
+   "A delivery app unlocks shifts only for safe bikes",
+   "A courier company cuts its fines",
+   "A platform shows regulators its safety record"
+  ],
+  "buyers": "Delivery platforms and courier companies.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][122]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 21 / 91 · How it works",
+  "title": "ShiftGate",
+  "subtitle": "Courier pre-shift passport: a 15-second walk-around checks reflectors, lights, plate and documents before orders unlock.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Walk-around</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>15 seconds, phone</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Detect items</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR Nano: reflectors, plate</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Light test</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>brightness change on/off</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Unlock or fix</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>shift opens or fix list</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>2026 courier fines total ~4.7bn UZS. Helbiz</text><text class='dg-t' x='30' y='225'>and Meituan gate on helmets only; no</text><text class='dg-t' x='30' y='246'>Uzbek helmet rule was found, so helmets</text><text class='dg-t' x='30' y='267'>stay secondary.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>CC BY helmet sets, 300 self-shot clips,</text><text class='dg-t' x='395' y='225'>FLUX.2 klein dusk edits. In-browser</text><text class='dg-t' x='395' y='246'>WebGPU; FPS still to measure.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Delivery platforms and courier fleets, 2,000</text><text class='dg-t' x='760' y='225'>UZS per courier-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Film a bag, bike or scooter: missing items</text><text class='dg-t' x='760' y='318'>and fine avoided.</text>",
+  "note": "**Moat** — compliance history and rule updates per platform  ·  Report score 65/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][122]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 22 / 91 · Delivery platforms",
+  "title": "Be-Seen",
+  "subtitle": "Tests whether a moped's reflectors really shine, using two phone photos.",
+  "story": "The courier takes one photo with flash and one without. Be-Seen compares them: good reflective tape shines brightly under flash, while worn or fake tape does not. It grades each reflector and lists what to replace.",
+  "why": "Most two-wheeler violations in 2026 were about reflectors and lights. A rider who cannot be seen at night can be hit.",
+  "uses": [
+   "A depot checks all mopeds before night shifts",
+   "A courier checks their own vest and bike",
+   "A fleet proves its bikes meet the rules"
+  ],
+  "buyers": "Delivery platforms and fleets with mopeds and bikes.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][17]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 22 / 91 · How it works",
+  "title": "Be-Seen",
+  "subtitle": "A flash / no-flash photo pair isolates retroreflection and grades a courier moped's reflectors and tape before night shifts.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Two photos</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>flash and no flash</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Isolate reflection</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>difference image</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Segment parts</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>SAM 3: tape, reflectors</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Grade + fix list</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>before the night shift</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Yandex says 92% of 23,785 two-wheeler</text><text class='dg-t' x='30' y='225'>violations in 2026 were reflectors, lights,</text><text class='dg-t' x='30' y='246'>tint or passengers: ~4.7bn UZS in fines.</text><text class='dg-t' x='30' y='267'>Retroreflectometers are dedicated</text><text class='dg-t' x='30' y='288'>hardware.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>300 flash/no-flash pairs at dusk; certified</text><text class='dg-t' x='395' y='225'>vs white tape vs paint. In-browser under 1</text><text class='dg-t' x='395' y='246'>s, zero server cost.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Platforms and fleets, 3,000 UZS per audit or</text><text class='dg-t' x='760' y='225'>150k UZS per depot-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Photograph your vest or plate with and</text><text class='dg-t' x='760' y='318'>without flash.</text>",
+  "note": "**Moat** — per-phone flash calibration and depot compliance history  ·  Report score 67/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [16][17]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 23 / 91 · Camera integrators",
+  "title": "CamAudit",
+  "subtitle": "Tests whether a traffic camera's AI still reads plates at night, in rain and in dust.",
+  "story": "Companies that install road cameras give CamAudit their footage. It creates realistic night, rain, dust and dirty-plate versions of the clips, runs the company's AI on them and reports where it fails, against the government's rules.",
+  "why": "Under Resolution 148, cameras must read at least 95% of plates day and night or be switched off. Vendors claim 97-99%, but nobody checks independently.",
+  "uses": [
+   "A camera vendor tests itself before the official trial",
+   "A city checks a vendor's claims before paying",
+   "An integrator finds weak cameras before they fail"
+  ],
+  "buyers": "Companies that install traffic cameras, and later city traffic centres.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [8][9]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 23 / 91 · How it works",
+  "title": "CamAudit",
+  "subtitle": "Stress-tests road-camera AI under synthetic night, rain, dust and plate smear, scored against Resolution 148.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Real clips</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>integrator's own footage</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Synthetic weather</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>inpainting, corruptions</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Rerun the model</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>VLM adjudicates misses</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Audit report</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>pass/fail per condition</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>Resolution 148 demands ≥95% plate</text><text class='dg-t' x='30' y='225'>capture day and night and suspends use at</text><text class='dg-t' x='30' y='246'>≥5% data errors, yet \"error\" is undefined.</text><text class='dg-t' x='30' y='267'>Vendors self-claim 97–99%; no</text><text class='dg-t' x='30' y='288'>independent tester found.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>ACDC, ZOD, BDD100K, Central Asia plates</text><text class='dg-t' x='395' y='225'>plus 50 Tashkent clips. 1,000 synthetic</text><text class='dg-t' x='395' y='246'>frames in ~1 hour on Modal L4 for under</text><text class='dg-t' x='395' y='267'>$2.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Integrators facing the 10-day trial, 15–40M</text><text class='dg-t' x='760' y='225'>UZS per audit.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Drag night and rain sliders: plate reader</text><text class='dg-t' x='760' y='318'>fails; audit downloads.</text>",
+  "note": "**Moat** — a local benchmark with a real-vs-synthetic calibration curve  ·  Report score 70/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [8][9]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 24 / 91 · Taxi & courier fleets",
+  "title": "Navbat",
+  "subtitle": "A live map of methane (CNG) stations: which are open and how long the queue is.",
+  "story": "Drivers share short videos of station queues. Navbat counts the cars, estimates the waiting time and whether the station is open, and tells taxi drivers where to fill up now.",
+  "why": "In winter many CNG stations close or have long queues: on 25 Dec 2025, only 11 of 33 stations for Tashkent public transport were open. Every hour in a queue is lost income for a taxi driver.",
+  "uses": [
+   "A taxi driver goes to the station with the shortest wait",
+   "A fleet plans refuelling for 100 cars",
+   "Station owners see their busy hours"
+  ],
+  "buyers": "Taxi and courier fleets; drivers use it.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [24][25][26]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 24 / 91 · How it works",
+  "title": "Navbat",
+  "subtitle": "Drivers' station clips become a live methane map: queue length, open or closed, and where to fill now.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Station clips</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>drivers and dashcams</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Count the queue</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR-Seg vehicles</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Metres + status</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>MoGe-2, open / closed</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Where to fill</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>throughput → wait time</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>On 25 Dec 2025 only 11 of 33 CNG stations</text><text class='dg-t' x='30' y='225'>serving Tashkent public transport were</text><text class='dg-t' x='30' y='246'>open. State UGaz has no driver-facing</text><text class='dg-t' x='30' y='267'>feature; 576k taxi drivers registered in 2024.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>~400 queue clips from one drive-round of</text><text class='dg-t' x='395' y='225'>10–15 stations. Server ~1 s per clip, under</text><text class='dg-t' x='395' y='246'>$0.001; the phone only captures.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Taxi and courier fleets, ~15k UZS per</text><text class='dg-t' x='760' y='225'>car-month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Play a queue video on a laptop: count,</text><text class='dg-t' x='760' y='318'>status, \"go to B\".</text>",
+  "note": "**Moat** — per-station hourly throughput priors and winter history  ·  Report score 70/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [24][25][26]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 25 / 91 · Driving schools",
+  "title": "AutodromRef",
+  "subtitle": "A phone camera that scores driving-school students like the real exam.",
+  "story": "One phone mounted above the school's practice yard watches the car. AutodromRef tracks the car, the cones and the lines and scores each exercise, such as hill start, parking and the box, the way the exam sensors do. It saves replay clips.",
+  "why": "The driving exam is scored by sensors and a retake costs 1.2M UZS. Schools are rated on how their students pass, but have no cheap way to practise the exact scoring.",
+  "uses": [
+   "A student sees exactly where they lost points",
+   "A school runs mock exams without an examiner",
+   "Instructors show replays to explain mistakes"
+  ],
+  "buyers": "Driving schools.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [4][5][6][7]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 25 / 91 · How it works",
+  "title": "AutodromRef",
+  "subtitle": "One overhead phone scores a driving school's practice yard on the exam manoeuvres and saves replay clips.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Overhead phone</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>sees the whole yard</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Track car + cones</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>RF-DETR Nano, SAM 2.1</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Yard geometry</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>homography, cm scale</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Exam score</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>rollback, cones, lines</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>The practical exam is sensor-scored on a</text><text class='dg-t' x='30' y='225'>100-point scale with a 1.2M UZS retake;</text><text class='dg-t' x='30' y='246'>graduates' results carry 30 of 100</text><text class='dg-t' x='30' y='267'>school-rating points. No cheap practice</text><text class='dg-t' x='30' y='288'>tool found.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>Printed A3 mini-track with toy cars, plus 20</text><text class='dg-t' x='395' y='225'>real yard clips. ~15 FPS on CPU/WebGPU;</text><text class='dg-t' x='395' y='246'>one phone or $60 camera, ~$15/month per</text><text class='dg-t' x='395' y='267'>track.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Driving schools, ~400k UZS per</text><text class='dg-t' x='760' y='225'>track-camera per month.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Push a toy car round our printed track:</text><text class='dg-t' x='760' y='318'>cone hits appear live.</text>",
+  "note": "**Moat** — a replay library calibrated to real exam outcomes  ·  Report score 75/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [4][5][6][7]"
+ },
+ {
+  "layout": "explain",
+  "eyebrow": "Tier A · 26 / 91 · Driving schools",
+  "title": "MirrorMark",
+  "subtitle": "Checks whether a learner driver looks in the mirrors before turning.",
+  "story": "A phone in the car watches the learner's head during a lesson. When the car turns or changes lanes, MirrorMark checks whether the learner looked in the mirror and over the shoulder, and gives feedback after the drive.",
+  "why": "Missing mirror checks is a classic exam fail and a cause of crashes. Instructors cannot watch the road and the student's eyes at the same time.",
+  "uses": [
+   "An instructor gets a report of missed checks after each lesson",
+   "A student practises with feedback",
+   "A school tracks progress across lessons"
+  ],
+  "buyers": "Driving schools, as an add-on to AutodromRef.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [4][133][134]"
+ },
+ {
+  "layout": "diagram",
+  "eyebrow": "Tier A · 26 / 91 · How it works",
+  "title": "MirrorMark",
+  "subtitle": "On-road lesson module for AutodromRef: head pose and gyro score mirror and shoulder checks around turns.",
+  "viewBox": "0 0 1100 340",
+  "svg": "<text class='dg-t-a' x='10' y='16'>HOW IT WORKS</text><rect class='dg-box' x='10' y='28' width='236' height='90'/><text class='dg-t-b' x='128' y='66' text-anchor='middle'>Cabin phone</text><text class='dg-t-s' x='128' y='88' text-anchor='middle'>faces the learner</text><path class='dg-arrow' d='M251 73 L285 73'/><rect class='dg-box' x='291' y='28' width='236' height='90'/><text class='dg-t-b' x='409' y='66' text-anchor='middle'>Head pose</text><text class='dg-t-s' x='409' y='88' text-anchor='middle'>MediaPipe face landmarks</text><path class='dg-arrow' d='M532 73 L566 73'/><rect class='dg-box' x='572' y='28' width='236' height='90'/><text class='dg-t-b' x='690' y='66' text-anchor='middle'>Turn windows</text><text class='dg-t-s' x='690' y='88' text-anchor='middle'>phone motion sensors</text><path class='dg-arrow' d='M813 73 L847 73'/><rect class='dg-box-a' x='853' y='28' width='236' height='90'/><text class='dg-t-b' x='971' y='66' text-anchor='middle'>Missed checks</text><text class='dg-t-s' x='971' y='88' text-anchor='middle'>feedback + dashboard</text><rect class='dg-box-m' x='10' y='148' width='350' height='187'/><text class='dg-t-a' x='30' y='176'>WHY IT MATTERS</text><text class='dg-t' x='30' y='204'>HAMS and Clutch already score mirror</text><text class='dg-t' x='30' y='225'>checks, so it wins only bundled with yard</text><text class='dg-t' x='30' y='246'>scoring. The Uzbek exam is sensor-scored,</text><text class='dg-t' x='30' y='267'>so schools sell measured feedback.</text><rect class='dg-box-m' x='375' y='148' width='350' height='187'/><text class='dg-t-a' x='395' y='176'>HOW PRACTICAL</text><text class='dg-t' x='395' y='204'>60 consented cabin drives with labelled</text><text class='dg-t' x='395' y='225'>glances. In-browser, 15–30 FPS target,</text><text class='dg-t' x='395' y='246'>~zero cost.</text><rect class='dg-box-m' x='740' y='148' width='350' height='187'/><text class='dg-t-a' x='760' y='176'>WHO PAYS</text><text class='dg-t' x='760' y='204'>Driving schools, ~150k UZS per car-month,</text><text class='dg-t' x='760' y='225'>bundled.</text><line class='dg-rule' x1='760' y1='247' x2='1070' y2='247'/><text class='dg-t-a' x='760' y='272'>JUDGE DEMO</text><text class='dg-t' x='760' y='297'>Watch a route video while the webcam</text><text class='dg-t' x='760' y='318'>scores your checks.</text>",
+  "note": "**Moat** — learner histories inside the school's CRM  ·  Report score 56/100",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026), refs [4][133][134]"
+ }
+]

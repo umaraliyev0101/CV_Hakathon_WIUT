@@ -1,0 +1,183 @@
+# Plain-language pages, Tier A. One block per idea; names must match content/a-tier.txt.
+
+@ PledgePulse
+tag: A monthly check that a car bought on credit still exists and is in safe hands.
+story: Once a month, the borrower gets a Telegram link and films the car for 30 seconds while following random instructions, like "touch the left mirror" or "show the odometer". The app checks it is the right car, filmed live right now, not an old video or a screen.
+why: The car is the bank's only safety net, yet nobody looks at it again after the loan is signed. This replaces costly field visits with a 30-second video.
+uses: A bank checks thousands of car loans a month without field visits || A leasing firm spots a car that was secretly sold || A lender catches someone filming a screen instead of the real car
+buyers: Banks, leasing companies and microfinance lenders that give car loans.
+
+@ Quvvat
+tag: Tells the buyer of a used electric car how healthy its battery really is.
+story: The buyer takes four photos: the dashboard and the charger screen, before and after a 15-minute charge. From the energy that went in and how much the range moved, Quvvat estimates the battery's real capacity and gives a simple grade with a fair-price hint.
+why: The battery is the most expensive part of an EV and it wears out. Most used EVs here are Chinese imports that normal diagnostic apps cannot read.
+uses: A buyer checks a used BYD before paying || A bank sets a fair loan amount for a used EV || A dealer proves its trade-in EVs are healthy
+buyers: Used-car dealers, car inspectors and banks that finance electric cars.
+
+@ Yorliq
+tag: Reads the Chinese label on an imported EV and tells you which battery it really has.
+story: Many Chinese EV models are sold with two or three battery sizes that look identical from outside. You photograph the small metal label (nameplate) inside the car; Yorliq reads the Chinese text and tells you the exact version and battery size.
+why: Sellers sometimes advertise the big battery while selling the small one, and a VIN check does not show the battery size. A wrong battery means overpaying by thousands of dollars.
+uses: A buyer checks that the "big battery" in an ad is real || A dealer documents grey-import EVs before selling || Quvvat uses it to know the battery's original size
+buyers: Used-EV dealers, importers, car inspectors and banks; it also powers Quvvat.
+
+@ FlipperFinder
+tag: Exposes dealers who pretend to be private sellers on car marketplaces.
+story: FlipperFinder ignores the car in each listing photo and looks at the background: the same wall, gate or garage. When dozens of "private" ads were all shot in the same yard, it groups them and shows that one dealer is behind them.
+why: Buyers trust private sellers more and pay accordingly, and marketplaces charge dealers higher fees. Hidden dealers cheat both, and today people spot them only by eye.
+uses: A marketplace makes hidden dealers pay dealer fees || A buyer sees that a "private" car comes from a reseller || Moderators review fake private ads faster
+buyers: Car marketplaces such as OLX and Avtoelon.
+
+@ CarTrail
+tag: A car history report built from old and current online listings.
+story: The same car is often sold several times, on OLX, Avtoelon and Telegram. CarTrail recognises the car across listings by its dents, rims, stickers and plate pieces, then shows its past prices, mileage and sellers on one timeline.
+why: Uzbekistan has no Carfax-style history service. If the mileage went down between two listings, or the car keeps getting resold, the buyer and the bank should know.
+uses: A buyer sees the mileage was lower in last year's ad || A bank checks a car's history before a loan || A dealer checks a trade-in's past
+buyers: Banks (per check), car buyers and dealers.
+
+@ TwinCheck
+tag: A quick photo test that tells a buyer whether a car needs a full inspection.
+story: Cars are symmetrical, so the left headlamp, mirror and wheel should age like the right ones. TwinCheck compares each pair in the listing photos. If one side looks newer, that part was probably replaced after a crash.
+why: A full inspection costs around 300,000 UZS, too much to do for every car you look at. This cheap first filter tells you which cars deserve it.
+uses: A buyer screens ten listings and inspects only two || A marketplace adds a "check this car" badge || Inspectors get pre-qualified customers
+buyers: Car marketplaces, used-car buyers and inspection firms.
+
+@ WearTruth
+tag: Spots a car whose odometer has been rolled back, from photos of its interior.
+story: A steering wheel, pedals and driver's seat wear down with every kilometre. WearTruth photographs them, estimates how far the car has really been driven, and compares that with the odometer. It also spots marks left by old taxi stickers.
+why: Rolled-back odometers and ex-taxis sold as "family cars" make buyers and banks overpay. Interior wear is hard to fake.
+uses: A bank checks mileage before approving a car loan || A trade-in desk avoids overpaying for a worn car || A buyer finds out a car used to be a taxi
+buyers: Auto-loan banks and dealers' trade-in desks.
+
+@ Trim Truth
+tag: Checks that a used-car ad's equipment level matches what the car really has.
+story: The same model, like a Cobalt, comes in cheap and expensive versions. Trim Truth looks at photos and checks the visible clues, such as wheels, sunroof, roof rails and rear camera, then marks whether the advertised version matches the car.
+why: Sellers often claim a higher version to raise the price. Buyers and banks then pay too much for a basic car.
+uses: A marketplace shows an "ad matches the car" badge || A buyer checks a "top version" claim from photos || A bank avoids lending on an inflated price
+buyers: Car marketplaces, and banks once a loan officer confirms the problem.
+
+@ TruckProof
+tag: Proves a truck and driver are real before they get a cargo load.
+story: Before booking a load, the freight forwarder sends the driver a link. The driver films the truck, its plate, the documents and a fresh random code. TruckProof checks that the plate, the papers, the truck type and the driver's face all match.
+why: Many loads in Central Asia are booked through Telegram groups where anyone can claim to be a carrier. A fake carrier can disappear with the cargo.
+uses: A forwarder verifies a new carrier in two minutes || A Telegram freight group shows a "verified" badge || A cargo insurer requires a check before trips
+buyers: Freight forwarders, logistics marketplaces and cargo insurers.
+
+@ Alibi
+tag: Proves an insurance claim photo was really taken at the scene, today.
+story: When a driver sends damage photos to an insurer's Telegram bot, Alibi checks the physics. Do the shadows match the sun's position at that place and time? Does the weather match? Was the photo taken of a real car, not a screen?
+why: Fraudsters reuse old photos or edit damage in. Even trained staff miss half of edited damage photos.
+uses: An insurer fast-tracks honest claims and holds suspicious ones || A claims team catches an old photo sent as new || Remote claims become safe without an inspector visit
+buyers: Car insurers (OSAGO and KASKO claims departments).
+
+@ ScratchPrint
+tag: Tells whether a scratch is new or was already there before.
+story: Every scratch and dent has a unique shape, like a fingerprint. ScratchPrint compares new photos with earlier ones and says whether a damage mark is the same old one or a new one.
+why: People claim old damage as new, or the same damage twice. Rental and taxi companies argue with drivers about who caused which scratch.
+uses: A taxi fleet settles "who scratched it" at shift change || An insurer spots damage that existed before the policy || A rental company checks returns fairly
+buyers: Insurers, taxi fleets, rental and car-sharing companies.
+
+@ BumperMatch
+tag: Checks whether the damage on two cars could really come from the same crash.
+story: Using the licence plate as a ruler, BumperMatch measures how high the damage sits on each car. A dent at knee height cannot come from a bumper that sits much higher, so impossible combinations are flagged.
+why: Some accidents are staged or described falsely to get insurance money. A simple height check catches many of them.
+uses: An insurer flags a claim where the dents don't line up || An independent expert gets measurements for a report || A hit-and-run victim learns what kind of car hit them
+buyers: Car insurers' claims and fraud teams, and independent damage experts.
+
+@ WitnessHunt
+tag: Finds dashcam video of an accident from other vehicles that were nearby.
+story: Taxi and delivery fleets record dashcam video all day. When an insurer needs evidence for a crash, WitnessHunt searches the fleets' footage for that place and time, finds the clip, and blurs faces and plates before sharing it.
+why: Many accident disputes come down to one driver's word against the other's. Video settles them fast, and insurers must decide within 15 days.
+uses: An insurer gets video of a disputed crash || A fleet earns money from footage it already has || A driver proves the other car ran the red light
+buyers: Insurers pay per clip; fleets join as video suppliers.
+
+@ EuroScene
+tag: Lets two drivers report a small accident with their phones, without police.
+story: After a minor crash, both drivers film a short walk-around of the scene. EuroScene reads both plates, marks the damage on each car, fills in the accident notice form, and both drivers sign it with a QR handshake.
+why: Waiting for police after a fender-bender wastes hours and blocks traffic. A recorded, signed notice is also better evidence for insurers. It does not decide who is at fault.
+uses: Two drivers file a notice in five minutes || A taxi company handles its drivers' small accidents || An insurer receives clean, filmed evidence
+buyers: Insurers, the Insurance Guarantee Fund and ride-hailing fleets.
+
+@ WashScan
+tag: Turns car washes into places where a car's condition gets photographed and recorded.
+story: When a car arrives at a wash, the attendant walks around it with a phone. The app makes sure every panel is filmed clearly and saves a dated record of the car's condition, linked to its plate.
+why: Car washes are often blamed for scratches that were already there; the record protects them. Insurers also want up-to-date condition photos and can buy these records.
+uses: A car wash proves a scratch was there before washing || An insurer gets fresh condition photos without an inspector || A lender sees a car's recent state
+buyers: Car washes first, then insurers who buy the condition records.
+
+@ Columbo
+tag: A chat assistant that inspects a used car remotely by asking for the right photos.
+story: A buyer in another city sends Columbo a listing. Columbo asks the seller for one photo at a time, always the one that tells it the most, and runs checks for repairs and repaint. It ends with: buy, walk away, or inspect in person.
+why: A professional inspection costs 300,000 UZS plus travel. Most bad cars can be ruled out remotely before anyone travels.
+uses: A buyer in Samarkand checks a car listed in Tashkent || A dealer screens many cars without visiting them || Inspectors get only the cars worth a trip
+buyers: Used-car buyers in the regions and dealers buying cars from afar.
+
+@ BozorLens
+tag: A fair-price guide for used cars, built from the prices at car markets.
+story: At car markets, sellers put price sheets behind the windshield. Walking with a phone, BozorLens reads each sheet, identifies the car, and compares the price with online ads, building a fair-price index over time.
+why: Uzbekistan has no trusted price guide, so banks and insurers value cars blind. First check the price sheets really exist at the market.
+uses: A bank values a car before a loan || An insurer sets the insured value || A buyer sees if an asking price is fair
+buyers: Banks and insurers via subscription; buyers use it for free.
+
+@ Shtraf Shield
+tag: Handles traffic-camera fines for company cars: check, pay early or pass on.
+story: Fleets with many cars receive many camera fines. Shtraf Shield reads each fine's photo, checks the plate, make and colour match the fleet's car, flags mistakes and cloned plates, then pays early at the discount or transfers the fine to the driver.
+why: Paying within 15 days halves the fine, and since April 2026 fines can go to the actual driver. Fleets lose money missing deadlines or paying for wrong fines.
+uses: A car-rental firm transfers fines to customers automatically || A delivery fleet stops paying for misread plates || A fleet never misses the 50% discount
+buyers: Rental, car-sharing, taxi and delivery fleets with 50 to 500 cars.
+
+@ FuelTruth
+tag: Catches fuel theft in company vehicles with one short video at the pump.
+story: At each refuel, the driver films the pump display, the plate and the odometer in one 10-second clip. FuelTruth reads the numbers, checks them against the receipt and the trip, and flags fills that don't add up.
+why: Drivers can inflate receipts or fill other cars on the company's money. Fuel sensors cost money and need installing; a phone video does not.
+uses: A fleet manager sees which fills look suspicious || A company fills in fuel data for its digital waybill || A municipal fleet audits fuel spending
+buyers: Corporate, municipal and logistics fleets.
+
+@ Wrench-Proof
+tag: Proves a repair on a company car was really done.
+story: The mechanic records one continuous 20-second video: the plate, the odometer, the new part's box and the old part removed. Wrench-Proof checks everything is in one take and that the box matches the part, then issues a sealed receipt.
+why: Fleet owners pay for oil changes, brake pads and batteries they never see. Today they simply have to trust the mechanic.
+uses: A taxi company checks a garage's invoice || A delivery fleet keeps a verified service history per car || A buyer sees proven maintenance on a used fleet car
+buyers: Taxi parks and delivery fleets.
+
+@ ShiftGate
+tag: A 15-second safety check couriers pass before their shift starts.
+story: Before taking orders, the courier films their scooter or bike for 15 seconds. ShiftGate checks the reflectors, lights, number plate and documents. If something is missing, the shift stays locked and the courier gets a fix list.
+why: Couriers' fines in 2026 add up to about 4.7 billion UZS, mostly for missing lights and reflectors. Unsafe bikes are also hard to see at night.
+uses: A delivery app unlocks shifts only for safe bikes || A courier company cuts its fines || A platform shows regulators its safety record
+buyers: Delivery platforms and courier companies.
+
+@ Be-Seen
+tag: Tests whether a moped's reflectors really shine, using two phone photos.
+story: The courier takes one photo with flash and one without. Be-Seen compares them: good reflective tape shines brightly under flash, while worn or fake tape does not. It grades each reflector and lists what to replace.
+why: Most two-wheeler violations in 2026 were about reflectors and lights. A rider who cannot be seen at night can be hit.
+uses: A depot checks all mopeds before night shifts || A courier checks their own vest and bike || A fleet proves its bikes meet the rules
+buyers: Delivery platforms and fleets with mopeds and bikes.
+
+@ CamAudit
+tag: Tests whether a traffic camera's AI still reads plates at night, in rain and in dust.
+story: Companies that install road cameras give CamAudit their footage. It creates realistic night, rain, dust and dirty-plate versions of the clips, runs the company's AI on them and reports where it fails, against the government's rules.
+why: Under Resolution 148, cameras must read at least 95% of plates day and night or be switched off. Vendors claim 97-99%, but nobody checks independently.
+uses: A camera vendor tests itself before the official trial || A city checks a vendor's claims before paying || An integrator finds weak cameras before they fail
+buyers: Companies that install traffic cameras, and later city traffic centres.
+
+@ Navbat
+tag: A live map of methane (CNG) stations: which are open and how long the queue is.
+story: Drivers share short videos of station queues. Navbat counts the cars, estimates the waiting time and whether the station is open, and tells taxi drivers where to fill up now.
+why: In winter many CNG stations close or have long queues: on 25 Dec 2025, only 11 of 33 stations for Tashkent public transport were open. Every hour in a queue is lost income for a taxi driver.
+uses: A taxi driver goes to the station with the shortest wait || A fleet plans refuelling for 100 cars || Station owners see their busy hours
+buyers: Taxi and courier fleets; drivers use it.
+
+@ AutodromRef
+tag: A phone camera that scores driving-school students like the real exam.
+story: One phone mounted above the school's practice yard watches the car. AutodromRef tracks the car, the cones and the lines and scores each exercise, such as hill start, parking and the box, the way the exam sensors do. It saves replay clips.
+why: The driving exam is scored by sensors and a retake costs 1.2M UZS. Schools are rated on how their students pass, but have no cheap way to practise the exact scoring.
+uses: A student sees exactly where they lost points || A school runs mock exams without an examiner || Instructors show replays to explain mistakes
+buyers: Driving schools.
+
+@ MirrorMark
+tag: Checks whether a learner driver looks in the mirrors before turning.
+story: A phone in the car watches the learner's head during a lesson. When the car turns or changes lanes, MirrorMark checks whether the learner looked in the mirror and over the shoulder, and gives feedback after the drive.
+why: Missing mirror checks is a classic exam fail and a cause of crashes. Instructors cannot watch the road and the student's eyes at the same time.
+uses: An instructor gets a report of missed checks after each lesson || A student practises with feedback || A school tracks progress across lessons
+buyers: Driving schools, as an add-on to AutodromRef.

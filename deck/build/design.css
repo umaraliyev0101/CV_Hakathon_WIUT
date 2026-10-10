@@ -1,0 +1,320 @@
+/* ============================================================
+   Clio Teardown — deck design system
+   16:9, 1280x720 logical px. Editorial / Swiss minimal.
+   One accent, generous whitespace, hairline rules, no gradients,
+   no drop shadows, no rounded-everything. Type does the work.
+   ============================================================ */
+
+:root {
+  --paper:      #FBFAF8;
+  --paper-alt:  #F3F1EC;
+  --ink:        #1A1917;
+  --ink-soft:   #4A4741;
+  --muted:      #7C7871;
+  --hairline:   #DEDBD4;
+
+  --clay:       #C2492D;   /* primary accent + alerts */
+  --teal:       #2E5E5B;
+  --olive:      #6E7F4A;
+  --sand:       #C99A3F;
+  --slate:      #4A5568;
+
+  --pos:        #4A6B3D;
+  --neg:        #A3311B;
+
+  --font: "Helvetica Neue", Helvetica, Inter, Arial, sans-serif;
+  --mono: "SF Mono", "Menlo", "Consolas", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { background: #55534E; }
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* ---------- the page ---------- */
+
+.slide {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  background: var(--paper);
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+  margin: 0 auto 24px;
+  padding: 72px 88px 64px;
+  display: flex;
+  flex-direction: column;
+}
+
+.slide.dark  { background: var(--ink);   color: var(--paper); }
+.slide.alt   { background: var(--paper-alt); }
+.slide.accent{ background: var(--clay);  color: #fff; }
+
+/* ---------- furniture ---------- */
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 18px;
+  flex: none;
+}
+.dark .eyebrow, .accent .eyebrow { color: rgba(255,255,255,.62); }
+
+h1.slide-title {
+  font-size: 40px;
+  line-height: 1.14;
+  font-weight: 600;
+  letter-spacing: -.021em;
+  max-width: 24ch;
+  flex: none;
+}
+h1.slide-title.long { font-size: 33px; max-width: 30ch; }
+
+.subtitle {
+  font-size: 21px;
+  line-height: 1.42;
+  color: var(--ink-soft);
+  margin-top: 14px;
+  max-width: 62ch;
+  font-weight: 400;
+  flex: none;
+}
+.dark .subtitle, .accent .subtitle { color: rgba(255,255,255,.76); }
+
+.body { flex: 1 1 auto; min-height: 0; margin-top: 40px; display: flex; flex-direction: column; }
+
+.foot {
+  position: absolute;
+  left: 88px; right: 88px; bottom: 30px;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  font-size: 12.5px; color: var(--muted);
+  gap: 28px;
+}
+.dark .foot, .accent .foot { color: rgba(255,255,255,.5); }
+.foot .src { max-width: 88ch; line-height: 1.4; }
+.foot .src a { color: inherit; text-decoration: none; }
+.foot .no { font-variant-numeric: tabular-nums; flex: none; }
+
+/* tag chips for evidence strength */
+.tag {
+  display: inline-block;
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 7px; border: 1px solid var(--hairline);
+  color: var(--muted); margin-right: 6px; vertical-align: 2px;
+}
+.tag.confirmed { color: var(--teal);  border-color: var(--teal); }
+.tag.inferred  { color: var(--sand);  border-color: var(--sand); }
+.tag.unknown   { color: var(--clay);  border-color: var(--clay); }
+
+/* ---------- title / section ---------- */
+
+.slide.title-slide { justify-content: center; padding: 88px; }
+.title-slide h1 { font-size: 76px; line-height: 1.04; letter-spacing: -.03em; max-width: 20ch; font-weight: 600; }
+.title-slide .subtitle { font-size: 25px; margin-top: 26px; max-width: 54ch; }
+.title-slide .meta { margin-top: 52px; font-size: 15px; color: var(--muted); line-height: 1.7; }
+.dark .title-slide .meta { color: rgba(255,255,255,.55); }
+
+.slide.section-slide { justify-content: flex-end; }
+.section-slide .num {
+  font-size: 15px; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(255,255,255,.55); font-weight: 700; margin-bottom: 20px;
+}
+.section-slide h1 { font-size: 64px; line-height: 1.06; letter-spacing: -.028em; max-width: 22ch; }
+.section-slide .subtitle { font-size: 20px; max-width: 60ch; margin-top: 22px; }
+
+/* ---------- statement ---------- */
+
+.slide.statement-slide { justify-content: center; }
+.statement .big {
+  font-size: 150px; line-height: .94; font-weight: 600;
+  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+  color: var(--clay);
+}
+.dark .statement .big { color: #E8836A; }
+.statement .big.sm  { font-size: 104px; }
+.statement .big.xs  { font-size: 74px; letter-spacing: -.03em; }
+.statement .claim {
+  font-size: 31px; line-height: 1.32; margin-top: 26px;
+  max-width: 32ch; font-weight: 500; letter-spacing: -.012em;
+}
+.statement .note {
+  font-size: 18px; line-height: 1.5; color: var(--ink-soft);
+  margin-top: 18px; max-width: 60ch;
+}
+.dark .statement .note { color: rgba(255,255,255,.72); }
+
+/* ---------- bullets ---------- */
+
+ul.bullets { list-style: none; display: flex; flex-direction: column; gap: 17px; }
+ul.bullets li {
+  font-size: 23px; line-height: 1.42; padding-left: 30px; position: relative;
+  max-width: 84ch; color: var(--ink-soft);
+}
+.dark ul.bullets li { color: rgba(255,255,255,.82); }
+ul.bullets li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 15px; height: 1.5px; background: var(--clay);
+}
+ul.bullets li b, ul.bullets li strong { color: var(--ink); font-weight: 600; }
+.dark ul.bullets li b { color: #fff; }
+ul.bullets.tight li { font-size: 20px; gap: 13px; }
+
+/* numbered variant */
+ol.steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 15px; }
+ol.steps li {
+  counter-increment: s; font-size: 20px; line-height: 1.44;
+  padding-left: 46px; position: relative; color: var(--ink-soft); max-width: 88ch;
+}
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 0;
+  width: 28px; height: 28px; border: 1.5px solid var(--clay); color: var(--clay);
+  font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+ol.steps li b { color: var(--ink); font-weight: 600; }
+
+/* ---------- two column ---------- */
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0; flex: 1; min-height: 0; }
+.two-col > div { padding: 4px 40px 4px 0; }
+.two-col > div + div { padding: 4px 0 4px 40px; border-left: 1px solid var(--hairline); }
+.dark .two-col > div + div { border-color: rgba(255,255,255,.18); }
+.col-head {
+  font-size: 14px; letter-spacing: .12em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 20px; color: var(--ink);
+}
+.col-head.neg { color: var(--neg); }
+.col-head.pos { color: var(--pos); }
+.dark .col-head { color: #fff; }
+.two-col ul.bullets li { font-size: 19px; }
+.two-col ul.bullets { gap: 14px; }
+
+/* ---------- table ---------- */
+
+table.grid { width: 100%; border-collapse: collapse; font-size: 18px; }
+table.grid.sm { font-size: 15.5px; }
+table.grid.xs { font-size: 13.5px; }
+table.grid th {
+  text-align: left; font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700; padding: 0 16px 11px 0;
+  border-bottom: 1.5px solid var(--ink); white-space: nowrap;
+}
+table.grid td {
+  padding: 13px 16px 13px 0; border-bottom: 1px solid var(--hairline);
+  color: var(--ink-soft); line-height: 1.36; vertical-align: top;
+}
+table.grid.sm td { padding: 10px 13px 10px 0; }
+table.grid.xs td { padding: 7px 11px 7px 0; }
+table.grid td:first-child { color: var(--ink); font-weight: 600; }
+table.grid td b { color: var(--ink); font-weight: 600; }
+table.grid td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.grid td.neg { color: var(--neg); font-weight: 600; }
+table.grid td.pos { color: var(--pos); font-weight: 600; }
+.dark table.grid th { color: rgba(255,255,255,.6); border-color: rgba(255,255,255,.5); }
+.dark table.grid td { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.14); }
+.dark table.grid td:first-child { color: #fff; }
+
+/* ---------- quote ---------- */
+
+.slide.quote-slide { justify-content: center; }
+blockquote.q {
+  font-size: 33px; line-height: 1.38; font-weight: 400; letter-spacing: -.014em;
+  max-width: 30ch; position: relative; padding-left: 34px;
+}
+blockquote.q::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 3px; background: var(--clay);
+}
+blockquote.q.sm { font-size: 26px; max-width: 40ch; }
+.attrib { margin-top: 26px; padding-left: 37px; font-size: 16px; color: var(--muted); line-height: 1.55; }
+.dark .attrib { color: rgba(255,255,255,.58); }
+
+/* ---------- callout ---------- */
+
+.callout {
+  border: 2px solid var(--clay); padding: 34px 38px; margin-top: 6px;
+}
+.callout .lead {
+  font-size: 27px; line-height: 1.34; font-weight: 600; letter-spacing: -.014em;
+  color: var(--clay); max-width: 40ch;
+}
+.callout .detail { font-size: 19px; line-height: 1.5; color: var(--ink-soft); margin-top: 16px; max-width: 76ch; }
+
+/* ---------- kpi row ---------- */
+
+.kpis { display: flex; gap: 0; margin-top: 8px; }
+.kpis > div { flex: 1; padding: 0 30px; border-left: 1px solid var(--hairline); }
+.kpis > div:first-child { padding-left: 0; border-left: none; }
+.kpi-val {
+  font-size: 55px; font-weight: 600; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; line-height: 1; color: var(--clay);
+}
+.kpi-val.sm { font-size: 40px; }
+.kpi-lab { font-size: 15px; line-height: 1.4; color: var(--muted); margin-top: 13px; }
+.dark .kpis > div { border-color: rgba(255,255,255,.18); }
+
+/* ---------- figure (chart / diagram) ---------- */
+
+.figure { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.figure svg { max-width: 100%; max-height: 100%; display: block; }
+.fig-note { font-size: 14.5px; color: var(--muted); margin-top: 12px; line-height: 1.45; max-width: 96ch; }
+
+/* chart primitives */
+.ax-line { stroke: var(--hairline); stroke-width: 1; }
+.ax-base { stroke: var(--ink); stroke-width: 1.5; }
+.ax-lab  { font: 500 14px var(--font); fill: var(--muted); }
+.val-lab { font: 600 15px var(--font); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.bar-lab { font: 600 14px var(--font); fill: #fff; font-variant-numeric: tabular-nums; }
+
+/* diagram primitives — agents use these classes, never raw colors */
+.dg-box   { fill: var(--paper); stroke: var(--ink); stroke-width: 1.6; }
+.dg-box-a { fill: #F6E4DE; stroke: var(--clay); stroke-width: 1.6; }
+.dg-box-t { fill: #E2ECEB; stroke: var(--teal); stroke-width: 1.6; }
+.dg-box-m { fill: var(--paper-alt); stroke: var(--hairline); stroke-width: 1.4; }
+.dg-box-d { fill: var(--ink); stroke: var(--ink); }
+.dg-t     { font: 500 15px var(--font); fill: var(--ink); }
+.dg-t-b   { font: 700 15px var(--font); fill: var(--ink); }
+.dg-t-s   { font: 500 13px var(--font); fill: var(--muted); }
+.dg-t-w   { font: 600 15px var(--font); fill: #fff; }
+.dg-t-a   { font: 700 13px var(--font); fill: var(--clay); }
+.dg-arrow { stroke: var(--ink); stroke-width: 1.6; fill: none; marker-end: url(#ah); }
+.dg-arrow-a { stroke: var(--clay); stroke-width: 1.8; fill: none; marker-end: url(#ah-a); }
+.dg-dash  { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; marker-end: url(#ah-m); }
+.dg-rule  { stroke: var(--hairline); stroke-width: 1; }
+
+/* ---------- explain: the idea in plain words ---------- */
+
+.explain { display: grid; grid-template-columns: 1.45fr 1fr; flex: 1; min-height: 0; }
+.explain > div { padding: 2px 44px 2px 0; }
+.explain > div + div { padding: 2px 0 2px 44px; border-left: 1px solid var(--hairline); }
+.ex-p { font-size: 21px; line-height: 1.52; color: var(--ink); max-width: 60ch; }
+.explain ul.bullets { gap: 12px; }
+.explain ul.bullets li { font-size: 18px; line-height: 1.45; }
+.slide:has(.explain) .subtitle { max-width: none; }
+.explain .col-head { color: var(--clay); font-size: 13px; margin-bottom: 16px; }
+.ex-gap { margin-top: 28px; }
+.ex-buyers { font-size: 18px; line-height: 1.45; color: var(--ink-soft); }
+
+/* ---------- print ---------- */
+
+@page { size: 1280px 720px; margin: 0; }
+
+@media print {
+  html { background: #fff; }
+  .slide { margin: 0; box-shadow: none; }
+}
+
+@media screen {
+  .slide { box-shadow: 0 3px 22px rgba(0,0,0,.28); }
+  body { padding: 24px 0; }
+}

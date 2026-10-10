@@ -1,0 +1,123 @@
+[
+ {
+  "layout": "title",
+  "theme": "dark",
+  "eyebrow": "WIUT Hackathon 26 · Computer Vision track",
+  "title": "91 computer-vision startup ideas",
+  "subtitle": "Ranked for an investor jury. Two pages per idea: the idea in plain words, then how it works and what it costs.",
+  "meta": [
+   "Team UsedByAI · Tashkent · 10 October 2026",
+   "168 generated → 143 checked by web-searching skeptics → 91 kept"
+  ]
+ },
+ {
+  "layout": "chart",
+  "eyebrow": "Method",
+  "title": "How the list was built",
+  "chart": {
+   "type": "funnel",
+   "data": [
+    {
+     "value": 168,
+     "display": "168",
+     "label": "Raw ideas",
+     "note": "from 10 generator agents"
+    },
+    {
+     "value": 143,
+     "display": "143",
+     "label": "Unique ideas",
+     "note": "after de-duplication"
+    },
+    {
+     "value": 102,
+     "display": "102",
+     "label": "Survived skeptics",
+     "note": "41 killed after web checks"
+    },
+    {
+     "value": 91,
+     "display": "91",
+     "label": "In this deck",
+     "note": "9 famous moved out, 2 pairs merged"
+    }
+   ]
+  },
+  "note": "Every idea was checked against the web for existing products. Every price is an estimate until a customer confirms it.",
+  "source": "Report: Automotive CV hackathon ideas (10 Oct 2026); ideation workflow run"
+ },
+ {
+  "layout": "table",
+  "eyebrow": "Order",
+  "title": "Three tiers, ranked for investors",
+  "head": [
+   "Tier",
+   "What it means",
+   "Ideas"
+  ],
+  "rows": [
+   [
+    "**A** · Fundable stories",
+    "Clear payer, repeat revenue, strong moat",
+    {
+     "t": "26",
+     "num": true
+    }
+   ],
+   [
+    "**B** · Solid B2B niches",
+    "Real payers, smaller markets, good modules",
+    {
+     "t": "29",
+     "num": true
+    }
+   ],
+   [
+    "**C** · Hard investor case",
+    "City-only payer, small ticket or a feature",
+    {
+     "t": "36",
+     "num": true
+    }
+   ]
+  ],
+  "note": "Ranking re-weights the verifiers' scores for investors (business and moat count double). Related modules sit right after their lead idea.",
+  "source": "Investor re-ranking of verifier sub-scores, 10 Oct 2026"
+ },
+ {
+  "layout": "table",
+  "eyebrow": "Anatomy",
+  "title": "How to read each idea",
+  "head": [
+   "Page",
+   "What it tells you"
+  ],
+  "rows": [
+   [
+    "1 · The idea, left",
+    "What it does and why it matters"
+   ],
+   [
+    "1 · The idea, right",
+    "Use cases and who buys it"
+   ],
+   [
+    "2 · How it works",
+    "Four steps; the red box is the decision"
+   ],
+   [
+    "2 · The cards",
+    "The key number, the build, price, demo"
+   ],
+   [
+    "2 · Bottom note",
+    "Why it is hard to copy, report score"
+   ],
+   [
+    "Both · Eyebrow",
+    "Tier and rank out of 91"
+   ]
+  ],
+  "source": "Deck structure"
+ }
+]

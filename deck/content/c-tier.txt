@@ -1,0 +1,325 @@
+# Tier C — great demo, hard investor case. City-only payers, then features, then trust-layer modules.
+
+@ PlumeWatch | C | City hall: ecology | 62 | [140][141][142][143]
+what: Roadside cameras grade each truck's black smoke and tarp status, feeding a repeat-offender ledger and repair orders.
+how: Roadside camera | existing feeds || Detect trucks | RF-DETR || Plume grade | temporal classifier, Ringelmann || Evidence pack | plate + offender ledger
+why: Vehicles are ~16% of Tashkent pollution and Decree UP-229 set up a smog commission. Hong Kong's roadside sensors got 96% of flagged vehicles repaired.
+prac: The public 75k-image set is not downloadable: collect 300+ local clips with condensation negatives. T4, $5–15 per camera-month, daytime only.
+pays: Ecology committee and smog commission, $30–60 per camera-month.
+demo: Play a roadside clip: smoke grade and PDF.
+moat: a repeat-offender ledger
+
+@ SightTriangle | C | City hall: road safety | 62 | [123][148]
+what: "Was it even visible?" A phone pan at the stop line reports blockers and pass or fail at stopping sight distance.
+how: Phone pan | at the stop line || Road geometry | phone height + pitch || Obstacles | SAM 2.1 + RF-DETR || Sight verdict | pass/fail with error band
+why: Kiosks and parked cars can hide pedestrians at the new AI yield crossings. Mobile-LiDAR research does this; a phone audit does not exist yet.
+prac: ≥8 tape-measured corners; no far-field depth beyond ~40 m. Server, under 1 cent per audit.
+pays: Road-safety audit consultancies on development-bank projects, ~$15/audit.
+demo: Pan at a venue corner or hallway junction.
+moat: a per-phone depth-error model
+
+@ SwerveMap | C | City hall: roads | 61 | [149][150]
+what: Fixed cameras reveal road hazards from behaviour: repeated swerves at one spot rank potholes, open lids and gravel.
+how: Fixed camera | traffic video || Track vehicles | RF-DETR + trackers || Lateral kinks | ground-plane residuals || Hazard rank | VLM names the cause
+why: Tashkent Safe City runs 42,750 cameras. Pavement-image AI is a hard business (Michelin exited); behaviour needs no defect labels.
+prac: UA-DETRAC, a staged cone-dodge, RDD2022 for causes. Server at 5 FPS; needs an L4 or edge box for margin.
+pays: Road agency or khokimiyat, ~$25 per camera-month.
+demo: Play a clip with a hidden obstacle: swerve heatmap.
+moat: label-free per-lane baselines
+
+@ ForcedOnRoad | C | City hall | 61 | [124][151][152]
+what: Map of sidewalks under 1.2 m free width, with error bands, ranking blocks where pedestrians are forced into traffic.
+how: Sidewalk video | street walk || Segment | SAM 3: sidewalk, cars, kerb || Measure width | marker + MoGe-2 || Bollard list | exposure-ranked blocks
+why: Pedestrians were in ~46% of crashes. Crowd labelling exists; measured width does not. Monocular width error is 0.252 m.
+prac: 20 blocks filmed at rush hour, 100 tape points. Server, ~1 cent per km.
+pays: Khokimiyat or the parking concessionaire, ~$60 per street-km.
+demo: Upload a sidewalk video: width strip.
+moat: an exposure-ranked block database
+
+@ Rain-Ready | C | City utilities | 61 | [153][154]
+what: Bus dashcams score storm-drain clogging; before each forecast storm the district gets a cleaning list.
+how: Dashcam frames | buses, municipal cars || Find grates | RF-DETR-Nano || Clog share | SAM 3 debris mask || Pre-storm list | ranked by low points
+why: Road-asset apps catalogue drains but not clog severity tied to a forecast; fleets also get underpass-closure alerts. Open-Meteo's free API is non-commercial.
+prac: 400 own grate photos plus public sets; back-test against a past flood. Server, ~$0.02 per km.
+pays: District hokimiyats and storm-water utilities, ~$0.50 per inlet.
+demo: Photograph a street drain near the venue.
+moat: clog history linked to flood outcomes
+
+@ SchoolGate | C | City hall & donors | 59 | [155][156]
+what: A propped phone at school pickup counts double-parking, blocked crossings, U-turns and yield rate; report via Telegram.
+how: Propped phone | 10 minutes at the gate || Detect + track | RF-DETR + trackers || Rule counts | two-mark homography || One-page PDF | three fixes
+why: A 2023 decree orders cameras near schools. Studies rely on installed cameras; a 10-minute phone audit gives before/after numbers cheaply.
+prac: 1–2 consented gates plus one dusk or rain clip. T4 batch, ~$0.05 per audit.
+pays: Khokimiyat, school-safety programmes, donors, ~$20 per audit.
+demo: Record the venue entrance: counts and PDF.
+moat: a school-zone benchmark
+
+@ OverpassIgnored | C | City capital works | 59 | [157][158][159]
+what: Measures whether people use pedestrian bridges and underpasses or cross at grade, plus driver yield at zebras.
+how: Site video | bridge + road || Track people | RF-DETR + tracker || Trajectory class | stairs, underpass, at-grade || Effectiveness | detours, fence fixes
+why: Bridge use ranged from 11.6% to 93.7% in academic counts (one figure from a search snippet). Tashkent's RRFB pilot has no evaluation plan.
+prac: 1–2 pre-recorded sites, faces blurred. T4 ~10 min per 2-hour clip, ~$0.10.
+pays: Khokimiyat capital-works holders and auditors, ~$150 per site.
+demo: Play a 5-minute bridge clip: usage split.
+moat: a city-wide usage database
+
+@ Ruxsat | C | City inspectors | 59 | [115][160][161]
+what: Charger-site audit aimed at what the regulator checks: nameplate kW, verification mark, meter and feeder photos.
+how: Site video | pan across the site || Find items | Grounding DINO / SAM 3 || Read nameplates | PP-OCRv6 || Verdict | pass, fix-list or hold
+why: 101 Tashkent chargers were cut off over paperwork in March 2026, and 2-year audits are planned.
+prac: 15 sites; the checklist confirmed by one operator first. Hosted VLM on 12 keyframes, ~$0.004–0.014.
+pays: Hokimiyat teams and operators with 20+ sites, ~200k UZS per audit.
+demo: Pan across our mock charger-site poster.
+moat: a decree-tracked checklist
+
+@ SunkenLid | C | City utilities | 57 | [153][162]
+what: Night-first manhole alerts: classify each lid as flush, sunken, broken or open and route a ticket to the owning utility.
+how: Street photo | dashcam or citizen || Find lids | RF-DETR-Seg || Lid state | ordinal risk classifier || Ticket | to the owning utility
+why: Cologne's phone pilot found lids easier to detect than road damage. Road-asset apps list manholes; routing to the 3–4 owning utilities is the gap.
+prac: 20+ real Tashkent photos with precision and recall; FLUX.2 klein lid removal. Server ~0.4 s.
+pays: Khokimiyat and the lid-owning utilities, as a district audit.
+demo: Upload a street photo: lid state.
+moat: a lid registry with owners
+
+@ DustVis | C | Road & emergency agencies | 56 | [163][164][165]
+what: Existing webcams as visibility meters: 4–5 visibility classes from landmark contrast, posting fog and dust alerts.
+how: Webcam frame | one per minute || Landmarks | MoGe-2 distances || Contrast law | Koschmieder || Alert | class + trend, Telegram
+why: Fog cut visibility to 50–100 m and diverted 26 flights on 8–9 Jan 2026. The best CCTV model scores 81.76% on five classes; nobody sells it as a service.
+prac: Finnish camera plus visibility-sensor pairs; replay a real fog event. CPU, under $2 per camera-month. Daylight only.
+pays: Road agency and emergency ministry, ~$20 per camera-month.
+demo: Watch a recorded fog event beside the sensor trace.
+moat: per-camera calibration
+
+@ GhostWorks | C | Traffic centre | 54 | [166][167]
+what: Permit-hours compliance for road work zones: lane-metres closed vs active, compared with permitted hours.
+how: Time-lapse | work-zone camera || Detect | OWLv2 cones, machines, workers || Closed area | SAM 2.1 || Compliance | active vs idle vs permit
+why: Tashkent repairs 36 km of road in 2026. FHWA's WorkZoneX (mAP 74.1%) costs $4,885 a year city-wide; permit compliance is its own board's next step.
+prac: 1–2 pre-captured sites plus public time-lapses. T4 ~7 min per zone-day, ~$0.07.
+pays: Traffic centre or khokimiyat, ~$100 per zone-month.
+demo: Scrub an 8-hour time-lapse: idle bands.
+moat: contractor history
+
+@ PatchLedger | C | Auditors | 52 | [153][168][169]
+what: Repair-acceptance proof: multi-year street imagery plus a new pass proves a patch exists where it did not before.
+how: Old vs new | Mapillary + new pass || Align | DINOv3 + homography || Detect patch | RF-DETR-Seg || Signed record | timestamped, tamper-evident
+why: 200 Karakalpak road-testing tenders showed collusion signs. Road-asset apps track repairs, not acceptance evidence.
+prac: Mapillary Tashkent pairs (check coverage first, drop if none); RDD2022. Overnight server, ~0.5 cent per km.
+pays: Audit and anti-corruption bodies, per-km fee.
+demo: Slide between two visits of one street.
+moat: longitudinal segment history
+
+@ StopCount | C | City hall | 49 | [170][171]
+what: Independent check of green-wave claims: measures arrival-on-green, stop rate and platoon travel time on live corridors.
+how: Corridor clips | stop-line or dashcam || Track vehicles | RF-DETR + tracker || Stops + signal | speed profiles, state || Report | arrival-on-green
+why: Buyuk Ipak Yuli claimed −29% travel time with no method. Google Green Light claims up to 30% fewer stops; independent measurement is missing.
+prac: Own clips, no plates stored. T4 batch, ~$3–15 per corridor-day.
+pays: Khokimiyat leadership or lender verification agents, ~$500/corridor.
+demo: View a time-space diagram from our corridor clips.
+moat: corridor baselines
+
+@ FineFirewall | C | Signal-timing programmes | 58 | [187][188][189]
+what: Junction video measures yellow duration, red-entry timing and dilemma-zone share against engineering requirements.
+how: Junction video | clear signal head || Signal state | frame-counted classifier || Approach speeds | calibrated tracks || Verdict | histogram + record
+why: A ~1 s longer yellow cut violations 36%. The Uzbek minimum yellow time was not found: confirm it before pitching.
+prac: Own clear-signal junction clip (the elimination camera's signal head is small and often occluded). T4 ~2 min per 5-minute 4K clip.
+pays: Signal-timing programmes and fleets, ~$200 per junction audit.
+demo: Open a junction page: yellow time and histogram.
+moat: a per-junction fairness record
+
+@ BumpRegistry | C | Emergency services | 61 | [183][184]
+what: Speed-bump inventory from dashcam video: presence, spacing, signs, markings, lighting and a coarse height class.
+how: Dashcam video | plus phone IMU || Segment bumps | RF-DETR-Seg, paint || Height class | IMU spike + reference || Removal list | rule check
+why: Philadelphia found 2 of 140 cushions installed properly; one 426 m Bukhara street has 10 bumps. No CV legality audit was found.
+prac: 30 tape-measured bumps for error bars. T4 ~0.3 s per frame, ~1 cent per km.
+pays: Emergency services or one district; taxi fleets ~$5 per vehicle-month.
+demo: Upload our five-bump clip: registry rows.
+moat: a registry with owner status
+
+@ Lane Clear | C | Housing associations | 64 | [137][138][139]
+what: A courtyard phone walk-through becomes a 3D free-space map: can a fire truck get through, and which bays to ban?
+how: Walk-through | phone video + scale card || 3D map | MapAnything, metric || Obstacles | SAM 3: cars, trees, kerbs || Fire-truck path | pinch points < 3.5 m
+why: Tashkent has ~193 vehicles per 1,000 people. Dahua alarms on fire-lane dwell; nobody measures passability in one pass.
+prac: Tape-measured widths in ≥10 courtyards; MapAnything width error 0.33–0.46 m. Serverless GPU ~10 s per clip, ~$0.05.
+pays: Housing associations, mahalla committees, fire service, $20–40/audit.
+demo: Film a corridor lined with chairs: pinch points.
+moat: a courtyard database by hour
+
+@ Bead-Check | C | Detailing studios | 63 | [70][71]
+what: Coating drift tracker: a pipetted water drop filmed side-on gives the contact angle; later drops flag a re-coat.
+how: Side-on video | backlit drop || Silhouette | edge extraction || Fit the angle | spherical cap / Young-Laplace || Drift | vs own baseline → re-coat
+why: A lab drop analyser costs $4,990 and the free Joninn app fails above 85°, exactly where ceramic coatings sit.
+prac: 12 coupons (bare, wax, sealant, ceramic), 400 drops. In-browser under 1 s, ~zero cost.
+pays: Studios $15/month plus $2 per certificate; dealer paint programmes.
+demo: Drop water on our coupons or your phone screen.
+moat: coating-life curves per product
+
+@ Dent-Lines | C | PDR & inspectors | 55 | [86][87]
+what: Laptop-screen stripes reflected in a glossy panel map waviness: filler and repaint, or a dent for paintless repair.
+how: Stripe reflection | laptop screen on panel || Phase demodulation | Fourier || Slope → depth | relative index || Route | filler / repaint or PDR
+why: 52.6k used-car deals in Sep 2025 need cheap panel checks. A drive-through grid patent needs a tunnel; a phone and laptop are enough.
+prac: Dented sheets with dial-gauge depths; ~10 gauge-checked panels. In-browser under 1 s.
+pays: Avtopodbor per panel scan, or PDR technicians $15/month.
+demo: Photograph our dented sheet with stripes reflected.
+moat: panel-type outcome data
+
+@ WearMap | C | Taxi parks | 53 | [88][89]
+what: Monthly four-wheel tread scan per taxi-park car: per-wheel wear rate, alignment scheduling, tyre-spend savings.
+how: Tyre photos | coin for scale || Zone rules | inner, centre, outer || Feathering | raking-light check || Time series | alignment job
+why: HVI and several 2025–26 tyre apps already hint at alignment, so only the fleet time series is new. Low priority.
+prac: 200 scrap tyres with depth-gauge truth. In-browser ~2 s, under $0.002.
+pays: Taxi parks $0.50 per vehicle-month; alignment shops $20/month.
+demo: Photograph cut tyre sections beside a coin.
+moat: fleet wear time series
+
+@ BeamAim | C | Restoration shops | 53 | [90][91]
+what: Lens-haze grade plus a coarse low/OK/high headlight cut-off flag from a wall photo, sold as an upsell and pre-check.
+how: Wall photo | gyro pitch + marker || Cut-off contour | edge of the beam || Coarse flag | low / OK / high || Haze grade | flash-photo classifier
+why: 75% of vehicles in a TU Darmstadt study were mis-aimed. Lane testers such as Corghi PFT CAM need an inspection station.
+prac: 15 cars at known dial positions; 200 graded lenses. In-browser under 1 s.
+pays: Restoration and tyre shops, $0.30 per check or $15/month.
+demo: Point a torch at our wall board with a cut-off mask.
+moat: a beam library including LED retrofits
+
+@ PlugLens | C | CNG-conversion shops | 56 | [82][83]
+what: Spark-plug evidence card for petrol-gas conversions: gap measured against the 14 mm thread, deposit class, re-order.
+how: Macro photo | used plug || Segment | electrode + thread || Gap | keypoints, 14 mm scale || Job card | deposit class, re-order
+why: Chart-based plug apps exist and mechanics read plugs by eye. The novelty is the first CNG-vs-petrol wear curves. Low priority.
+prac: ~300 used plugs with mileage and fuel type; an open BSD-3 plug set for pretraining. In-browser ~1 s.
+pays: CNG-conversion shops and independent mechanics, $12/month.
+demo: Photograph our used plugs: gap and deposit class.
+moat: a CNG wear library
+
+@ KitCheck | C | Passenger carriers | 57 | [131][132]
+what: In-vehicle kit module for ShiftGate: extinguisher gauge zone and expiry date, first-aid kit, triangle, reminders.
+how: Kit photos | extinguisher, kit, triangle || Detect items | RF-DETR Nano || Gauge + dates | zone classifier, OCR || Reminders | Telegram expiry clock
+why: A YOLOv8n study found gauges and labels but could not read dates; expiry-date OCR is the real gap. Taxis stay outside the voluntary-inspection regime.
+prac: 60 own extinguishers and kits; synthetic gauge renders. In-browser ONNX ~0.3 s, $0 server.
+pays: Passenger carriers under mandatory inspection, ~$1 per vehicle-month.
+demo: Point a phone at any extinguisher in the building.
+moat: thin; sold bundled into ShiftGate
+
+@ Seen-at-Night | C | Night-shift employers | 58 | [129][130]
+what: Wash-cycle audit of hi-vis clothing: flash and no-flash pairs give a retro-gain index against a reference swatch.
+how: Two photos | flash and no flash || Difference | retroreflection only || Garment masks | SAM 3 + MediaPipe Pose || Index | vs reference swatch
+why: Vests without stripes were no better than black clothing in one study. Remote retroreflectometers target road signs, not clothing.
+prac: A 60-outfit night trial before quoting any distance. In-browser ~1 s; photos stay on the phone.
+pays: Road crews, cleaning contractors and fleets, per audit.
+demo: Photograph a shoe or lanyard with and without flash.
+moat: a field-calibrated index
+
+@ RideCoach | C | Delivery platforms | 53 | [16][120]
+what: Shift-start check of a courier's lights and plate plus one riding behaviour: red lights and stop lines.
+how: Handlebar phone | courier's own || Detect | RF-DETR Nano + light test || Stop-line events | Grounding DINO + speed || Weekly score | bonus or coaching
+why: 92% of courier violations involve reflectors, lights, tint or passengers. Drover AI mounts hardware on scooters; this uses couriers' own phones.
+prac: Consented public POV footage; recall per event. Phone FPS to measure; event clips only.
+pays: Delivery platforms, 3,000 UZS per active courier-month.
+demo: Point a phone at a laptop ride: red-light run flagged.
+moat: courier-view violation data
+
+@ No-Start Doctor | C | Battery retailers | 61 | [105][106][107]
+what: Camera as voltmeter: film the headlights during a start and get a cranking-sag battery score before winter.
+how: Start video | headlights in view || Lamp luminance | exposure locked || Volts | light ∝ V^3.4 || Battery score | swap lead before winter
+why: Cold-cranking ratings assume ≥7.2 V while cranking; deeper sag means a weak battery. OBD dongles need hardware. LED-only and EV cars are out of scope.
+prac: Bench halogen on a variable supply; 3–5 cars logged with an OBD voltage PID. Server ~2 s.
+pays: Battery retailers and taxi parks, ~2,000 UZS per check plus swap leads.
+demo: Film our bench lamp while we sag its voltage.
+moat: paired video and OBD data
+
+@ CouplingCheck | C | Corridor trucking | 55 | [135][136]
+what: Signed pre-departure coupling log from a 10-second side view: hoses, plug, landing gear, latch, no gap.
+how: Side view | 10 seconds || Detect items | RF-DETR on SAM 3 labels || Go / no-go | per item || Signed log | timestamped
+why: Coupling is verified by vibration sensors today. The kingpin lock needs a look under the trailer, so it is not claimed.
+prac: 200+ own photos from truck yards. Phone WebGPU ~0.3 s, $0 server.
+pays: Cargo insurers and forwarders on the China–Uzbekistan corridor.
+demo: Unplug a toy hose: fail.
+moat: per-trailer history
+
+@ ShadeRent | C | Parking operators | 58 | [190][191]
+what: Measured shade maps: a fixed phone shoots a lot every 15–30 minutes to site canopies, solar carports and chargers.
+how: Time-lapse | fixed phone, 15–30 min || Shade masks | luminance + SAM 3 || Sun-path model | interpolate the day || Shade-hours | per bay, per season
+why: The airport lot holds ~1,500 vehicles at a 48.78bn UZS yearly start price. ShadeMap simulates shadows; this measures them per bay.
+prac: Own time-lapse shot during the sprint. Server ~$0.05 per lot.
+pays: Airport lot operator, canopy and solar-carport installers, ~$20+/survey.
+demo: Predicted 16:30 shade over the real 16:30 photo, IoU shown.
+moat: per-bay shade and occupancy history
+
+@ ParkOK | C | Courier & taxi fleets | 59 | [101][185][186]
+what: One-photo stopping check: reads signs, paid zone and time windows and cites the rule and the fine.
+how: Street photo | the kerb ahead || Signs + markings | RF-DETR, SAM 3 || Distances | plate-scaled MoGe-2, ±1 m || Green / amber / red | rule + fine cited
+why: Stopping where banned costs 880,000 UZS. US sign-reader apps exist; Uzbek signs derive from GOST, so the rules must be local.
+prac: 600 own kerb photos; Russian sign sets as a proxy. Modal L4 ~2 s, ~$0.002.
+pays: Fleets ~40,000 UZS per vehicle-month; concessionaire licenses rules.
+demo: Photograph the street outside the venue.
+moat: a geotagged sign corpus
+
+@ Joylash | C | Charger distributors | 54 | [177][178][179]
+what: Charger siting from a venue's own CCTV: per-bay dwell and EV share feed a payback simulator.
+how: Venue CCTV | parking lot || Track bays | RF-DETR-Seg + tracker || EV share | SigLIP 2 badges || Payback | in UZS, grid step
+why: There were 1,399 stations in May 2025 and banks offer 10% charger loans. Session-data siting tools need chargers to exist first.
+prac: Consented lot clips; 500 hand-labelled badge crops. T4 or L4 batch, ~$1–2 per lot.
+pays: Charger distributors and installers, success fee per installed unit.
+demo: Drag a charger-count slider; bays light up.
+moat: a dwell benchmark by venue type
+
+@ Yard Tetris | C | Dealer & import yards | 53 | [50][121]
+what: A rooftop photo every few minutes shows where car X is, how long it sat and who blocks it, plus a minimal-moves plan.
+how: Rooftop photo | every N minutes || Footprints | RF-DETR-Seg || Lot map | homography + plate / QR ID || Move plan | BFS on blocking graph
+why: New-car sales fell 3.6% in Jan–Jul 2026, so stock sits longer. Cox Lot Vision is GPS/OBD; this is camera-only.
+prac: COCO weights plus photos of two real yards; measure find-time saved. In-browser nano segmenter; solver under 50 ms.
+pays: Dealers and import yards, ~$50–80 per lot-month.
+demo: Snap a toy-car grid, tap a car: move sequence.
+moat: lot layout and dwell history
+
+@ DarkRoad | C | Intercity fleets | 55 | [118][119]
+what: Route-level night-hazard map: carts, tractors and livestock on shoulders found by day and dusk, warned about at night.
+how: Day / dusk drives | fleet dashcams || Seed labels | OWLv2 || Detector | RF-DETR, rural classes || Route advisory | geotagged hotspots
+why: Surkhandarya bans heavy trucks 10:00–19:00, pushing them into the night. Night fleet dashcams exist; local slow road users are unlabelled.
+prac: Own day and dusk drives; ZOD and ACDC night frames for evaluation. Quantized phone detector, FPS to measure.
+pays: Fleets ~60k UZS per vehicle-month; insurers buy route-risk reports.
+demo: Open a rural clip: hazards plus the map.
+moat: non-Western road-user data
+
+@ LoadGate | C | Quarries & developers | 57 | [112]
+what: Exit-gate pass from a side and rear photo pair: overhang, height and width against the legal limit, plus a tarp check.
+how: Two photos | side + rear, marker || Masks | SAM 3 cargo + tarp || Dimensions | marker-scaled || Limit check | PDF for the smog file
+why: The Uzbek overhang limit was not found: source it first. Fraunhofer's photo check covers straps, not dimensions and tarp. Pairs with GateWash.
+prac: 60–100 self-shot loads, tape-measured on 20+ trucks. Server T4 ~3 s, ~$0.001.
+pays: Developers and quarries, ~$10 per vehicle-month.
+demo: Photograph a toy truck with overhanging sticks.
+moat: a local rules library
+
+@ WeldTell | C | Inspectors & dealers | 58 | [52][53]
+what: Heat map separating factory spot welds and seam sealer from repair welds on one repeatable region of two models.
+how: Region photo | door jamb or strut tower || Quality gate | abstain on dirt, undercoat || Anomaly model | PatchCore, factory refs || Heat map | flagged areas for a human
+why: Vendor guides list weld tells and rate AI only "partial". Factory references need dealer access, which is also the moat.
+prac: Factory-new references at a sponsor dealer; 40 labelled panels; AUC reported. CPU ~0.3 s per patch.
+pays: Avtopodbor firms and dealers, ~20,000 UZS per car.
+demo: Photograph our factory vs repaired sample jambs.
+moat: per-model factory references
+
+@ DateCode Detective | C | Dealers & trade-in | 57 | [54][55]
+what: Seller-side originality certificate: glass, seat-belt and VIN-plate date codes consistent with the build year.
+how: Stamp photos | glass, belts, tyres || Locate stamps | OWLv2 + raking torch || Read codes | PP-OCRv6 / PaddleOCR-VL || Timeline | vs VIN year
+why: Anyline reads tyre DOT codes; every dated part together tells the car's replacement story. Tyre age is the live demo hook.
+prac: 150+ real stamps with a per-source read-rate table, including "unreadable". Tyre OCR in browser; hard stamps ~$0.0003 via VLM.
+pays: Dealers and trade-in desks, ~20,000 UZS per car.
+demo: Photograph any tyre sidewall in the car park.
+moat: decoder tables for glass makers seen locally
+
+@ RepaintRadar | C | Inspectors & trade-in | 55 | [56][57]
+what: Triage before the paint gauge: a 20-second torch sweep per panel ranks the three panels worth checking.
+how: Torch sweep | 20 s per panel || Highlight sharpness | orange-peel texture || Colour delta | vs neighbour panel || Top 3 panels | check with the gauge
+why: Heydealer found unrecorded repairs on ~38% of 15,236 cars. Oto Dedektif claims repaint flags: publish a head-to-head.
+prac: Cheap-gauge labels on 40 cars × 12 panels; held-out-car AUC. In-browser ~1 s per panel; abstains on dark metallics.
+pays: Inspectors and trade-in desks 15,000 UZS per car; buyers 5,000 UZS.
+demo: Sweep a torch over a glossy door.
+moat: gauge-labelled local finishes
+
+@ Podstava Radar | C | Taxi parks & insurers | 53 | [65]
+what: Measurement-only braking-and-headway timeline from a dashcam clip before a rear-end crash; no scam verdict.
+how: Dashcam clip | before the crash || Track lead car | RF-DETR + trackers || Time to contact | optical expansion || Dispute report | brake-light timing
+why: Staged rear-end crashes ("podstava") turn on who braked and why. GoFleet markets brake-check flags without validation; an open, measured timeline is the twist.
+prac: DoTA, CCD and Nexar clips, CARLA scenes; validate against GPS on ~5 drives. T4 ~5 s per 15 s clip. Interview two taxi parks first.
+pays: Taxi parks ~$1 per car-month; insurers ~$0.50 per clip.
+demo: Upload a dashcam clip: deceleration chart.
+moat: a local scenario library
