@@ -20,6 +20,8 @@ step "analyze MEVA dev clip" .venv/bin/pulse analyze "$MEVA_DEV" --out runs/veri
 step "analyze showroom clip" .venv/bin/pulse analyze "$SHOW" --out runs/verify/stock --preset short
 step "check outputs" $PY scripts/check_outputs.py runs/verify/meva runs/verify/stock
 step "smoke API" $PY scripts/smoke_api.py
+step "smoke live" $PY scripts/smoke_live.py
+step "webcam grab" $PY scripts/webcam_grab.py
 step "git status clean" bash -c 'out=$(git status --short); echo "$out"; test -z "$out"'
 step "no git remote" bash -c 'out=$(git remote -v); echo "$out"; test -z "$out"'
 echo; echo "VERIFY OK"

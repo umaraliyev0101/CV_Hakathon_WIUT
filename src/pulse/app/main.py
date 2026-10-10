@@ -6,17 +6,19 @@ editing zones never re-runs a model.
 """
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
 import math
 import tempfile
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.concurrency import run_in_threadpool
@@ -26,7 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from pulse import cache as cache_mod
 from pulse import pipeline, render as render_mod, report as report_mod, roles as roles_mod
 from pulse import sources, zones as zones_mod
-from pulse.config import get_config
+from pulse.config import PRESETS as PRESET_DEFS, get_config
 from pulse.datatypes import Zone
 
 from . import jobs as jobs_mod
@@ -100,6 +102,23 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                 else:
                     engine_box.append(engine_factory())
             return engine_box[0]
+
+    live_lock = threading.Lock()
+    live_box: list = []
+    live_state = {"active": False}
+
+    def get_live_engine():
+        # live mode owns its engine: a running upload job never shares tracker state with it
+        with live_lock:
+            if not live_box:
+                if engine_factory is None:
+                    from pulse.engine import PerceptionEngine
+                    live_box.append(PerceptionEngine(get_config("short")))
+                elif inspect.signature(engine_factory).parameters:
+                    live_box.append(engine_factory(get_config("short")))
+                else:
+                    live_box.append(engine_factory())
+            return live_box[0]
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -219,6 +238,115 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
     @app.get("/live", include_in_schema=False)
     def live():
         return FileResponse(STATIC / "live.html")
+
+    def live_zone_file(raw) -> Path:
+        """A zone file path from a live client: only files inside labels/zones/ or jobs/."""
+        if not isinstance(raw, str) or not raw or "\x00" in raw:
+            raise ZoneError("load_zones needs a path")
+        allowed = [Path("labels/zones").resolve(), jobs_dir.resolve()]
+        p = Path(raw).resolve()                          # resolve() follows symlinks and '..'
+        if not any(p.is_relative_to(a) for a in allowed) or not p.is_file():
+            raise ZoneError("Zone files must be existing files under labels/zones/ or jobs/")
+        return p
+
+    @app.websocket("/ws/live")
+    async def ws_live(ws: WebSocket):
+        from pulse.live import LiveSession
+        await ws.accept()
+        if live_state["active"]:
+            await ws.send_json({"type": "error", "message": "Another live session is already running"})
+            await ws.close(code=1013)
+            return
+        live_state["active"] = True
+        send_lock = asyncio.Lock()
+
+        async def send(msg: dict) -> None:
+            async with send_lock:
+                await ws.send_json(msg)
+
+        try:
+            engine = await run_in_threadpool(get_live_engine)
+            session = LiveSession(get_config("short"), engine)
+            await run_in_threadpool(session.engine.reset)
+            t0 = time.monotonic()
+            pending: dict = {"data": None, "t": 0.0}
+            wake = asyncio.Event()
+
+            async def control(text: str) -> None:
+                try:
+                    msg = json.loads(text)
+                    if not isinstance(msg, dict):
+                        raise ValueError
+                except ValueError:
+                    return await send({"type": "error", "message": "Control message is not valid JSON"})
+                kind = msg.get("type")
+                try:
+                    if kind == "zones":
+                        zs = validate_zones({"zones": msg.get("zones")})
+                        await run_in_threadpool(session.set_zones, zs)
+                    elif kind == "load_zones":
+                        zs = validate_zones(json.loads(live_zone_file(msg.get("path")).read_text()))
+                        await run_in_threadpool(session.set_zones, zs)
+                        await send({"type": "zones", "zones": [z.to_dict() for z in zs]})
+                    elif kind == "preset":
+                        if msg.get("name") not in PRESET_DEFS:
+                            raise ZoneError("preset must be 'short' or 'dealership'")
+                        await run_in_threadpool(session.set_preset, msg["name"])
+                    elif kind == "toggle":
+                        x, y = msg.get("x"), msg.get("y")
+                        if not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                   and math.isfinite(v) for v in (x, y)):
+                            raise ZoneError("toggle needs numeric x and y")
+                        await run_in_threadpool(session.toggle_role_at, float(x), float(y))
+                    else:
+                        raise ZoneError(f"Unknown message type {kind!r}")
+                except (ZoneError, OSError, ValueError) as e:
+                    await send({"type": "error", "message": str(e) if isinstance(e, ZoneError)
+                                else "Could not read that zone file"})
+
+            async def reader() -> None:
+                while True:
+                    msg = await ws.receive()
+                    if msg["type"] == "websocket.disconnect":
+                        return
+                    if msg.get("bytes") is not None:
+                        if pending["data"] is not None:
+                            session.dropped += 1          # newest frame wins; the stale one is dropped
+                        pending["data"], pending["t"] = msg["bytes"], time.monotonic() - t0
+                        wake.set()
+                    elif msg.get("text") is not None:
+                        await control(msg["text"])
+
+            async def worker() -> None:
+                while True:
+                    await wake.wait()
+                    wake.clear()
+                    data, t = pending["data"], pending["t"]
+                    pending["data"] = None
+                    if data is None:
+                        continue
+                    try:
+                        frame = await run_in_threadpool(sources.decode_jpeg, data, session.cfg.max_width)
+                    except ValueError:
+                        await send({"type": "error", "message": "Frame is not a decodable JPEG"})
+                        continue
+                    try:
+                        overlay = await asyncio.to_thread(session.step, t, frame)
+                    except Exception:  # noqa: BLE001 - one bad frame must not end the session
+                        log.exception("live step failed")
+                        await send({"type": "error", "message": "Frame analysis failed"})
+                        continue
+                    await send(overlay)
+
+            worker_task = asyncio.create_task(worker())
+            try:
+                await reader()               # returns when the client disconnects
+            finally:
+                worker_task.cancel()
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            live_state["active"] = False
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 

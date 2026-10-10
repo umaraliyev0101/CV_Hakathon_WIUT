@@ -1,3 +1,70 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Showroom Pulse live</title></head>
-<body><h1>Showroom Pulse: live</h1><p>Anonymous, aggregated analytics; decision support only.</p></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Pulse live</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <h1>Showroom Pulse: live</h1>
+    <p class="banner" role="note">Anonymous, aggregated analytics; decision support only.</p>
+    <a class="top-link" href="/">Upload mode</a>
+  </div>
+</header>
+
+<main class="live">
+  <div id="alert-banner" class="alert-banner" role="alert" aria-live="assertive" hidden></div>
+  <div id="notice" class="notice" role="status" hidden></div>
+
+  <section class="panel live-bar" aria-label="Controls">
+    <button id="start" class="primary" type="button">Start camera</button>
+    <label class="inline">Preset
+      <select id="preset">
+        <option value="short">Short clip (alert after 8 s)</option>
+        <option value="dealership">Dealership (alert after 45 s)</option>
+      </select>
+    </label>
+    <button id="draw" type="button" aria-pressed="false" disabled>Draw zone</button>
+    <label class="inline">Zone name <input type="text" id="zone-name" value="Car A" maxlength="80"></label>
+    <label class="inline">Kind
+      <select id="zone-kind">
+        <option value="car">Car</option><option value="desk">Desk</option>
+        <option value="entrance">Entrance</option><option value="lounge">Lounge</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <button id="clear-zones" type="button" disabled>Clear zones</button>
+    <label class="inline">Zone file
+      <input type="text" id="zone-path" value="labels/zones/" aria-describedby="zone-path-help">
+    </label>
+    <button id="load-zones" type="button">Load zone file</button>
+    <small id="zone-path-help" class="muted">Path under labels/zones/ (or jobs/) on the server.</small>
+  </section>
+
+  <section class="live-grid">
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay" aria-label="Live view with detections. Click a person to switch between customer and staff."></canvas>
+      <p id="stage-hint" class="stage-hint">Press "Start camera". Frames are analysed on this machine and never stored.</p>
+    </div>
+    <aside class="panel live-side" aria-label="Live statistics">
+      <dl class="stats">
+        <div><dt>Connection</dt><dd id="conn">Not connected</dd></div>
+        <div><dt>Processed fps</dt><dd id="fps">0.0</dd></div>
+        <div><dt>Dropped frames</dt><dd id="dropped">0</dd></div>
+        <div><dt>Customers now</dt><dd id="occupancy">0</dd></div>
+      </dl>
+      <h3>Zones</h3>
+      <ul id="zone-stats" class="zone-stats"><li class="muted">No zones yet. Draw one or load a zone file.</li></ul>
+      <p class="muted"><small>Click a person to switch between customer (orange) and staff (blue).</small></p>
+    </aside>
+  </section>
+  <canvas id="grab" hidden></canvas>
+</main>
+<script type="module" src="/static/live.js"></script>
+</body>
+</html>
