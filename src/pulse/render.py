@@ -3,6 +3,7 @@ PRIVACY: every frame leaving this module has faces pixelated + blurred (staff in
 `render_timeline` is the Coach-compatible `render(video, timeline, events, out)` wrapper."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,12 +18,12 @@ CUSTOMER = (0, 140, 255)
 STAFF = (180, 120, 60)
 ALERT = (0, 0, 255)
 TILE_W = 320
-Obs = tuple  # (bbox, keypoints | None)
 
 
 def face_box(obs_bbox, keypoints, kp_thr: float = 0.3) -> tuple[int, int, int, int]:
     bx1, by1, bx2, by2 = obs_bbox
-    pts = [k for k in (keypoints[:5] if keypoints else []) if k[2] >= kp_thr]
+    has_kp = keypoints is not None and len(keypoints) > 0
+    pts = [k for k in (keypoints[:5] if has_kp else []) if k[2] >= kp_thr]
     if not pts:
         return int(bx1), int(by1), int(bx2), int(by1 + 0.2 * (by2 - by1))
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
@@ -111,15 +112,20 @@ def _even(img):
 def _annotated(frame, t, overlays, observations_by_t, default_zones):
     ov = overlays.get(t) or FrameOverlay(t, [], default_zones)
     h, w = frame.shape[:2]
-    return draw_overlay(frame, ov, (w, h), (observations_by_t or {}).get(t, ()))
+    return draw_overlay(frame, ov, (w, h), observations_by_t.get(t, ()))
 
 
 def render(video, overlays: dict[float, FrameOverlay], out_path, cfg: Config,
-           observations_by_t: dict | None = None) -> Path:
-    """Annotated H.264 yuv420p mp4 at cfg.sample_fps. Frames without an overlay are still written
-    (zone outlines from the first overlay; faces blurred from `observations_by_t` when supplied)."""
+           observations_by_t: dict[float, list]) -> Path:
+    """Annotated H.264 yuv420p mp4 at cfg.sample_fps.
+
+    PRIVACY: per frame, faces of the union of overlay persons and `observations_by_t.get(t, [])`
+    (list of (bbox, keypoints|None)) are blurred. `observations_by_t` is REQUIRED: the caller must
+    pass every sampled frame's detections, so a missing key means "no detected persons". Blurring
+    covers DETECTED persons only. Output goes to `<out>.part.mp4` and is renamed on success."""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    part = out_path.with_name(out_path.stem + ".part.mp4")
     default_zones = next(iter(overlays.values())).zones if overlays else []
     writer = None
     try:
@@ -128,15 +134,23 @@ def render(video, overlays: dict[float, FrameOverlay], out_path, cfg: Config,
             if writer is None:
                 h, w = img.shape[:2]
                 writer = imageio_ffmpeg.write_frames(
-                    str(out_path), (w, h), fps=cfg.sample_fps, codec="libx264", pix_fmt_in="bgr24",
+                    str(part), (w, h), fps=cfg.sample_fps, codec="libx264", pix_fmt_in="bgr24",
                     pix_fmt_out="yuv420p", macro_block_size=2, output_params=["-loglevel", "error"])
                 writer.send(None)
             writer.send(np.ascontiguousarray(img))
-    finally:
+        if writer is None:
+            raise ValueError(f"no frames read from {video}")
+        w_, writer = writer, None
+        w_.close()
+        os.replace(part, out_path)
+    except BaseException:
         if writer is not None:
-            writer.close()
-    if writer is None:
-        raise ValueError(f"no frames read from {video}")
+            try:
+                writer.close()
+            except Exception:
+                pass
+        part.unlink(missing_ok=True)
+        raise
     return out_path
 
 
@@ -153,11 +167,12 @@ def render_timeline(video, timeline, events, out, cfg: Config) -> Path:
             ov = overlays.setdefault(s.t, FrameOverlay(s.t))
             ov.persons.append({"person_id": pid, "bbox": s.bbox, "keypoints": None, "role": "customer",
                                "zone_id": None, "dwell": 0.0, "alert": alert})
-    return render(video, overlays, out, cfg)
+    obs = {t: [(p["bbox"], p["keypoints"]) for p in ov.persons] for t, ov in overlays.items()}
+    return render(video, overlays, out, cfg, obs)
 
 
 def contact_sheet(video, moments: list[dict], overlays: dict[float, FrameOverlay], out_path, cfg: Config,
-                  cols: int = 2, observations_by_t: dict | None = None) -> Path:
+                  observations_by_t: dict[float, list], cols: int = 2) -> Path:
     """Up to 4 tiles (frame nearest each moment.t), blurred + annotated, caption `t=..s`; JPEG."""
     moments = moments[:4]
     best: list[tuple[float, float, np.ndarray] | None] = [None] * len(moments)
@@ -166,12 +181,12 @@ def contact_sheet(video, moments: list[dict], overlays: dict[float, FrameOverlay
         for i, m in enumerate(moments):
             d = abs(t - m["t"])
             if best[i] is None or d < best[i][0]:
-                best[i] = (d, t, _annotated(frame, t, overlays, observations_by_t, default_zones))
+                best[i] = (d, t, frame)
     tiles = []
     for b in best:
         if b is None:
             continue
-        img = b[2]
+        img = _annotated(b[2], b[1], overlays, observations_by_t, default_zones)
         h, w = img.shape[:2]
         tile = cv2.resize(img, (TILE_W, int(round(h * TILE_W / w))), interpolation=cv2.INTER_AREA)
         _text(tile, f"t={b[1]:.1f}s", (6, tile.shape[0] - 8), (255, 255, 255), 0.5)
