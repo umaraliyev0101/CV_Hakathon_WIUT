@@ -169,7 +169,7 @@ class LiveIdentity:
         Call this before ``resolve`` so that people whose tracks died are already lost when this frame's new
         tracks look for someone to re-attach to. People in view are marked as seen at ``t``. People not seen for
         more than ``window`` seconds are forgotten (their descriptors are dropped), which keeps a long session
-        bounded; a known track that comes back later keeps its pid and re-learns its descriptor.
+        bounded; a known track that comes back later keeps its pid and re-learns its descriptor on its next ``resolve``.
         """
         self._active = set(active_track_ids)
         for track_id in self._active:
@@ -184,9 +184,10 @@ class LiveIdentity:
     def update_emb(self, pid: int, emb: np.ndarray, alpha: float = 0.2) -> None:
         """Blend a new descriptor into a person's stored one: ``(1 - alpha) * old + alpha * new``, re-normalised.
 
-        An unknown pid, or a missing or zero descriptor, is ignored. A person without a descriptor adopts it.
+        An unknown or forgotten pid, or a missing or zero descriptor, is ignored. A person who is known but has
+        no descriptor adopts it.
         """
-        if not 1 <= pid < self._next_pid:
+        if pid not in self._last_seen:
             return
         unit = _unit(emb)
         if unit is None:
@@ -207,7 +208,8 @@ class LiveIdentity:
         best: int | None = None
         best_dist = self.thr
         for pid in sorted(self._emb):
-            if pid in active or t - self._last_seen[pid] > self.window:
+            seen = self._last_seen.get(pid)
+            if seen is None or pid in active or t - seen > self.window:
                 continue
             d = 1.0 - float(self._emb[pid] @ unit)
             if d < best_dist:

@@ -238,7 +238,7 @@ def test_live_stale_people_are_forgotten_but_their_tracks_keep_the_pid():
     li.end_step(5100.0, set())
     assert len(li._emb) == 0 and len(li._last_seen) == 0  # nothing older than the window is kept
     assert len(set(pids)) == 50
-    # a long-lost track that does come back keeps its pid, re-learns its descriptor, and can be updated
+    # a long-lost track that does come back keeps its pid, re-learns its descriptor on resolve, and can be updated
     li.end_step(5101.0, {3})
     assert li.resolve(3, 5101.0, emb([0, 0, 1])) == pids[2]
     li.update_emb(pids[2], emb([0, 0, 1]))
@@ -288,3 +288,13 @@ def test_merge_matches_brute_force_reference():
         assert got == _reference_merge(tracks)
         merged += n - len(set(got.values())); total += n
     assert 0 < merged < total  # the random cases really exercise both merging and cannot-link blocking
+
+
+def test_update_emb_ignores_forgotten_person_and_reattach_survives():
+    li = LiveIdentity(thr=0.3, window=10.0)
+    li.end_step(0.0, {1}); p = li.resolve(1, 0.0, emb([1, 0, 0]))
+    li.end_step(100.0, set())  # the person is forgotten
+    li.update_emb(p, emb([1, 0, 0]))  # must not resurrect a half-forgotten entry
+    assert len(li._emb) == 0
+    li.end_step(101.0, {2})
+    assert li.resolve(2, 101.0, emb([1, 0, 0])) != p  # too old to re-attach, and no KeyError
