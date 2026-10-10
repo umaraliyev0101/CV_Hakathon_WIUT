@@ -15,6 +15,7 @@ VALID_ROLES = ("staff", "customer")
 _BRIDGE_S = 1.0
 _INITIATOR_WINDOW_S = 3.0
 _MIN_REASON_NORM = 0.25  # controller ruling R3
+_TIE_EPS = 1e-9          # approach differences below this count as a tie
 
 
 def _cos(a: np.ndarray, b: np.ndarray) -> float:
@@ -64,14 +65,15 @@ def interactions(persons: list[Person], timeline: Timeline, embeddings: dict[int
                 continue
             contact_cnt[a] += 1
             contact_cnt[b] += 1
-            for t_start, _ in runs[:1]:
-                t0 = t_start - _INITIATOR_WINDOW_S
-                ra = _approach(pos[a], pos[b], t0, t_start)
-                rb = _approach(pos[b], pos[a], t0, t_start)
-                if ra > rb + 1e-9:
-                    init_cnt[a] += 1
-                elif rb > ra + 1e-9:
-                    init_cnt[b] += 1
+            # The initiator is judged on the first qualifying run per pair.
+            t_start = runs[0][0]
+            t0 = t_start - _INITIATOR_WINDOW_S
+            ra = _approach(pos[a], pos[b], t0, t_start)
+            rb = _approach(pos[b], pos[a], t0, t_start)
+            if ra > rb + _TIE_EPS:
+                init_cnt[a] += 1
+            elif rb > ra + _TIE_EPS:
+                init_cnt[b] += 1
     for i in ids:
         peers = 0
         if i in embeddings:
@@ -126,19 +128,44 @@ def suggest(persons: list[Person], interactions: dict[int, dict[str, float]],
     return result
 
 
+def _parse_id(pid, path) -> int:
+    if isinstance(pid, bool):
+        raise ValueError(f"{path}: bad person_id {pid!r}")
+    if isinstance(pid, int):
+        return pid
+    if isinstance(pid, float) and pid.is_integer():
+        return int(pid)
+    if isinstance(pid, str):
+        try:
+            return int(pid.strip())
+        except ValueError:
+            pass
+    raise ValueError(f"{path}: bad person_id {pid!r}")
+
+
 def load_roles_json(path) -> dict[int, str]:
-    data = json.loads(Path(path).read_text())
-    if isinstance(data, dict) and isinstance(data.get("persons"), list):
-        pairs = [(e["person_id"], e["role"]) for e in data["persons"]]
-    elif isinstance(data, dict):
-        pairs = list(data.items())
+    try:
+        data = json.loads(Path(path).read_text())
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{path}: not valid JSON ({e})") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: top level must be an object")
+    if "persons" in data:
+        if not isinstance(data["persons"], list):
+            raise ValueError(f"{path}: 'persons' must be a list")
+        pairs = []
+        for e in data["persons"]:
+            if not isinstance(e, dict) or "person_id" not in e or "role" not in e:
+                raise ValueError(f"{path}: bad entry {e!r}, need person_id and role")
+            pairs.append((e["person_id"], e["role"]))
     else:
-        raise ValueError("roles.json must be an object")
+        pairs = list(data.items())
     out: dict[int, str] = {}
     for pid, role in pairs:
+        n = _parse_id(pid, path)
         if role not in VALID_ROLES:
-            raise ValueError(f"invalid role {role!r} for person {pid}")
-        out[int(pid)] = role
+            raise ValueError(f"{path}: invalid role {role!r} for person {pid!r}")
+        out[n] = role
     return out
 
 
