@@ -62,3 +62,13 @@ def test_no_library_warnings_leak():
         tr = Tracker(fps=5.0)
         tr.update([Det((100, 100, 160, 300), 0.9)])
         tr.update([])
+
+
+def test_steady_score_just_above_the_detector_threshold_is_tracked():
+    # Detector.score_thr is 0.35: a person detected steadily at 0.37 must get a track. ByteTrack starts a new
+    # track only at activation + 0.1, so the default activation of 0.25 puts that floor at the detector's own 0.35.
+    tr = Tracker(fps=5.0)
+    ids = []
+    for k in range(10):
+        ids += [i for i, _ in tr.update([Det((100 + 4 * k, 100, 160 + 4 * k, 300), 0.37)])]
+    assert len(ids) >= 9 and len(set(ids)) == 1 and type(ids[0]) is int and ids[0] > 0

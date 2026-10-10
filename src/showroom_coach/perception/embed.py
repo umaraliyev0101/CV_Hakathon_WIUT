@@ -1,8 +1,10 @@
 """Appearance descriptors for identity: person / torso crops, HSV histograms and the DINOv2-small embedder.
 
-Everything here describes body and clothing appearance, never faces; nothing recognises or stores who anyone
-is. Crops are BGR uint8 arrays cut from a frame; an unusable crop (None, empty) yields a zero descriptor,
-which `identity` treats as "no appearance information".
+These are whole-body appearance descriptors (clothing, colours, build), used only to merge track fragments of
+the same visit. A person crop includes the head, so the descriptor may carry some of what the face looks like;
+it is not face recognition, though: nothing here detects or matches faces, or stores or reveals who anyone is.
+Crops are BGR uint8 arrays cut from a frame; an unusable crop (None, empty) yields a zero descriptor, which
+`identity` treats as "no appearance information".
 """
 
 from __future__ import annotations

@@ -21,16 +21,25 @@ class Tracker:
     """Frame-by-frame person tracker.
 
     `fps` is the rate at which `update` is called (the sampled frame rate, not the video's), `lost_seconds` how
-    long a track is kept without a matching box, `activation` the confidence a box needs to join a track
-    (a brand-new track needs `activation + 0.1`; lower-scoring boxes may still extend existing tracks) and
+    long a track is kept without a matching box, `activation` the confidence a box needs to join a track and
     `match_thr` ByteTrack's matching threshold on the IoU cost. Track ids are positive ints, unique per tracker.
 
-    ByteTrack confirms a track that is born after the very first frame only when it is matched again on the next
-    one, so such a person is first returned on their second sighting (0.2 s at 5 fps); a box seen once and never
-    again produces no track at all, which filters one-frame false detections.
+    ByteTrack starts a brand-new track only for a box scoring at least `activation + 0.1`; lower-scoring boxes
+    (down to 0.1) can only extend existing tracks. The default `activation=0.25` therefore puts that floor at 0.35,
+    the same as `Detector.score_thr`, so every box the detector reports can start a track (with the usual 0.30 a
+    person steadily detected at 0.37 never got one: 0 of 10 frames).
+
+    Two ByteTrack behaviours to know about:
+    - A track born after the very first frame is confirmed only when it is matched again on the next one, so such
+      a person is first returned on their second sighting (0.2 s at 5 fps); a box seen once and never again
+      produces no track at all, which filters one-frame false detections.
+    - supervision hard-codes the IoU needed for that confirming match at 0.7 (not configurable). A person who
+      moves so far sideways between two sampled frames that their boxes overlap less than that is never
+      confirmed: at 5 fps a fast sideways walker (about 1.8 m/s and up) may never get a track (measured: 0 of 25
+      frames at 1.8 m/s against 24 of 25 at 1.4 m/s). Sample faster for such scenes.
     """
 
-    def __init__(self, fps: float = 5.0, lost_seconds: float = 2.0, activation: float = 0.30,
+    def __init__(self, fps: float = 5.0, lost_seconds: float = 2.0, activation: float = 0.25,
                  match_thr: float = 0.8):
         with warnings.catch_warnings():
             # supervision >= 0.28 announces ByteTrack's move to the `trackers` package; the class still works
