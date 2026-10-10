@@ -10,7 +10,8 @@ more than ``max_overlap`` seconds are never merged, however alike they look. The
 the pair being merged, so merging A with B and B with C cannot sneak A and C together.
 
 Live, ``LiveIdentity`` hands out person ids frame by frame. A track keeps its pid; a new track may take over the
-pid of someone who just vanished (no active track, seen within ``window`` seconds) if they look alike.
+pid of someone who just vanished (no active track, seen within ``window`` seconds) if they look alike. Per frame
+call ``end_step(t, ids_in_view_now)`` first, then ``resolve`` for each track in that frame (see ``LiveIdentity``).
 
 Pure numpy, no I/O and no clock.
 """
@@ -120,22 +121,29 @@ def _unit_rows(a: np.ndarray) -> np.ndarray:
 class LiveIdentity:
     """Frame-by-frame person ids with re-attach of recently lost people.
 
-    Call ``resolve`` for every track seen in a step, then ``end_step`` once with the ids of all tracks active in
-    that step. A person counts as *active* while any of their tracks is in the latest ``end_step`` set or has
-    been resolved since, so two tracks in view at once never share a pid.
+    Call order, once per frame at time ``t``:
+
+    1. ``end_step(t, ids_in_view_now)`` with the ids of every track in view in this frame, new ones included;
+    2. ``resolve(track_id, t, emb)`` for each of those tracks.
+
+    End the step first. A person is *active* while any of their tracks is in the latest ``end_step`` set or has
+    been resolved since, so two tracks in view together never share a pid, and someone still in view is never
+    taken over. With this order a track that dies in the same frame another is born is already lost when the new
+    track resolves, so the common tracker ID switch re-attaches. Resolving first would leave the dead track's
+    person looking active and the new track would get a fresh pid that is never repaired.
     """
 
     def __init__(self, thr: float = 0.30, window: float = 10.0):
         self.thr = thr
         self.window = window
         self._next_pid = 1
-        self._pid_of: dict[int, int] = {}  # track id -> pid, kept for the whole session
+        self._pid_of: dict[int, int] = {}  # track id -> pid, kept for the whole session (one small int per track)
         self._emb: dict[int, np.ndarray] = {}  # pid -> unit appearance descriptor, if the person has one
         self._last_seen: dict[int, float] = {}  # pid -> last time any track of theirs was active
-        self._active: set[int] = set()  # track ids active at the last end_step, plus those resolved since
+        self._active: set[int] = set()  # track ids in view at the last end_step, plus those resolved since
 
     def resolve(self, track_id: int, t: float, emb: np.ndarray | None) -> int:
-        """Return the pid for ``track_id`` at time ``t``.
+        """Return the pid for ``track_id`` at time ``t``. Call it after this frame's ``end_step``.
 
         A known track keeps its pid. A new track with an embedding takes the pid of the best-matching person who
         has no active track, was last seen within ``window`` seconds, and is closer than ``thr`` (cosine
@@ -156,19 +164,29 @@ class LiveIdentity:
         return pid
 
     def end_step(self, t: float, active_track_ids: set[int]) -> None:
-        """Close a step: ``active_track_ids`` are the tracks in view at time ``t``; their people were seen now."""
+        """Start frame ``t``: ``active_track_ids`` are all the tracks in view now, including ones born this frame.
+
+        Call this before ``resolve`` so that people whose tracks died are already lost when this frame's new
+        tracks look for someone to re-attach to. People in view are marked as seen at ``t``. People not seen for
+        more than ``window`` seconds are forgotten (their descriptors are dropped), which keeps a long session
+        bounded; a known track that comes back later keeps its pid and re-learns its descriptor.
+        """
         self._active = set(active_track_ids)
         for track_id in self._active:
             pid = self._pid_of.get(track_id)
             if pid is not None:
                 self._last_seen[pid] = t
+        stale = [pid for pid, seen in self._last_seen.items() if t - seen > self.window]
+        for pid in stale:
+            del self._last_seen[pid]
+            self._emb.pop(pid, None)
 
     def update_emb(self, pid: int, emb: np.ndarray, alpha: float = 0.2) -> None:
         """Blend a new descriptor into a person's stored one: ``(1 - alpha) * old + alpha * new``, re-normalised.
 
         An unknown pid, or a missing or zero descriptor, is ignored. A person without a descriptor adopts it.
         """
-        if pid not in self._last_seen:
+        if not 1 <= pid < self._next_pid:
             return
         unit = _unit(emb)
         if unit is None:

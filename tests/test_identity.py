@@ -195,3 +195,96 @@ def test_update_emb_ignores_unknown_pid_and_zero_vector():
     li.update_emb(99, emb([1, 0, 0]))
     li.update_emb(p1, np.zeros(3))
     assert li.resolve(7, 2.0, emb([1, 0, 0])) == p1
+
+
+# --- live call order: end_step(t, in view now) first, then resolve ------------------------------
+
+
+def test_live_same_frame_id_switch_reattaches():
+    li = LiveIdentity(thr=0.3, window=10.0)
+    li.end_step(0.0, {1}); p1 = li.resolve(1, 0.0, emb([1, 0, 0]))
+    li.end_step(0.2, {2})  # track 1 died and track 2 was born in the same frame
+    assert li.resolve(2, 0.2, emb([0.98, 0.05, 0])) == p1
+    li.end_step(0.4, {2})
+    assert li.resolve(2, 0.4, emb([1, 0, 0])) == p1
+
+
+def test_live_switch_in_a_crowd_takes_only_the_vanished_person():
+    li = LiveIdentity(thr=0.3, window=10.0)
+    li.end_step(0.0, {1, 2})
+    pa = li.resolve(1, 0.0, emb([1, 0, 0]))
+    pb = li.resolve(2, 0.0, emb([1, 0.02, 0]))  # looks the same as A but is a second person in view
+    assert pa != pb
+    li.end_step(0.2, {2, 3})  # A's track 1 died, track 3 was born
+    assert li.resolve(2, 0.2, emb([1, 0.02, 0])) == pb
+    assert li.resolve(3, 0.2, emb([1, 0, 0])) == pa  # B is still in view, so only A is available
+
+
+def test_live_two_births_in_one_frame_share_one_vanished_person_once():
+    li = LiveIdentity(thr=0.3, window=10.0)
+    li.end_step(0.0, {1}); p1 = li.resolve(1, 0.0, emb([1, 0, 0]))
+    li.end_step(0.2, {2, 3})
+    a = li.resolve(2, 0.2, emb([1, 0, 0]))
+    b = li.resolve(3, 0.2, emb([1, 0, 0]))
+    assert a == p1 and b != p1
+
+
+def test_live_stale_people_are_forgotten_but_their_tracks_keep_the_pid():
+    li = LiveIdentity(thr=0.3, window=10.0)
+    pids = []
+    for k in range(1, 51):  # fifty people pass through one after another
+        t = 100.0 * k
+        li.end_step(t, {k}); pids.append(li.resolve(k, t, emb([1, k, 0])))
+    li.end_step(5100.0, set())
+    assert len(li._emb) == 0 and len(li._last_seen) == 0  # nothing older than the window is kept
+    assert len(set(pids)) == 50
+    # a long-lost track that does come back keeps its pid, re-learns its descriptor, and can be updated
+    li.end_step(5101.0, {3})
+    assert li.resolve(3, 5101.0, emb([0, 0, 1])) == pids[2]
+    li.update_emb(pids[2], emb([0, 0, 1]))
+    li.end_step(5102.0, set())
+    assert li.resolve(900, 5103.0, emb([0, 0, 1])) == pids[2]
+
+
+# --- brute-force reference for the incremental matrix updates -----------------------------------
+
+
+def _reference_merge(tracks, thr=0.3, max_overlap=0.2):
+    """Slow and obvious: recompute every pair from scratch each round, cannot-link checked on all member pairs."""
+    clusters = [[s] for s in sorted(tracks, key=lambda s: (s.t0, s.track_id))]
+
+    def mean(c):
+        v = sum(s.n_obs * s.emb / np.linalg.norm(s.emb) for s in c)
+        return v / np.linalg.norm(v)
+
+    while True:
+        best = None
+        for a in range(len(clusters)):
+            for b in range(a + 1, len(clusters)):
+                if any(min(x.t1, y.t1) - max(x.t0, y.t0) > max_overlap for x in clusters[a] for y in clusters[b]):
+                    continue
+                d = 1.0 - mean(clusters[a]) @ mean(clusters[b])
+                if d < thr and (best is None or d < best[0]):
+                    best = (d, a, b)
+        if best is None:
+            first = lambda c: min((s.t0, s.track_id) for s in c)  # noqa: E731
+            return {s.track_id: pid for pid, c in enumerate(sorted(clusters, key=first), 1) for s in c}
+        clusters[best[1]] += clusters.pop(best[2])
+
+
+def test_merge_matches_brute_force_reference():
+    rng = np.random.default_rng(1234)
+    merged = total = 0
+    for _ in range(60):
+        n, k = int(rng.integers(4, 26)), int(rng.integers(2, 6))
+        centres = rng.normal(size=(k, 6))
+        tracks = []
+        for i in range(n):
+            v = centres[rng.integers(k)] + 0.7 * rng.normal(size=6)
+            t0 = float(rng.uniform(0, 50))
+            tracks.append(TrackSummary(i + 1, t0, t0 + float(rng.uniform(1, 12)), v / np.linalg.norm(v),
+                                       int(rng.integers(1, 20))))
+        got = merge_tracks(tracks)
+        assert got == _reference_merge(tracks)
+        merged += n - len(set(got.values())); total += n
+    assert 0 < merged < total  # the random cases really exercise both merging and cannot-link blocking
