@@ -265,3 +265,146 @@ def test_startup_runs_cleanup(tmp_path):
 def test_static_pages_and_no_model_at_import():
     c = TestClient(create_app(jobs_dir=__import__("pathlib").Path("/nonexistent-jobs")))
     assert c.get("/").status_code == 200 and c.get("/live").status_code == 200
+
+
+# ---------------------------------------------------------------- fix round 1
+def test_status_surfaces_analysis_warnings(make_client, video):
+    c = make_client(people=False)
+    jid = upload(c, video)
+    st = wait_state(c, jid, {"ready_for_zones"})
+    assert any("Nobody detected" in w for w in st["warnings"])
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    st = c.get(f"/api/jobs/{jid}").json()
+    assert sum("Nobody detected" in w for w in st["warnings"]) == 1
+
+
+def test_warnings_refresh_after_score(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    doc = {"version": 1, "frame_size": [W, H], "zones": []}
+    assert c.put(f"/api/jobs/{jid}/zones", json=doc).status_code == 200
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    assert any("No zones" in w for w in c.get(f"/api/jobs/{jid}").json()["warnings"])
+    doc["zones"] = [rect("a", "A", "car", 0.1, 0.1, 0.5, 0.5)]
+    c.put(f"/api/jobs/{jid}/zones", json=doc)
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    assert not any("No zones" in w for w in c.get(f"/api/jobs/{jid}").json()["warnings"])
+
+
+def test_atomic_write_never_exposes_partial_file(tmp_path):
+    import json
+    import threading
+    from pulse.app.jobs import atomic_write_text
+    p = tmp_path / "report.json"
+    atomic_write_text(p, json.dumps({"x": 0}))
+    stop, bad = threading.Event(), []
+
+    def reader():
+        while not stop.is_set():
+            try:
+                json.loads(p.read_text())
+            except Exception as e:  # noqa: BLE001
+                bad.append(e)
+
+    t = threading.Thread(target=reader)
+    t.start()
+    for i in range(300):
+        atomic_write_text(p, json.dumps({"x": i, "pad": "y" * 200000}))
+    stop.set()
+    t.join()
+    assert not bad
+
+
+def test_removing_override_restores_suggested_role(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    people = c.get(f"/api/jobs/{jid}/people").json()
+    pid, suggested = people[0]["person_id"], people[0]["suggested_role"]
+    flipped = "staff" if suggested != "staff" else "customer"
+    c.put(f"/api/jobs/{jid}/roles", json={"overrides": {str(pid): flipped}})
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    now = {p["person_id"]: p["role"] for p in c.get(f"/api/jobs/{jid}/people").json()}
+    assert now[pid] == flipped
+    c.put(f"/api/jobs/{jid}/roles", json={"overrides": {}})
+    now = {p["person_id"]: p["role"] for p in c.get(f"/api/jobs/{jid}/people").json()}
+    assert now[pid] == suggested
+
+
+def test_upload_too_large_413(make_client, video, monkeypatch):
+    from pulse.app import main as main_mod
+    monkeypatch.setattr(main_mod, "MAX_UPLOAD", 100)
+    c = make_client()
+    with open(video, "rb") as f:
+        r = c.post("/api/jobs", files={"file": ("clip.mp4", f, "video/mp4")}, data={"preset": "short"})
+    assert r.status_code == 413 and "error" in r.json()
+    assert not list((c.app.state.jobs_dir).glob("*")) or not any(c.app.state.jobs_dir.iterdir())
+
+
+def test_409_while_perceiving_and_when_failed(tmp_path, video):
+    import threading
+    gate = threading.Event()
+
+    class Blocking(StubEngine):
+        def process(self, t, frame, k):
+            gate.wait(30)
+            return super().process(t, frame, k)
+
+    eng = Blocking()
+    c = TestClient(create_app(jobs_dir=tmp_path / "jobs", engine_factory=lambda: eng))
+    try:
+        jid = upload(c, video)
+        wait_state(c, jid, {"perceiving"})
+        body = {"zones": [rect("a", "A", "car", 0.1, 0.1, 0.5, 0.5)]}
+        assert c.get(f"/api/jobs/{jid}/zones").status_code == 409
+        assert c.put(f"/api/jobs/{jid}/zones", json=body).status_code == 409
+        assert c.get(f"/api/jobs/{jid}/people").status_code == 409
+        assert c.put(f"/api/jobs/{jid}/roles", json={"overrides": {}}).status_code == 409
+        assert c.post(f"/api/jobs/{jid}/score", json={}).status_code == 409
+    finally:
+        gate.set()
+    wait_state(c, jid, {"ready_for_zones"})
+    g = tmp_path / "x.mp4"
+    g.write_bytes(b"junk")
+    bad = upload(c, g, "x.mp4")
+    wait_state(c, bad, {"failed"})
+    assert c.get(f"/api/jobs/{bad}/zones").status_code == 409
+    assert c.put(f"/api/jobs/{bad}/zones", json=body).status_code == 409
+    assert c.get(f"/api/jobs/{bad}/people").status_code == 409
+    assert c.post(f"/api/jobs/{bad}/score", json={}).status_code == 409
+
+
+def test_missing_cache_dir_is_409(make_client, video):
+    import shutil
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    shutil.rmtree(c.app.state.jobs_dir / jid / "cache")
+    c.app.state.store.get(jid).pc = None
+    body = {"zones": [rect("a", "A", "car", 0.1, 0.1, 0.5, 0.5)]}
+    assert c.put(f"/api/jobs/{jid}/zones", json=body).status_code == 409
+
+
+def test_nan_literal_zone_422(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    raw = (b'{"zones":[{"zone_id":"a","name":"A","kind":"car",'
+           b'"polygon":[[0,0],[0.5,NaN],[1,1]]}]}')
+    r = c.put(f"/api/jobs/{jid}/zones", content=raw, headers={"content-type": "application/json"})
+    assert r.status_code == 422
+
+
+def test_rescore_without_render_removes_stale_video(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": True})
+    wait_state_video = time.time() + 60
+    while c.get(f"/api/jobs/{jid}").json()["video_state"] == "rendering" and time.time() < wait_state_video:
+        time.sleep(0.1)
+    assert c.get(f"/api/jobs/{jid}").json()["video_state"] == "ready"
+    assert c.get(f"/api/jobs/{jid}/files/annotated.mp4").status_code == 200
+    c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
+    assert c.get(f"/api/jobs/{jid}/files/annotated.mp4").status_code == 404

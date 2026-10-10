@@ -27,6 +27,20 @@ PRESETS = ("short", "dealership")
 MAX_AGE_S = 86400
 
 
+class ApiError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status, self.message = status, message
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write via a temp file in the same directory + os.replace: readers never see a partial file."""
+    path = Path(path)
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
 def new_id() -> str:
     return uuid.uuid4().hex
 
@@ -41,6 +55,7 @@ class Job:
     progress: float = 0.0
     message: str = ""
     warnings: list[str] = field(default_factory=list)
+    base_warnings: list[str] = field(default_factory=list)   # perception-time (e.g. video trimmed)
     video_state: str = "none"      # none | rendering | ready | failed
     cache_dir: str | None = None
     overrides: dict[int, str] = field(default_factory=dict)
@@ -66,17 +81,28 @@ class Job:
                 "message": self.message, "preset": self.preset, "warnings": list(self.warnings),
                 "video_state": self.video_state}
 
+    def set_analysis_warnings(self, ws: list[str]) -> None:
+        """Status warnings = perception-time warnings + the latest analysis warnings, de-duplicated."""
+        merged: list[str] = []
+        for w in [*self.base_warnings, *ws]:
+            if w not in merged:
+                merged.append(w)
+        self.warnings = merged
+
     def get_pc(self):
         from pulse import cache
         if self.pc is None:
             if not self.cache_dir:
-                raise RuntimeError("perception not finished")
-            self.pc = cache.load(Path(self.cache_dir))
+                raise ApiError(409, "Video is still being analysed")
+            try:
+                self.pc = cache.load(Path(self.cache_dir))
+            except (OSError, ValueError, KeyError):
+                raise ApiError(409, "Analysis data is no longer available; please upload again") from None
         return self.pc
 
     def to_json(self) -> dict:
         return {"job_id": self.job_id, "ext": self.ext, "preset": self.preset, "state": self.state,
-                "progress": self.progress, "message": self.message, "warnings": self.warnings,
+                "progress": self.progress, "message": self.message, "warnings": self.warnings, "base_warnings": self.base_warnings,
                 "video_state": self.video_state, "cache_dir": self.cache_dir,
                 "overrides": {str(k): v for k, v in self.overrides.items()},
                 "imported": {str(k): v for k, v in self.imported.items()},
@@ -85,9 +111,7 @@ class Job:
     def save(self) -> None:
         with self.lock:
             self.dir.mkdir(parents=True, exist_ok=True)
-            tmp = self.dir / "job.json.tmp"
-            tmp.write_text(json.dumps(self.to_json()))
-            os.replace(tmp, self.dir / "job.json")
+            atomic_write_text(self.dir / "job.json", json.dumps(self.to_json()))
 
 
 class JobStore:
@@ -125,7 +149,8 @@ class JobStore:
                 return None
             job = Job(job_id, self.jobs_dir / job_id, d.get("ext", ".mp4"), d.get("preset", "short"),
                       d.get("state", "failed"), float(d.get("progress", 0.0)), d.get("message", ""),
-                      list(d.get("warnings", [])), d.get("video_state", "none"), d.get("cache_dir"),
+                      list(d.get("warnings", [])), list(d.get("base_warnings", [])),
+                      d.get("video_state", "none"), d.get("cache_dir"),
                       {int(k): v for k, v in d.get("overrides", {}).items()},
                       {int(k): v for k, v in d.get("imported", {}).items()}, int(d.get("generation", 0)))
             if job.state in ("queued", "perceiving"):

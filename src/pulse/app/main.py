@@ -19,6 +19,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -29,7 +30,7 @@ from pulse.config import get_config
 from pulse.datatypes import Zone
 
 from . import jobs as jobs_mod
-from .jobs import ALLOWED_EXT, PRESETS, Job, JobStore
+from .jobs import ALLOWED_EXT, PRESETS, ApiError, Job, JobStore, atomic_write_text
 
 log = logging.getLogger("pulse.app")
 STATIC = Path(__file__).parent / "static"
@@ -39,11 +40,6 @@ CHUNK = 1024 * 1024
 ZONE_KINDS = ("car", "desk", "entrance", "lounge", "other")
 ROLES = ("staff", "customer")
 MIN_ZONE_AREA = 1e-4
-
-
-class ApiError(Exception):
-    def __init__(self, status: int, message: str):
-        self.status, self.message = status, message
 
 
 class ZoneError(ValueError):
@@ -114,6 +110,18 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
     app.state.jobs_dir = jobs_dir
     app.state.store = store
 
+    @app.middleware("http")
+    async def _early_size_check(request: Request, call_next):
+        # reject oversized uploads before Starlette spools the multipart body to disk
+        if request.method == "POST" and request.url.path == "/api/jobs":
+            try:
+                declared = int(request.headers.get("content-length", "0"))
+            except ValueError:
+                declared = 0
+            if declared > MAX_UPLOAD:
+                return JSONResponse({"error": "File too large (limit 1 GB)"}, status_code=413)
+        return await call_next(request)
+
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, e: ApiError):
         return JSONResponse({"error": e.message}, status_code=e.status)
@@ -152,17 +160,20 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
             def progress(f: float) -> None:
                 job.progress = min(0.95, max(0.0, f) * 0.95)
 
+            # `embedder`: dependency-injection hook for tests (stub engines carry a light HSV-only
+            # Embedder); the real PerceptionEngine has no such attribute, so perceive builds DINOv2.
             pc = pipeline.perceive(job.input_path, root, cfg, progress=progress, engine=engine,
                                    embedder=getattr(engine, "embedder", None))
             job.progress, job.message = 0.96, "Preparing preview"
             if pc.meta.get("trimmed"):
-                job.warnings.append(f"Video is longer than {int(cfg.max_duration_s)} s; only the "
+                job.base_warnings.append(f"Video is longer than {int(cfg.max_duration_s)} s; only the "
                                     f"first {int(cfg.max_duration_s)} s were analysed")
             # preview outputs (keyframe, blurred thumbnails) with automatic zones and suggested roles
             analysis = pipeline.score(pc, cfg)
             pipeline.write_outputs(pc, analysis, job.out_dir, cfg, video=job.input_path,
                                    render_video=False)
             with job.lock:
+                job.set_analysis_warnings(analysis.stats.warnings)
                 job.pc, job.cache_dir = pc, str(pc.dir)
                 job.state, job.progress, job.message = "ready_for_zones", 1.0, "Ready for zones"
                 job.save()
@@ -189,7 +200,7 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                 rp = job.out_dir / "report.json"
                 rep = json.loads(rp.read_text())
                 rep["files"]["annotated_video"] = "annotated.mp4"
-                rp.write_text(json.dumps(rep, indent=2))
+                atomic_write_text(rp, json.dumps(rep, indent=2))
                 job.video_state = "ready"
                 job.save()
         except Exception:  # noqa: BLE001
@@ -291,7 +302,7 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
         out = []
         for e in json.loads(p.read_text())["persons"]:
             pid = e["person_id"]
-            role = job.overrides.get(pid) or job.imported.get(pid) or e["role"]
+            role = job.overrides.get(pid) or job.imported.get(pid) or e["suggested_role"] or e["role"]
             thumb = e.get("thumbnail")
             out.append({"person_id": pid, "role": role, "suggested_role": e["suggested_role"],
                         "confidence": e["confidence"], "reasons": e["reasons"],
@@ -356,16 +367,22 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
     # ------------------------------------------------------------------ score / results
     def read_report(job: Job) -> dict:
         p = job.out_dir / "report.json"
-        if job.state != "scored" or not p.is_file():
-            raise ApiError(404, "Not scored yet")
-        return json.loads(p.read_text())
+        with job.lock:                       # a score / render rewrite is never read half-done
+            if job.state != "scored" or not p.is_file():
+                raise ApiError(404, "Not scored yet")
+            return json.loads(p.read_text())
 
     @app.post("/api/jobs/{job_id}/score")
     async def score_job(job_id: str, request: Request):
         job = job_of(job_id)
         need_ready(job)
+        raw = await request.body()
+        # scoring is CPU/disk heavy: run it in the threadpool so status polling is not blocked
+        return await run_in_threadpool(_score, job, raw)
+
+    def _score(job: Job, raw: bytes):
+        job_id = job.job_id
         try:
-            raw = await request.body()
             body = json.loads(raw) if raw.strip() else {}
         except ValueError:
             return JSONResponse({"error": "Body is not valid JSON"}, status_code=422)
@@ -387,6 +404,7 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
             except Exception as e:  # noqa: BLE001
                 log.exception("scoring %s failed", job_id)
                 raise ApiError(500, f"Scoring failed ({type(e).__name__})") from e
+            job.set_analysis_warnings(analysis.stats.warnings)
             job.preset, job.state, job.generation = preset, "scored", job.generation + 1
             job.video_state = "rendering" if render_video else "none"
             job.save()
