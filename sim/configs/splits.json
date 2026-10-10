@@ -1,0 +1,7 @@
+{
+ "_doc": "COCO export split BY SCENE (never by frame): every clip (all cameras and lighting variants) of a scene goes to one split.",
+ "train": ["s000", "s001", "s004", "s005", "s006", "s007", "s008", "s011"],
+ "valid": ["s009"],
+ "test": ["s002", "s003", "s010"],
+ "sample_every_n_frames": 5
+}

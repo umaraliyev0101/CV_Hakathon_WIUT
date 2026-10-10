@@ -1,0 +1,17 @@
+{
+ "_doc": "Microsoft Rocketbox avatars (MIT). Heights measured after FBX import (assets/ASSETS_REPORT.md). pool: staff = dark-suit characters that get the uniform recolour; hard_negative = suit/blazer characters used for customers that resemble staff; casual = other customers. gender selects the __M / __F retargeted actions.",
+ "characters": [
+  {"name": "Business_Male_01", "gender": "M", "height_m": 1.806, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Male_02", "gender": "M", "height_m": 1.823, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Male_04", "gender": "M", "height_m": 1.801, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Male_05", "gender": "M", "height_m": 1.802, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Female_01", "gender": "F", "height_m": 1.74, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Female_03", "gender": "F", "height_m": 1.743, "pool": ["staff", "hard_negative"]},
+  {"name": "Business_Female_02", "gender": "F", "height_m": 1.729, "pool": ["hard_negative"]},
+  {"name": "Female_Adult_05", "gender": "F", "height_m": 1.736, "pool": ["casual"]},
+  {"name": "Female_Adult_15", "gender": "F", "height_m": 1.739, "pool": ["casual"]},
+  {"name": "Male_Adult_04", "gender": "M", "height_m": 1.869, "pool": ["casual"]},
+  {"name": "Male_Adult_08", "gender": "M", "height_m": 1.826, "pool": ["casual"]},
+  {"name": "Male_Adult_12", "gender": "M", "height_m": 1.807, "pool": ["casual"]}
+ ]
+}

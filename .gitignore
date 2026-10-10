@@ -12,3 +12,6 @@ assets/
 data/
 .venv/
 .pytest_cache/
+# detector weights / exports (regenerate with models/export_onnx.py)
+models/*.onnx
+models/*.pth

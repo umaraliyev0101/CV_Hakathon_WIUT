@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from sim.qa.common import clip_arg, load_qa, report
+from sim.qa.common import REPO, clip_arg, load_qa, report
 from sim import labels
 
 
@@ -14,9 +14,16 @@ def run(clip_dir, qa):
     W, H = gt["width"], gt["height"]
     rgb = sorted((clip_dir / "rgb").glob("*.png"))
     masks = sorted((clip_dir / "mask").glob("*.png"))
+    expected = q["expected_frames"]
+    if q.get("expected_frames_per_clip"):
+        from sim import schema
+        cfg = schema.load_scene(REPO / "sim" / gt["generator"]["config"])
+        expected = len(schema.output_scene_frames(cfg))
+        info.append(f"expected frames {expected} (from {gt['generator']['config']})")
     for name, files in (("rgb", rgb), ("mask", masks), ("gt frames", gt["frames"])):
-        if len(files) != q["expected_frames"]:
-            fails.append(f"{name} count {len(files)} != {q['expected_frames']}")
+        if len(files) != expected:
+            fails.append(f"{name} count {len(files)} != {expected}")
+    clip_max = q["clipped_frac_max_glare"] if gt.get("lighting") == "glare" else q["clipped_frac_max"]
     lumas, clips, mags = [], [], []
     mr = q["magenta_rule"]
     for k, f in enumerate(rgb):
@@ -30,8 +37,8 @@ def run(clip_dir, qa):
         lumas.append(m), clips.append(c), mags.append(mag)
         if m < q["mean_luma_min"]:
             fails.append(f"rgb {k}: mean luma {m:.1f} < {q['mean_luma_min']}")
-        if c > q["clipped_frac_max"]:
-            fails.append(f"rgb {k}: clipped {c:.3%} > {q['clipped_frac_max']:.0%}")
+        if c > clip_max:
+            fails.append(f"rgb {k}: clipped {c:.3%} > {clip_max:.0%}")
         if mag > q["magenta_frac_max"]:
             fails.append(f"rgb {k}: magenta {mag:.3%} > {q['magenta_frac_max']:.1%}")
     if lumas:
@@ -50,6 +57,14 @@ def run(clip_dir, qa):
             x1, y1, x2, y2 = p["box_xyxy"]
             if not (0 <= x1 < x2 <= W and 0 <= y1 < y2 <= H):
                 fails.append(f"t={fr['t']}: person {p['id']} box {p['box_xyxy']} outside image")
+    # track continuity: no gap > max_track_gap_frames while the person is well visible around it
+    for pers in gt["persons"]:
+        seen = [next((p for p in fr["people"] if p["id"] == pers["id"]), None) for fr in gt["frames"]]
+        idx = [i for i, p in enumerate(seen) if p is not None]
+        for a, b in zip(idx[:-1], idx[1:]):
+            gap = b - a - 1
+            if gap > q["max_track_gap_frames"] and min(seen[a]["visible_frac"], seen[b]["visible_frac"]) > q["track_gap_visible_frac"]:
+                fails.append(f"person {pers['id']}: track gap of {gap} frames ({a}->{b}) while visible_frac > {q['track_gap_visible_frac']}")
     n = len(gt["frames"]) or 1
     for pers in gt["persons"]:
         seen = sum(any(p["id"] == pers["id"] for p in fr["people"]) for fr in gt["frames"])

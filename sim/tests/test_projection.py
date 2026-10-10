@@ -28,16 +28,16 @@ def test_matches_blender_world_to_camera_view():
 
 
 def test_center_ray(cfg):
-    cam = projection.Camera.from_params(cfg["camera"])
-    c = np.array(cfg["camera"]["position_m"], float)
+    cam = projection.Camera.from_params(cfg["cameras"][0])
+    c = np.array(cfg["cameras"][0]["position_m"], float)
     fwd = cam.forward()
     u, v, z = cam.project(c + 5.0 * fwd)
     assert abs(u - cam.width / 2) < 1e-6 and abs(v - cam.height / 2) < 1e-6 and abs(z - 5.0) < 1e-9
-    assert abs(np.degrees(np.arcsin(fwd[2])) - cfg["camera"]["pitch_deg"]) < 1e-9
+    assert abs(np.degrees(np.arcsin(fwd[2])) - cfg["cameras"][0]["pitch_deg"]) < 1e-9
 
 
 def test_floor_polygon_clipped_to_front(cfg):
-    cam = projection.Camera.from_params(cfg["camera"])
+    cam = projection.Camera.from_params(cfg["cameras"][0])
     behind = [[-5, -5], [-4, -5], [-4, -4], [-5, -4]]
     assert projection.floor_polygon_to_image(cam, behind) == []
     pts = projection.floor_polygon_to_image(cam, [[2, 2], [6, 2], [6, 6], [2, 6]])

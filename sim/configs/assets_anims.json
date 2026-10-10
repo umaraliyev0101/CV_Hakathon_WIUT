@@ -1,0 +1,33 @@
+{
+ "_doc": "Rocketbox mocap clips (MIT), retargeted actions RB_<clip>__M / __F in assets/people/anims/rocketbox_actions_retargeted.blend. frames = last frame (clips start at frame 1, 30 fps). Walk cycle: frame 37 == frame 1, one full cycle = 36 frames covering cycle_m metres at the source character height.",
+ "fps": 30,
+ "clips": {
+  "m_walk_neutral_01": {"frames": 37, "kind": "walk", "cycle_m": 1.214, "src_height_m": 1.806},
+  "f_walk_neutral_01": {"frames": 37, "kind": "walk", "cycle_m": 1.457, "src_height_m": 1.74},
+  "m_idle_neutral_01": {"frames": 351, "kind": "loop"},
+  "m_idle_neutral_02": {"frames": 466, "kind": "loop"},
+  "f_idle_neutral_01": {"frames": 467, "kind": "loop"},
+  "f_idle_neutral_02": {"frames": 338, "kind": "loop"},
+  "m_idle_look_around_01": {"frames": 140, "kind": "loop"},
+  "f_idle_look_around_01": {"frames": 135, "kind": "loop"},
+  "m_gestic_talk_neutral_01": {"frames": 1068, "kind": "loop"},
+  "m_gestic_talk_neutral_02": {"frames": 1333, "kind": "loop"},
+  "f_gestic_talk_neutral_01": {"frames": 821, "kind": "loop"},
+  "f_gestic_talk_neutral_02": {"frames": 831, "kind": "loop"},
+  "m_gestic_listen_neutral_01": {"frames": 977, "kind": "loop"},
+  "f_gestic_listen_neutral_01": {"frames": 644, "kind": "loop"},
+  "m_turn_left_90": {"frames": 71, "kind": "turn"},
+  "m_turn_right_90": {"frames": 66, "kind": "turn"},
+  "f_turn_left_90": {"frames": 71, "kind": "turn"},
+  "f_turn_right_90": {"frames": 71, "kind": "turn"}
+ },
+ "map": {
+  "walk": "walk_neutral_01",
+  "idle_a": "idle_neutral_01", "idle_b": "idle_neutral_02", "look_around": "idle_look_around_01",
+  "talk_a": "gestic_talk_neutral_01", "talk_b": "gestic_talk_neutral_02",
+  "listen": "gestic_listen_neutral_01",
+  "turn_left": "turn_left_90", "turn_right": "turn_right_90"
+ },
+ "blend_s": 0.25,
+ "loop_crossfade_frames": 12
+}

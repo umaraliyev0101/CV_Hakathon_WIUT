@@ -1,0 +1,73 @@
+{
+ "_doc": "Car models usable by sim (measured by sim/blender/measure_cars.py after import fixes). Dims in metres at native scale; build_scene scales uniformly so length == car.length_m.",
+ "excluded": {
+  "car.glb (BabylonJS)": "0.5 m low-poly toy",
+  "wireframes/car.glb (pmndrs)": "actually a robot"
+ },
+ "cars": [
+  {
+   "model": "ferrari_458",
+   "name": "Ferrari 458 Italia spider",
+   "file": "assets/cars/ferrari_458.glb",
+   "length_m": 4.534,
+   "width_m": 2.257,
+   "height_m": 1.236,
+   "width_over_length": 0.4979,
+   "height_over_length": 0.2726,
+   "paint_material": "Body_Color",
+   "native_scale": 1.0,
+   "triangles": 358788,
+   "licence": "CC-BY-4.0",
+   "author": "vicent091036 (Sketchfab), via three.js examples",
+   "fixes": "importer materials flat (metallic 0.2/rough 0.8): paint, glass, chrome, tyres re-tuned"
+  },
+  {
+   "model": "khronos_carconcept",
+   "name": "Khronos Car Concept",
+   "file": "assets/cars/khronos_carconcept.glb",
+   "length_m": 4.357,
+   "width_m": 2.542,
+   "height_m": 1.149,
+   "width_over_length": 0.5835,
+   "height_over_length": 0.2637,
+   "paint_material": "Paint 1 Carmine",
+   "native_scale": 1.0,
+   "triangles": 213347,
+   "licence": "CC-BY-4.0",
+   "author": "Eric Chadwick / Darmstadt Graphics Group (Khronos glTF-Sample-Assets)",
+   "fixes": "lift +0.159 m (generic: min z -> 0)"
+  },
+  {
+   "model": "lamborghini_urus",
+   "name": "Lamborghini Urus",
+   "file": "assets/cars/lamborghini_urus.glb",
+   "length_m": 4.936,
+   "width_m": 2.181,
+   "height_m": 1.567,
+   "width_over_length": 0.4419,
+   "height_over_length": 0.3175,
+   "paint_material": "WhiteCar",
+   "native_scale": 0.01,
+   "triangles": 216365,
+   "licence": "CC-BY-NC-4.0",
+   "author": "Steven Grey (Sketchfab), via pmndrs/examples",
+   "fixes": "centimetres: scale 0.01; centred on origin: lift to z=0"
+  },
+  {
+   "model": "porsche_930_turbo",
+   "name": "Porsche 911 (930) Turbo 1975",
+   "file": "assets/cars/porsche_930_turbo.glb",
+   "length_m": 4.888,
+   "width_m": 2.172,
+   "height_m": 1.435,
+   "width_over_length": 0.4443,
+   "height_over_length": 0.2937,
+   "paint_material": "paint",
+   "native_scale": 1.0,
+   "triangles": 39450,
+   "licence": "unknown (believed CC-BY-4.0); demo only",
+   "author": "probably Lionsharp Studios (Sketchfab), via pmndrs/examples",
+   "fixes": "deleted 16 m ground disc + 4 traffic cones (Mesh_2 except plates) and the radio antenna (Mesh_0 islands above 1.45 m)"
+  }
+ ]
+}

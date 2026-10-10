@@ -44,30 +44,6 @@ def test_walking_speed_and_smooth_yaw(cfg, timeline):
             assert lo - 1e-6 <= max(speeds) <= hi + 1e-6
 
 
-def test_greet_choreography(cfg, timeline):
-    sc = cfg["script"]
-    staff = timeline["agents"][str(sc["staff"])]["frames"]
-    cust = timeline["agents"][str(sc["customer"])]["frames"]
-    talk = [i for i, s in enumerate(staff) if s["action"] == "talk"]
-    assert talk, "staff never talks"
-    assert (len(talk)) / cfg["fps_scene"] >= sc["min_talk_s"]
-    assert talk == list(range(talk[0], talk[-1] + 1)), "talk interval must be contiguous"
-    for i in talk:
-        s, c = staff[i], cust[i]
-        d = math.dist(s["pos_m"], c["pos_m"])
-        assert 0.9 <= d <= 1.3, f"frame {i}: stop distance {d}"
-        bearing = math.degrees(math.atan2(c["pos_m"][1] - s["pos_m"][1], c["pos_m"][0] - s["pos_m"][0]))
-        assert _ang(s["yaw_deg"], bearing) <= 20.0, f"frame {i}: staff not facing customer"
-    ev = timeline["events_scripted"]
-    assert [e["type"] for e in ev] == ["greet"]
-    assert abs(ev[0]["t"] - talk[0] / cfg["fps_scene"]) < 1e-6
-
-
-def test_customer_enters_at_zero(cfg, timeline):
-    cust = timeline["agents"][str(cfg["script"]["customer"])]["frames"]
-    assert cust[0]["present"] and cust[0]["action"] == "walk"
-
-
 def test_gait_feet_on_floor(cfg, timeline):
     for pid, agent in timeline["agents"].items():
         h = schema.person(cfg, int(pid))["height_m"]

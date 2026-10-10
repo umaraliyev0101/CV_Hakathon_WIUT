@@ -1,0 +1,566 @@
+{
+ "fps_scene": 30,
+ "frame_step": 3,
+ "navigation": {
+  "body_radius_m": 0.3,
+  "clearance_m": 0.25,
+  "accel_mps2": 1.0,
+  "decel_mps2": 1.5,
+  "turn_rate_dps": 180.0
+ },
+ "lightings": [
+  "day",
+  "evening_dim",
+  "glare"
+ ],
+ "_doc": "Defaults merged into every generated scene config (sim/gen_configs.py).",
+ "scene_id": "s005",
+ "scenario": "crowded",
+ "seed": 5,
+ "room": {
+  "width_m": 24.22,
+  "depth_m": 12.12,
+  "height_m": 5.1,
+  "wall_thickness_m": 0.2
+ },
+ "entrance": {
+  "wall": "south",
+  "center_x_m": 7.6,
+  "width_m": 2.4,
+  "height_m": 2.6
+ },
+ "exit": {
+  "wall": "east",
+  "center_y_m": 7.27,
+  "width_m": 3.5,
+  "height_m": 3.0
+ },
+ "desk": {
+  "center_m": [
+   0.95,
+   5.95
+  ],
+  "length_m": 1.6,
+  "width_m": 0.7,
+  "height_m": 0.75,
+  "yaw_deg": 0.0
+ },
+ "zone_apron_m": 1.2,
+ "cars": [
+  {
+   "id": 1,
+   "center_m": [
+    6.276,
+    4.417
+   ],
+   "length_m": 4.0,
+   "width_m": 1.64,
+   "height_m": 1.24,
+   "yaw_deg": 0.0,
+   "model": null,
+   "paint": [
+    0.05,
+    0.12,
+    0.35
+   ]
+  },
+  {
+   "id": 2,
+   "center_m": [
+    13.728,
+    2.538
+   ],
+   "length_m": 4.804,
+   "width_m": 1.97,
+   "height_m": 1.489,
+   "yaw_deg": 0.0,
+   "model": null,
+   "paint": [
+    0.9,
+    0.9,
+    0.9
+   ]
+  },
+  {
+   "id": 3,
+   "center_m": [
+    10.741,
+    8.225
+   ],
+   "length_m": 4.793,
+   "width_m": 1.965,
+   "height_m": 1.486,
+   "yaw_deg": -30.0,
+   "model": null,
+   "paint": [
+    0.9,
+    0.9,
+    0.9
+   ]
+  },
+  {
+   "id": 4,
+   "center_m": [
+    19.449,
+    8.152
+   ],
+   "length_m": 5.008,
+   "width_m": 2.053,
+   "height_m": 1.552,
+   "yaw_deg": 30.0,
+   "model": null,
+   "paint": [
+    0.55,
+    0.03,
+    0.03
+   ]
+  }
+ ],
+ "cameras": [
+  {
+   "id": 1,
+   "position_m": [
+    23.82,
+    0.4,
+    2.8
+   ],
+   "yaw_deg": 163.26,
+   "pitch_deg": -25.0,
+   "hfov_deg": 80.0,
+   "width_px": 1280,
+   "height_px": 720
+  },
+  {
+   "id": 2,
+   "position_m": [
+    0.4,
+    11.72,
+    2.8
+   ],
+   "yaw_deg": -42.15,
+   "pitch_deg": -25.0,
+   "hfov_deg": 80.0,
+   "width_px": 1280,
+   "height_px": 720
+  }
+ ],
+ "persons": [
+  {
+   "id": 1,
+   "role": "staff",
+   "height_m": 1.683,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "uniform",
+   "spawn_m": [
+    1.5,
+    5.0
+   ],
+   "spawn_yaw_deg": -90.0,
+   "enter_t": 0.0,
+   "present_at_start": true,
+   "script": [
+    {
+     "do": "approach",
+     "customer": 3,
+     "after_t": 3.94
+    },
+    {
+     "do": "talk",
+     "customer": 3,
+     "s": 17.42
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      1.5,
+      5.0
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "entrance"
+    }
+   ],
+   "default_face": "entrance",
+   "character": "Business_Female_01"
+  },
+  {
+   "id": 2,
+   "role": "staff",
+   "height_m": 1.692,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "uniform",
+   "spawn_m": [
+    6.131,
+    6.337
+   ],
+   "spawn_yaw_deg": -90.0,
+   "enter_t": 0.0,
+   "present_at_start": true,
+   "script": [
+    {
+     "do": "approach",
+     "customer": 4,
+     "after_t": 14.0,
+     "face_wait": "entrance"
+    },
+    {
+     "do": "talk",
+     "customer": 4,
+     "s": 18.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      6.131,
+      6.337
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "entrance"
+    }
+   ],
+   "default_face": "entrance",
+   "character": "Business_Male_04"
+  },
+  {
+   "id": 3,
+   "role": "customer",
+   "height_m": 1.653,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "casual",
+   "colors": {
+    "top": [
+     0.15,
+     0.45,
+     0.2
+    ],
+    "trousers": [
+     0.55,
+     0.5,
+     0.4
+    ]
+   },
+   "spawn_m": [
+    7.6,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 0.0,
+   "present_at_start": false,
+   "door_x_offset": 0.0,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": 0.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      3.758,
+      2.696
+     ]
+    },
+    {
+     "do": "await_staff",
+     "face": "car_1"
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "car_1",
+     "anim": "look_around"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Male_Adult_12"
+  },
+  {
+   "id": 4,
+   "role": "customer",
+   "height_m": 1.68,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "casual",
+   "colors": {
+    "top": [
+     0.6,
+     0.62,
+     0.66
+    ],
+    "trousers": [
+     0.08,
+     0.1,
+     0.18
+    ]
+   },
+   "spawn_m": [
+    7.15,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 8.0,
+   "present_at_start": false,
+   "door_x_offset": -0.45,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": -0.45
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      8.987,
+      6.897
+     ]
+    },
+    {
+     "do": "await_staff",
+     "face": "car_3"
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "car_3",
+     "anim": "look_around"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Male_Adult_04"
+  },
+  {
+   "id": 5,
+   "role": "customer",
+   "height_m": 1.648,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "casual",
+   "colors": {
+    "top": [
+     0.3,
+     0.18,
+     0.1
+    ],
+    "trousers": [
+     0.55,
+     0.5,
+     0.4
+    ]
+   },
+   "spawn_m": [
+    8.05,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 8.0,
+   "present_at_start": false,
+   "door_x_offset": 0.45,
+   "default_face": "car_1",
+   "script": [
+    {
+     "do": "follow",
+     "leader": 4,
+     "offset_m": [
+      0.9,
+      0.0
+     ]
+    }
+   ],
+   "character": "Female_Adult_15"
+  },
+  {
+   "id": 6,
+   "role": "customer",
+   "height_m": 1.765,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "casual",
+   "colors": {
+    "top": [
+     0.85,
+     0.85,
+     0.85
+    ],
+    "trousers": [
+     0.2,
+     0.17,
+     0.12
+    ]
+   },
+   "spawn_m": [
+    7.6,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 3.0,
+   "present_at_start": false,
+   "door_x_offset": 0.0,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": 0.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      10.322,
+      1.992
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 14.0,
+     "face": "car_2",
+     "anim": "look_around"
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      16.161,
+      6.814
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 8.0,
+     "face": "car_4",
+     "anim": "look_around"
+    },
+    {
+     "do": "leave"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Female_Adult_05"
+  },
+  {
+   "id": 7,
+   "role": "customer",
+   "height_m": 1.753,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": true,
+   "outfit": "suit",
+   "colors": {
+    "top": [
+     0.025,
+     0.025,
+     0.03
+    ],
+    "trousers": [
+     0.03,
+     0.03,
+     0.035
+    ]
+   },
+   "spawn_m": [
+    7.6,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 20.0,
+   "present_at_start": false,
+   "door_x_offset": 0.0,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": 0.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      13.713,
+      7.263
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "car_4",
+     "anim": "look_around"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Business_Female_02"
+  }
+ ],
+ "parties": [
+  [
+   4,
+   5
+  ]
+ ],
+ "eval_presets": [
+  "short_clip"
+ ],
+ "uniform": {
+  "top": [
+   0.03,
+   0.03,
+   0.04
+  ],
+  "vest": [
+   0.7,
+   0.02,
+   0.02
+  ],
+  "trousers": [
+   0.04,
+   0.04,
+   0.05
+  ],
+  "suit_recolour": [
+   0.42,
+   0.02,
+   0.03
+  ],
+  "_doc": "Rocketbox clothing is baked into one body texture, so the uniform is a shader recolour of the dark suit fabric of staff characters (suit_recolour, linear RGB). top/vest/trousers are used by the capsule fallback only."
+ },
+ "duration_s": 75.0,
+ "_generator": {
+  "attempt": 13,
+  "camera_min_person_vis": [
+   0.672,
+   0.672
+  ],
+  "camera_any_person_vis": [
+   1.0,
+   1.0
+  ],
+  "note": "visibility estimated from geometry (full body in frame, >= 60 px, not behind a car)"
+ },
+ "script": {
+  "staff_stop_dist_m": 1.25,
+  "staff_approach_angles_deg": 15.0,
+  "approach_cam_m": [
+   0.4,
+   0.4
+  ]
+ }
+}

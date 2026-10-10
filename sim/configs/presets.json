@@ -1,9 +1,39 @@
 {
-  "_doc": "Event-rule thresholds. Source of truth should be A's spec salespeople_prompts/2026-10-11-showroom-coach-design.md (section 4.5/4.6); that file was not available for the quick test, so these are the fallback values from the quick-test prompt section 3. FLAG: replace with A's exact values when the spec arrives.",
-  "source": "quicktest-prompt-fallback",
+  "_doc": "Event-rule thresholds. Source of truth should be A's spec salespeople_prompts/2026-10-11-showroom-coach-design.md (sections 4.5/4.6); that file is NOT in the repo, so every value here is a documented fallback. FLAG: replace with A's exact values when the spec arrives; only this file changes.",
+  "source": "fallback (A's spec missing)",
+  "_source": {
+    "greet_dist_m / greet_facing_deg / greet_min_s": "teammate_c_synthetic_showroom.md section 4.3 ('greet <= 1.5 m, facing <= 60 deg, >= 2 s or 5 s'): 2 s for short_clip, 5 s for dealership",
+    "engage_dist_m": "fallback: same conversational radius as greet (1.5 m)",
+    "engage_min_s": "fallback: 10 s short clip; 60 s dealership (dealership_long scenario needs an engagement > 120 s)",
+    "engage_gap_s": "fallback: brief gaps (<= 1 s) merged",
+    "wait_alert_s": "fallback: 30 s short clip (greet_slow greets at 40-70 s = 'missed while free'), 120 s dealership",
+    "walkout_min_present_s": "fallback: ignore pass-throughs shorter than 10 s",
+    "party_dist_m / party_min_s / party_window_s": "fallback: two customers within 2.0 m for >= 3 s, starting within 10 s of arriving"
+  },
   "short_clip": {
     "greet_dist_m": 1.5,
     "greet_facing_deg": 60.0,
-    "greet_min_s": 2.0
+    "greet_min_s": 2.0,
+    "engage_dist_m": 1.5,
+    "engage_min_s": 10.0,
+    "engage_gap_s": 1.0,
+    "wait_alert_s": 30.0,
+    "walkout_min_present_s": 10.0,
+    "party_dist_m": 2.0,
+    "party_min_s": 3.0,
+    "party_window_s": 10.0
+  },
+  "dealership": {
+    "greet_dist_m": 1.5,
+    "greet_facing_deg": 60.0,
+    "greet_min_s": 5.0,
+    "engage_dist_m": 1.5,
+    "engage_min_s": 60.0,
+    "engage_gap_s": 1.0,
+    "wait_alert_s": 120.0,
+    "walkout_min_present_s": 10.0,
+    "party_dist_m": 2.0,
+    "party_min_s": 3.0,
+    "party_window_s": 10.0
   }
 }

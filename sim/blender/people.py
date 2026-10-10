@@ -101,3 +101,119 @@ def build_mannequin(person, uniform):
 
 def person_meshes(pid):
     return [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.get(PERSON_TAG) == pid]
+
+
+# ---------------------------------------------------------------- Rocketbox characters (real assets)
+
+import os  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+REPO = Path(__file__).resolve().parents[2]
+CHAR_DIR = REPO / "assets" / "people" / "characters"
+ACTIONS_BLEND = REPO / "assets" / "people" / "anims" / "rocketbox_actions_retargeted.blend"
+
+
+def rocketbox_available(name):
+    return name is not None and (CHAR_DIR / name / "Export" / f"{name}.fbx").exists() and ACTIONS_BLEND.exists()
+
+
+def _recolour_nodes(nt, tex_out, rgb):
+    """Uniform: recolour dark suit fabric (HSV value < 0.28) to `rgb`, keeping the texture's shading."""
+    sep = nt.nodes.new("ShaderNodeSeparateColor")
+    sep.mode = "HSV"
+    nt.links.new(tex_out, sep.inputs["Color"])
+    lt = nt.nodes.new("ShaderNodeMath")
+    lt.operation = "LESS_THAN"
+    lt.inputs[1].default_value = 0.28
+    nt.links.new(sep.outputs[2], lt.inputs[0])
+    gain = nt.nodes.new("ShaderNodeMath")
+    gain.operation = "MULTIPLY"
+    gain.use_clamp = False
+    gain.inputs[1].default_value = 1.0 / 0.12
+    nt.links.new(sep.outputs[2], gain.inputs[0])
+    tint = nt.nodes.new("ShaderNodeMix")
+    tint.data_type = "RGBA"
+    tint.blend_type = "MULTIPLY"
+    tint.inputs["Factor"].default_value = 1.0
+    nt.links.new(gain.outputs[0], tint.inputs[6])
+    tint.inputs[7].default_value = (*rgb, 1.0)
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    nt.links.new(lt.outputs[0], mix.inputs["Factor"])
+    nt.links.new(tex_out, mix.inputs[6])
+    nt.links.new(tint.outputs[2], mix.inputs[7])
+    return mix.outputs[2]
+
+
+def fix_materials(meshes, texdir, recolour=None):
+    """FBX texture paths point at the author's PC: relink by basename; opacity maps drive alpha."""
+    for o in meshes:
+        for s in o.material_slots:
+            m = s.material
+            if m is None or m.get("sim_fixed"):
+                continue
+            files = {os.path.basename(n.image.filepath.replace("\\", "/"))
+                     for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and n.image}
+            nt = m.node_tree
+            nt.nodes.clear()
+            out = nt.nodes.new("ShaderNodeOutputMaterial")
+            b = nt.nodes.new("ShaderNodeBsdfPrincipled")
+            nt.links.new(b.outputs[0], out.inputs[0])
+            b.inputs["Roughness"].default_value = 0.6
+
+            def tex(fn, nc=False):
+                t = nt.nodes.new("ShaderNodeTexImage")
+                t.image = bpy.data.images.load(str(texdir / fn), check_existing=True)
+                if nc:
+                    t.image.colorspace_settings.name = "Non-Color"
+                return t
+            col = sorted(f for f in files if f.endswith("_color.tga"))
+            nor = sorted(f for f in files if f.endswith("_normal.tga"))
+            if col:
+                t = tex(col[0])
+                c_out = t.outputs["Color"]
+                if recolour is not None and "_body_" in col[0]:
+                    c_out = _recolour_nodes(nt, c_out, recolour)
+                nt.links.new(c_out, b.inputs["Base Color"])
+                if "opacity" in col[0]:
+                    nt.links.new(t.outputs["Alpha"], b.inputs["Alpha"])
+                    m.blend_method = "HASHED"
+            if nor:
+                t = tex(nor[0], True)
+                nm = nt.nodes.new("ShaderNodeNormalMap")
+                nt.links.new(t.outputs["Color"], nm.inputs["Color"])
+                nt.links.new(nm.outputs[0], b.inputs["Normal"])
+            m["sim_fixed"] = True
+
+
+def import_character(person, recolour=None):
+    """Import a Rocketbox FBX, parent its armature to an Empty `P<id>_root` (the Empty is moved by
+    the timeline; the armature keeps its import transform, which the actions key)."""
+    name, pid = person["character"], person["id"]
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=str(CHAR_DIR / name / "Export" / f"{name}.fbx"))
+    new = [o for o in bpy.data.objects if o not in before]
+    arm = next(o for o in new if o.type == "ARMATURE")
+    meshes = [o for o in new if o.type == "MESH"]
+    for o in new:
+        if o.type == "EMPTY":
+            o.hide_render = True
+            o.hide_viewport = True
+    if arm.animation_data:
+        arm.animation_data.action = None
+    fix_materials(meshes, CHAR_DIR / name / "Textures", recolour)
+    root = bpy.data.objects.new(f"P{pid}_root", None)
+    bpy.context.collection.objects.link(root)
+    root.rotation_mode = "XYZ"
+    arm.parent = root
+    arm.name = f"P{pid}_arm"
+    for o in meshes:
+        o[PERSON_TAG] = pid
+        o.name = f"P{pid}_mesh_{o.name}"
+    return {"root": root, "arm": arm, "meshes": meshes}
+
+
+def load_actions(names):
+    with bpy.data.libraries.load(str(ACTIONS_BLEND)) as (src, dst):
+        dst.actions = [n for n in src.actions if n in names]
+    return {a.name: a for a in dst.actions}

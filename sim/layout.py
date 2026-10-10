@@ -64,11 +64,19 @@ def build_layout(cfg):
         raise NotImplementedError("quick test supports a south-wall entrance only")
     ex, ew = e["center_x_m"], e["width_m"]
     zones["entrance"] = [[ex - ew / 2, 0.0], [ex + ew / 2, 0.0], [ex + ew / 2, 1.5], [ex - ew / 2, 1.5]]
+    x_ = cfg.get("exit")
+    if x_:
+        if x_["wall"] != "east":
+            raise NotImplementedError("test-drive exit supported on the east wall only")
+        W = room["width_m"]
+        cy, w = x_["center_y_m"], x_["width_m"]
+        zones["exit"] = [[W - 1.5, cy - w / 2], [W, cy - w / 2], [W, cy + w / 2], [W - 1.5, cy + w / 2]]
     return {
         "room": room,
         "cars": cars,
         "desk": dict(d, footprint_m=desk_fp),
         "entrance": e,
+        "exit": x_,
         "zones": zones,
         "obstacles_m": [c["footprint_m"] for c in cars] + [desk_fp],
     }

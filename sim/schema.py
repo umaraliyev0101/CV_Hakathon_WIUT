@@ -3,8 +3,10 @@ import copy
 import json
 from pathlib import Path
 
-REQUIRED = ("scene_id", "seed", "scenario", "duration_s", "fps_scene", "frame_step", "lighting",
-            "room", "entrance", "cars", "zone_apron_m", "desk", "camera", "navigation", "persons", "script")
+REQUIRED = ("scene_id", "seed", "scenario", "duration_s", "fps_scene", "frame_step", "lightings",
+            "room", "entrance", "cars", "zone_apron_m", "desk", "cameras", "navigation", "persons")
+LIGHTINGS = ("day", "evening_dim", "glare")
+CAM_LIMITS = {"height_m": (2.6, 3.5), "pitch_deg": (-50.0, -25.0), "hfov_deg": (60.0, 100.0)}
 ROLES = ("staff", "customer")
 
 
@@ -34,11 +36,32 @@ def load_scene_dict(cfg):
         lo, hi = p["speed_mps"]
         if not (1.1 <= lo <= hi <= 1.5):
             raise ConfigError(f"person {p['id']}: speed range must lie in 1.1-1.5 m/s")
-    cam = cfg["camera"]
-    for k in ("position_m", "yaw_deg", "pitch_deg", "hfov_deg", "width_px", "height_px"):
-        if k not in cam:
-            raise ConfigError(f"camera missing {k}")
+        if "script" not in p:
+            raise ConfigError(f"person {p['id']}: missing script")
+    for lt in cfg["lightings"]:
+        if lt not in LIGHTINGS:
+            raise ConfigError(f"unknown lighting {lt}")
+    if not cfg["cameras"]:
+        raise ConfigError("no cameras")
+    for cam in cfg["cameras"]:
+        for k in ("id", "position_m", "yaw_deg", "pitch_deg", "hfov_deg", "width_px", "height_px"):
+            if k not in cam:
+                raise ConfigError(f"camera missing {k}")
+        lo, hi = CAM_LIMITS["height_m"]
+        if not lo <= cam["position_m"][2] <= hi:
+            raise ConfigError(f"camera {cam['id']}: height outside {lo}-{hi} m")
+        for k in ("pitch_deg", "hfov_deg"):
+            lo, hi = CAM_LIMITS[k]
+            if not lo <= cam[k] <= hi:
+                raise ConfigError(f"camera {cam['id']}: {k} {cam[k]} outside {lo}..{hi}")
     return cfg
+
+
+def camera(cfg, cam_id):
+    for c in cfg["cameras"]:
+        if c["id"] == cam_id:
+            return c
+    raise KeyError(cam_id)
 
 
 def person(cfg, pid):
@@ -61,8 +84,8 @@ def output_scene_frames(cfg):
     return list(range(0, n_scene_frames(cfg), cfg["frame_step"]))
 
 
-def clip_id(cfg):
-    return f"{cfg['scene_id']}_{cfg['scenario']}_cam{cfg['camera']['id']}_{cfg['lighting']}"
+def clip_id(cfg, cam_id, lighting):
+    return f"{cfg['scene_id']}_{cfg['scenario']}_cam{cam_id}_{lighting}"
 
 
 def dump_json(obj, path):

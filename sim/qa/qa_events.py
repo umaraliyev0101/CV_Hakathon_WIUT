@@ -1,4 +1,6 @@
-"""qa_events: every scripted greet has a rule-based greet within tolerance and vice versa."""
+"""qa_events: every scripted event (greet, handoff, walkout, party, engagement onset) has a rule event of
+the same type and subject within match_tol_s under each of the clip's eval presets; every rule
+greet / walkout / handoff has a scripted counterpart."""
 import sys
 
 from sim.qa.common import clip_arg, load_qa, report
@@ -10,16 +12,19 @@ def run(clip_dir, qa):
     gt = labels.read_gt(clip_dir / "gt.json")
     scripted = gt["events_scripted"]
     fails, info = [], []
-    for preset, by_rule in gt["events_by_rule"].items():
-        un_s, un_r = gt_events.match_events(scripted, by_rule, q["match_tol_s"], tuple(q["types"]))
-        info.append(f"[{preset}] scripted={[(e['type'], e['t']) for e in scripted]} "
-                    f"rule={[(e['type'], e['t']) for e in by_rule]}")
+    types = tuple(q["types"]) + tuple(q.get("types_extra", []))
+    for preset in gt.get("eval_presets", list(gt["events_by_rule"])):
+        by_rule = gt["events_by_rule"][preset]
+        un_s, un_r = gt_events.match_events(scripted, by_rule, q["match_tol_s"], types)
+        un_r = [r for r in un_r if r["type"] in q.get("unscripted_rule_types_fail", q["types"])]
+        info.append(f"[{preset}] scripted={[(e['type'], e['t']) for e in scripted]}")
+        info.append(f"[{preset}] rule={[(e['type'], e['t']) for e in by_rule]}")
         for e in un_s:
             fails.append(f"[{preset}] scripted {e['type']} t={e['t']} has no rule event within ±{q['match_tol_s']} s")
         for e in un_r:
             fails.append(f"[{preset}] rule {e['type']} t={e['t']} has no scripted counterpart")
-    if not any(e["type"] == "greet" for e in scripted):
-        fails.append("no scripted greet in clip")
+    if not scripted:
+        fails.append("no scripted events in clip")
     return fails, info
 
 

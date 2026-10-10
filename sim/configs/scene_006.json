@@ -1,0 +1,413 @@
+{
+ "fps_scene": 30,
+ "frame_step": 3,
+ "navigation": {
+  "body_radius_m": 0.3,
+  "clearance_m": 0.25,
+  "accel_mps2": 1.0,
+  "decel_mps2": 1.5,
+  "turn_rate_dps": 180.0
+ },
+ "lightings": [
+  "day",
+  "evening_dim",
+  "glare"
+ ],
+ "_doc": "Defaults merged into every generated scene config (sim/gen_configs.py).",
+ "scene_id": "s006",
+ "scenario": "dealership_long",
+ "seed": 6,
+ "room": {
+  "width_m": 24.94,
+  "depth_m": 14.12,
+  "height_m": 4.77,
+  "wall_thickness_m": 0.2
+ },
+ "entrance": {
+  "wall": "south",
+  "center_x_m": 8.54,
+  "width_m": 2.4,
+  "height_m": 2.6
+ },
+ "exit": {
+  "wall": "east",
+  "center_y_m": 8.47,
+  "width_m": 3.5,
+  "height_m": 3.0
+ },
+ "desk": {
+  "center_m": [
+   0.95,
+   6.1
+  ],
+  "length_m": 1.6,
+  "width_m": 0.7,
+  "height_m": 0.75,
+  "yaw_deg": 0.0
+ },
+ "zone_apron_m": 1.2,
+ "cars": [
+  {
+   "id": 1,
+   "center_m": [
+    7.195,
+    5.116
+   ],
+   "length_m": 4.293,
+   "width_m": 1.908,
+   "height_m": 1.261,
+   "yaw_deg": 30.0,
+   "model": "porsche_930_turbo",
+   "paint": [
+    0.3,
+    0.32,
+    0.35
+   ]
+  },
+  {
+   "id": 2,
+   "center_m": [
+    20.698,
+    6.569
+   ],
+   "length_m": 4.921,
+   "width_m": 2.175,
+   "height_m": 1.562,
+   "yaw_deg": 30.0,
+   "model": "lamborghini_urus",
+   "paint": [
+    0.55,
+    0.03,
+    0.03
+   ]
+  },
+  {
+   "id": 3,
+   "center_m": [
+    15.667,
+    9.513
+   ],
+   "length_m": 4.721,
+   "width_m": 2.098,
+   "height_m": 1.387,
+   "yaw_deg": 45.0,
+   "model": "porsche_930_turbo",
+   "paint": [
+    0.75,
+    0.75,
+    0.78
+   ]
+  },
+  {
+   "id": 4,
+   "center_m": [
+    5.546,
+    11.442
+   ],
+   "length_m": 4.002,
+   "width_m": 1.768,
+   "height_m": 1.27,
+   "yaw_deg": 0.0,
+   "model": "lamborghini_urus",
+   "paint": [
+    0.9,
+    0.9,
+    0.9
+   ]
+  }
+ ],
+ "cameras": [
+  {
+   "id": 1,
+   "position_m": [
+    5.4,
+    0.35,
+    2.8
+   ],
+   "yaw_deg": 79.3,
+   "pitch_deg": -25.0,
+   "hfov_deg": 70.0,
+   "width_px": 1280,
+   "height_px": 720
+  },
+  {
+   "id": 2,
+   "position_m": [
+    0.3,
+    1.4,
+    3.2
+   ],
+   "yaw_deg": 35.57,
+   "pitch_deg": -25.0,
+   "hfov_deg": 70.0,
+   "width_px": 1280,
+   "height_px": 720
+  }
+ ],
+ "persons": [
+  {
+   "id": 1,
+   "role": "staff",
+   "height_m": 1.775,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "uniform",
+   "spawn_m": [
+    1.5,
+    5.15
+   ],
+   "spawn_yaw_deg": -90.0,
+   "enter_t": 0.0,
+   "present_at_start": true,
+   "script": [
+    {
+     "do": "approach",
+     "customer": 3,
+     "after_t": 2.92
+    },
+    {
+     "do": "talk",
+     "customer": 3,
+     "s": 150.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      1.5,
+      5.15
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "entrance"
+    }
+   ],
+   "default_face": "entrance",
+   "character": "Business_Male_04"
+  },
+  {
+   "id": 2,
+   "role": "staff",
+   "height_m": 1.574,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "uniform",
+   "spawn_m": [
+    8.425,
+    8.279
+   ],
+   "spawn_yaw_deg": -90.0,
+   "enter_t": 0.0,
+   "present_at_start": true,
+   "script": [
+    {
+     "do": "idle",
+     "s": 999,
+     "face": "entrance"
+    }
+   ],
+   "default_face": "entrance",
+   "character": "Business_Female_03"
+  },
+  {
+   "id": 3,
+   "role": "customer",
+   "height_m": 1.794,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": false,
+   "outfit": "casual",
+   "colors": {
+    "top": [
+     0.1,
+     0.3,
+     0.65
+    ],
+    "trousers": [
+     0.55,
+     0.5,
+     0.4
+    ]
+   },
+   "spawn_m": [
+    8.54,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 0.0,
+   "present_at_start": false,
+   "door_x_offset": 0.0,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": 0.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      4.566,
+      3.291
+     ]
+    },
+    {
+     "do": "await_staff",
+     "face": "car_1"
+    },
+    {
+     "do": "idle",
+     "s": 5.0,
+     "face": "car_1",
+     "anim": "look_around"
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      4.659,
+      9.539
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 30.0,
+     "face": "car_4",
+     "anim": "look_around"
+    },
+    {
+     "do": "leave"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Male_Adult_12"
+  },
+  {
+   "id": 4,
+   "role": "customer",
+   "height_m": 1.735,
+   "speed_mps": [
+    1.15,
+    1.4
+   ],
+   "hard_negative": true,
+   "outfit": "suit",
+   "colors": {
+    "top": [
+     0.025,
+     0.025,
+     0.03
+    ],
+    "trousers": [
+     0.03,
+     0.03,
+     0.035
+    ]
+   },
+   "spawn_m": [
+    8.54,
+    -2.6
+   ],
+   "spawn_yaw_deg": 90.0,
+   "enter_t": 60.0,
+   "present_at_start": false,
+   "door_x_offset": 0.0,
+   "script": [
+    {
+     "do": "enter",
+     "door_x_offset": 0.0
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      12.662,
+      7.719
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 40.0,
+     "face": "car_3",
+     "anim": "look_around"
+    },
+    {
+     "do": "walk_to",
+     "target": [
+      17.254,
+      5.522
+     ]
+    },
+    {
+     "do": "idle",
+     "s": 30.0,
+     "face": "car_2",
+     "anim": "look_around"
+    },
+    {
+     "do": "leave"
+    }
+   ],
+   "default_face": "car_1",
+   "character": "Business_Male_02"
+  }
+ ],
+ "parties": [],
+ "eval_presets": [
+  "dealership",
+  "short_clip"
+ ],
+ "uniform": {
+  "top": [
+   0.03,
+   0.03,
+   0.04
+  ],
+  "vest": [
+   0.7,
+   0.02,
+   0.02
+  ],
+  "trousers": [
+   0.04,
+   0.04,
+   0.05
+  ],
+  "suit_recolour": [
+   0.42,
+   0.02,
+   0.03
+  ],
+  "_doc": "Rocketbox clothing is baked into one body texture, so the uniform is a shader recolour of the dark suit fabric of staff characters (suit_recolour, linear RGB). top/vest/trousers are used by the capsule fallback only."
+ },
+ "duration_s": 240.0,
+ "script": {
+  "staff_stop_dist_m": 1.25,
+  "staff_approach_angles_deg": 15.0,
+  "approach_cam_m": [
+   5.4,
+   0.35
+  ]
+ },
+ "_generator": {
+  "attempt": 5,
+  "camera_min_person_vis": [
+   0.0,
+   0.377
+  ],
+  "camera_any_person_vis": [
+   1.0,
+   1.0
+  ],
+  "camera_median_box_h_px": [
+   167.7,
+   285.2
+  ],
+  "note": "visibility estimated from geometry (full body in frame, >= 60 px, not behind a car or a nearer person)"
+ }
+}

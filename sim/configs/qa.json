@@ -1,13 +1,18 @@
 {
   "_doc": "Quick-test gate thresholds (prompts/teammate_c_synthetic_showroom_quicktest.md section 3). Never lower these to make a gate pass.",
+  "_doc_full_run": "Full run (prompts/teammate_c_full_run_goal.md A.3): keys below are ADDED only; no existing threshold was changed. expected_frames is per clip (round(duration_s * fps) from the clip's config), still an exact equality.",
   "render": {
     "expected_frames": 200,
+    "expected_frames_per_clip": true,
     "mean_luma_min": 15.0,
     "clip_luma_level": 250,
     "clipped_frac_max": 0.05,
+    "clipped_frac_max_glare": 0.20,
     "magenta_frac_max": 0.001,
     "magenta_rule": {"r_min": 200, "b_min": 200, "g_max": 60},
-    "min_in_view_frac": 0.8
+    "min_in_view_frac": 0.8,
+    "max_track_gap_frames": 5,
+    "track_gap_visible_frac": 0.5
   },
   "labels": {
     "min_mask_px": 400,
@@ -15,12 +20,36 @@
   },
   "events": {
     "match_tol_s": 1.0,
-    "types": ["greet"]
+    "types": ["greet"],
+    "types_extra": ["handoff", "walkout", "party", "engagement"],
+    "unscripted_rule_types_fail": ["greet", "walkout", "handoff"]
   },
   "video": {
     "codec": "h264",
     "pix_fmt": "yuv420p",
     "fps": 10,
     "duration_tol_frames": 1
+  },
+  "detector": {
+    "recall_min": 0.80,
+    "iou": 0.5,
+    "min_box_h_px": 60,
+    "min_visible_frac": 0.6,
+    "conf": 0.5
+  },
+  "scene": {
+    "person_height_m": [1.55, 1.95],
+    "car_length_m": [3.8, 5.5],
+    "root_car_margin_m": 0.2,
+    "min_person_dist_m": 0.35,
+    "min_person_dist_max_s": 0.5,
+    "feet_floor_tol_m": 0.05,
+    "frozen_window_s": 2.0,
+    "frozen_min_change": 0.001,
+    "max_invisible_lifetime_frac": 0.2
+  },
+  "assets": {
+    "manifest": "assets/MANIFEST.csv",
+    "required_columns": ["file", "source_url", "licence"]
   }
 }
