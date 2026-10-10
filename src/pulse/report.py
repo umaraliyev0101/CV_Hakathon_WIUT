@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import csv
 import json
-import shutil
 from collections import Counter
 from pathlib import Path
 
@@ -45,10 +44,20 @@ def _dump(path: Path, obj) -> None:
 
 
 def observations_by_t(pc) -> dict[float, list]:
-    """Every detection (bbox, keypoints) per sampled time, whether or not it became a person."""
+    """Everything to blur per sampled time: tracked observations at t and at the neighbouring samples
+    (covers one-frame track gaps) plus every raw person detection near t, tracked or not.
+    Over-blurring is fine; under-blurring is not."""
+    dt = 1.0 / float(pc.meta.get("sample_fps") or 5.0)
     out: dict[float, list] = {}
+
+    def add(t: float, box, kp) -> None:
+        for k in (round(t - dt, 3), round(t, 3), round(t + dt, 3)):
+            out.setdefault(k, []).append((box, kp))
+
     for o in pc.obs:
-        out.setdefault(round(o.t, 3), []).append((o.bbox, o.keypoints))
+        add(o.t, o.bbox, o.keypoints)
+    for t, box, _ in pc.raw_dets:
+        add(t, box, None)
     return out
 
 
@@ -109,14 +118,7 @@ def _keyframe(pc, video, obs_t, cfg: Config, warnings: list[str]) -> np.ndarray:
             warnings.append("Keyframe does not match the analysis frame; grey background used")
     if img is None:
         return np.full((fh, fw, 3), 128, np.uint8)
-    key_t = round(pc.keyframe_t, 3)
-    boxes = obs_t.get(key_t)
-    if boxes is None:
-        near = [k for k in obs_t if abs(k - key_t) <= 0.5 / cfg.sample_fps]
-        boxes = obs_t[min(near, key=lambda k: abs(k - key_t))] if near else []
-        if obs_t:
-            warnings.append("Keyframe time has no detections of its own; faces blurred from the "
-                            "nearest sample, if any")
+    boxes = obs_t.get(round(pc.keyframe_t, 3), [])
     return render_mod.blur_faces(img, boxes)
 
 
@@ -209,8 +211,15 @@ def _clean(out_dir: Path) -> None:
     """Remove stale outputs of an earlier run; touches only the names this module writes."""
     for name in _OWNED:
         (out_dir / name).unlink(missing_ok=True)
-    for sub in ("thumbs", "contact_sheets"):
-        shutil.rmtree(out_dir / sub, ignore_errors=True)
+    for sub, pattern in (("thumbs", "person_*.jpg"), ("contact_sheets", "insight_*.jpg")):
+        d = out_dir / sub
+        if d.is_dir():
+            for f in d.glob(pattern):
+                f.unlink()
+            try:
+                d.rmdir()
+            except OSError:
+                pass                                 # not empty: holds someone else's files
 
 
 def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: bool = False) -> dict:

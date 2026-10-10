@@ -51,3 +51,19 @@ def test_video_key_depends_on_config(tmp_path):
     assert k != cache.video_key(v, replace(cfg, sample_fps=2.0))
     v.write_bytes(b"abd" * 1000)
     assert k != cache.video_key(v, cfg)
+
+
+def test_raw_detections_round_trip(tmp_path):
+    pc = make_pc(tmp_path / "abc")
+    pc.raw_dets = [(0.0, (1.0, 2.0, 30.0, 60.0), 0.25), (0.2, (5.0, 5.0, 40.0, 70.0), 0.3)]
+    cache.save(pc)
+    got = cache.load(tmp_path / "abc")
+    assert got.raw_dets == pc.raw_dets
+    (tmp_path / "abc" / "raw_dets.npz").unlink()
+    assert not cache.exists(tmp_path / "abc")            # an old cache without raw detections is rebuilt
+
+
+def test_video_key_changes_with_cache_version(tmp_path):
+    v = tmp_path / "v.mp4"
+    v.write_bytes(b"abc" * 1000)
+    assert cache.CACHE_VERSION >= 2

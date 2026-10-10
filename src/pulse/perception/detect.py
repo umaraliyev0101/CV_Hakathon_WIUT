@@ -61,15 +61,16 @@ class Detector:
         self._std = np.array([0.229, 0.224, 0.225], np.float32)
 
     # ---- public ----
-    def detect(self, frame_bgr: np.ndarray, classes=("person",)) -> list[Det]:
+    def detect(self, frame_bgr: np.ndarray, classes=("person",), score_thr: float | None = None) -> list[Det]:
+        thr = self.cfg.det_score_thr if score_thr is None else score_thr
         if self.kind == "yolox":
-            return self._yolox(frame_bgr, classes)
+            return self._yolox(frame_bgr, classes, thr)
         if self.kind == "rfdetr":
-            return self._rfdetr(frame_bgr, classes)
+            return self._rfdetr(frame_bgr, classes, thr)
         raise ValueError(f"{self.name} is not a detector")
 
     # ---- YOLOX ----
-    def _yolox(self, img, classes):
+    def _yolox(self, img, classes, thr):
         h_in, w_in = self.in_hw
         ratio = min(h_in / img.shape[0], w_in / img.shape[1])
         padded = np.full((h_in, w_in, 3), 114, np.uint8)
@@ -96,13 +97,13 @@ class Detector:
         want = [COCO80.index(c) for c in classes]
         scores = p[:, 4:5] * p[:, 5:][:, want]
         dets, _ = multiclass_nms(xyxy, scores, nms_thr=self.cfg.det_nms_thr,
-                                 score_thr=self.cfg.det_score_thr)
+                                 score_thr=thr)
         if dets is None:
             return []
         return [self._mk(d[:4], d[4], classes[int(d[5])], img.shape) for d in dets]
 
     # ---- RF-DETR ----
-    def _rfdetr(self, img, classes):
+    def _rfdetr(self, img, classes, thr):
         h_in, w_in = self.in_hw
         r = cv2.resize(img, (w_in, h_in), interpolation=cv2.INTER_LINEAR)
         r = cv2.cvtColor(r, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
@@ -124,7 +125,7 @@ class Detector:
         for idx in top:
             q, c = divmod(int(idx), probs.shape[1])
             s = float(flat[idx])
-            if s <= self.cfg.det_score_thr or c not in cid:
+            if s <= thr or c not in cid:
                 continue
             cx, cy, w, h = boxes[0][q]
             xyxy = np.array([(cx - w / 2) * W, (cy - h / 2) * H, (cx + w / 2) * W, (cy + h / 2) * H])

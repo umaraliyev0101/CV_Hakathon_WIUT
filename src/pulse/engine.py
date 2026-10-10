@@ -22,6 +22,7 @@ class PerceptionEngine:
         self.detector = Detector(cfg.detector, cfg, providers=providers)
         self.pose_est = PoseEstimator(cfg.pose_model, providers=providers)
         self.tracker = Tracker(cfg.sample_fps, cfg)
+        self.last_person_dets: list[Det] = []   # raw person boxes of the last frame (privacy: blur these too)
         self._ms = {k: deque(maxlen=_WINDOW) for k in ("det", "track", "pose")}
 
     @property
@@ -32,6 +33,7 @@ class PerceptionEngine:
     def reset(self) -> None:
         """Forget tracker state and timings (call before each new video)."""
         self.tracker.reset()
+        self.last_person_dets = []
         for d in self._ms.values():
             d.clear()
 
@@ -40,7 +42,10 @@ class PerceptionEngine:
 
     def process(self, t: float, frame: np.ndarray, frame_idx: int) -> list[TrackObs]:
         t0 = time.perf_counter()
-        dets = self.detector.detect(frame, ("person",))
+        low = min(0.2, self.cfg.det_score_thr)
+        raw = self.detector.detect(frame, ("person",), score_thr=low)
+        self.last_person_dets = raw
+        dets = [d for d in raw if d.score > self.cfg.det_score_thr]    # tracker input unchanged
         self._time("det", t0)
         t0 = time.perf_counter()
         obs = self.tracker.update(dets, t, frame_idx)

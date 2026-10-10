@@ -169,14 +169,44 @@ def test_thumbnail_heatmap_and_contact_sheet_faces_blurred(tmp_path):
     assert cv2.Laplacian(face, cv2.CV_64F).var() < 0.1 * cv2.Laplacian(ref_face, cv2.CV_64F).var()
 
 
-def test_keyframe_without_exact_detections_warns(tmp_path):
+def test_keyframe_blurred_from_neighbouring_sample_when_no_obs_at_its_t(tmp_path):
     video, pc, zones = _setup(tmp_path)
-    pc.keyframe_t = 6.1                                  # not a sampled time, > half a period from none? 6.1 is exact-ish
-    pc.obs = [o for o in pc.obs if not (5.9 < o.t < 6.3)]
-    a = pipeline.score(pc, get_config("short"), zones=zones)
-    rep = pipeline.write_outputs(pc, a, tmp_path / "out", get_config("short"), video=None, render_video=False)
-    warnings = json.loads((tmp_path / "out" / "report.json").read_text())["warnings"]
-    assert any("keyframe" in w.lower() for w in warnings)
+    pc.obs = [o for o in pc.obs if abs(o.t - 6.0) > 1e-6]      # tracked at 5.8 and 6.2, not at 6.0
+    cfg = get_config("short")
+    pipeline.write_outputs(pc, pipeline.score(pc, cfg, zones=zones), tmp_path / "out", cfg,
+                           video=video, render_video=False)
+    key = cv2.imread(str(tmp_path / "out" / "keyframe.jpg"))
+    assert _lap(key) < 0.1 * _lap(_ref_frame(video, 6.0, W))
+
+
+def test_raw_only_detection_is_blurred_everywhere(tmp_path):
+    from pulse.datatypes import Insight
+    video, pc, zones = _setup(tmp_path)
+    # a person detected but never tracked: A on its own, B overlapping person 1's thumbnail crop
+    pc.raw_dets = [(round(i / FPS, 3), box, 0.25) for i in range(60)
+                   for box in ((220.0, 50.0, 260.0, 150.0), (150.0, 70.0, 190.0, 150.0))]
+    cfg = get_config("short")
+    a = pipeline.score(pc, cfg, zones=zones)
+    a.insights.append(Insight("R1", "t", {}, "a", ["Car 1"], None, "low", 1,
+                              [{"t": 6.0, "person_id": 1, "zone_id": "car-1"}]))
+    out = tmp_path / "out"
+    pipeline.write_outputs(pc, a, out, cfg, video=video, render_video=True)
+    ref = _ref_frame(video, 6.0, W)
+    reg_a, reg_b = (53, 67, 230, 255), (73, 84, 175, 188)
+    for reg in (reg_a, reg_b):
+        base = _lap(ref, reg)
+        assert _lap(cv2.imread(str(out / "keyframe.jpg")), reg) < 0.1 * base
+        assert _lap(cv2.imread(str(out / "heatmap.png")), reg) < 0.1 * base
+        assert _lap(cv2.imread(str(out / "contact_sheets" / "insight_0.jpg")), reg) < 0.1 * base
+    cap = cv2.VideoCapture(str(out / "annotated.mp4"))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 30)
+    ok, frame = cap.read()
+    cap.release()
+    assert ok and _lap(frame, reg_a) < 0.1 * _lap(ref, reg_a)
+    thumb = cv2.imread(str(out / "thumbs" / "person_1.jpg"))
+    unblurred = cv2.resize(_ref_frame(video, 0.0, W)[50:150, 130:170], (128, 256), interpolation=cv2.INTER_AREA)
+    g = lambda im: cv2.Laplacian(cv2.cvtColor(im[62:85, 70:125], cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()  # noqa: E731
+    assert g(thumb) < 0.1 * g(unblurred)
 
 
 def test_check_outputs_rejects_bad_file_entries(built):
@@ -200,3 +230,16 @@ def test_stale_outputs_cleaned_but_foreign_files_kept(tmp_path):
     pipeline.write_outputs(pc, pipeline.score(pc, cfg, zones=zones), out, cfg, video=video, render_video=False)
     assert not (out / "thumbs" / "person_999.jpg").exists() and not (out / "annotated.mp4").exists()
     assert (out / "mine.txt").exists()
+
+
+def test_clean_never_removes_foreign_files_in_owned_dirs(tmp_path):
+    from pulse.report import _clean
+    (tmp_path / "thumbs").mkdir()
+    (tmp_path / "thumbs" / "person_3.jpg").write_bytes(b"x")
+    (tmp_path / "thumbs" / "notes.txt").write_text("mine")
+    (tmp_path / "contact_sheets").mkdir()
+    (tmp_path / "contact_sheets" / "insight_0.jpg").write_bytes(b"x")
+    _clean(tmp_path)
+    assert (tmp_path / "thumbs" / "notes.txt").exists()
+    assert not (tmp_path / "thumbs" / "person_3.jpg").exists()
+    assert not (tmp_path / "contact_sheets").exists()

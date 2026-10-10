@@ -20,7 +20,8 @@ from .config import Config
 from .datatypes import Det, StableSegment, TrackObs
 
 PERCEPTION_RUNS = 0
-_FILES = ("meta.json", "tracks.npz", "cars.json", "segments.json", "embeddings.npz")
+_FILES = ("meta.json", "tracks.npz", "cars.json", "segments.json", "embeddings.npz", "raw_dets.npz")
+CACHE_VERSION = 2   # v2: raw person detections stored (privacy blur); older caches are rebuilt
 
 
 def perception_runs() -> int:
@@ -42,6 +43,8 @@ class PerceptionCache:
     segments: list[StableSegment]
     embeddings: dict[int, np.ndarray] = field(default_factory=dict)
     keyframe: np.ndarray | None = None      # raw BGR frame; written on save, not loaded
+    # every raw person detection (t, bbox, score), tracked or not; used only to blur faces
+    raw_dets: list[tuple[float, tuple, float]] = field(default_factory=list)
 
     @property
     def keyframe_path(self) -> Path:
@@ -57,7 +60,7 @@ def file_sha1(path) -> str:
 
 
 def video_key(path, cfg: Config, sha1: str | None = None) -> str:
-    params = f"|{cfg.sample_fps}|{cfg.max_width}|{cfg.max_duration_s}|{cfg.detector}|{cfg.pose_model}"
+    params = f"|v{CACHE_VERSION}|{cfg.sample_fps}|{cfg.max_width}|{cfg.max_duration_s}|{cfg.detector}|{cfg.pose_model}"
     return hashlib.sha1(((sha1 or file_sha1(path)) + params).encode()).hexdigest()
 
 
@@ -82,6 +85,10 @@ def save(pc: PerceptionCache) -> None:
                  track_id=np.array([o.track_id for o in pc.obs], np.int64),
                  bbox=np.array([o.bbox for o in pc.obs], float).reshape(n, 4),
                  score=np.array([o.score for o in pc.obs], float), kps=kps)
+        rd = pc.raw_dets
+        np.savez(tmp / "raw_dets.npz", t=np.array([r[0] for r in rd], float),
+                 bbox=np.array([r[1] for r in rd], float).reshape(len(rd), 4),
+                 score=np.array([r[2] for r in rd], float))
         ids = sorted(pc.embeddings)
         vecs = (np.stack([np.asarray(pc.embeddings[i], float) for i in ids])
                 if ids else np.zeros((0, 0)))
@@ -115,4 +122,6 @@ def load(d) -> PerceptionCache:
     emb = {int(i): v for i, v in zip(e["ids"], e["vecs"])}
     cars = [Det(tuple(c["bbox"]), c["score"], c["cls"]) for c in json.loads((d / "cars.json").read_text())]
     segs = [StableSegment.from_dict(s) for s in json.loads((d / "segments.json").read_text())]
-    return PerceptionCache(d, meta, obs, cars, keyframe_t, segs, emb)
+    r = np.load(d / "raw_dets.npz")
+    raw = [(float(t), tuple(float(v) for v in b), float(sc)) for t, b, sc in zip(r["t"], r["bbox"], r["score"])]
+    return PerceptionCache(d, meta, obs, cars, keyframe_t, segs, emb, raw_dets=raw)

@@ -55,7 +55,7 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
     n_est = max(1, round(min(info.duration or cfg.max_duration_s, cfg.max_duration_s) * cfg.sample_fps))
     step = max(1, n_est // 20)
 
-    obs, times, grays = [], [], []
+    obs, times, grays, raw_dets = [], [], [], []
     crops: dict[int, list[tuple[float, np.ndarray]]] = {}
     best: dict[int, tuple[float, np.ndarray]] = {}   # best sub-threshold crop per track
     frame_w = frame_h = 0
@@ -65,7 +65,9 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
             frame_h, frame_w = frame.shape[:2]
         times.append(t)
         grays.append(to_gray_small(frame))
-        for o in engine.process(t, frame, k):
+        tracked = engine.process(t, frame, k)
+        raw_dets.extend((t, tuple(d.bbox), float(d.score)) for d in getattr(engine, "last_person_dets", []))
+        for o in tracked:
             obs.append(o)
             lst = crops.setdefault(o.track_id, [])
             if o.score >= MIN_CROP_SCORE and (not lst or t - lst[-1][0] >= CROP_SPACING_S):
@@ -119,7 +121,7 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
         "perception_seconds": perception_seconds, "embed_seconds": embed_seconds,
         "rtf": analysed / perception_seconds if perception_seconds > 0 else 0.0,
     }
-    pc = PerceptionCache(cdir, meta, obs, cars, keyframe_t, segs, embeddings, keyframe)
+    pc = PerceptionCache(cdir, meta, obs, cars, keyframe_t, segs, embeddings, keyframe, raw_dets)
     cache_mod.save(pc)
     if progress:
         progress(1.0)
