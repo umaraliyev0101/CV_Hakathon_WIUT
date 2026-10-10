@@ -57,7 +57,7 @@ def test_non_finite_foot_dropped_and_unmapped_ignored():
     bad = TrackObs(0.0, 0, 1, (nan, 200, nan, nan), 0.9, None)
     ok = TrackObs(0.2, 1, 3, (70, 200, 130, 400), 0.9, None)
     tl = T.build_timeline([bad, ok], {1: 1}, (960, 540), CFG)
-    assert tl == {1: []} or tl == {}
+    assert tl == {}
 
 def test_smooth_speed_basic_and_short():
     assert T.smooth_speed([0.0], [(0, 0)], [5.0], 700.0, 1.0) == [None]
@@ -73,3 +73,19 @@ def test_filter_stable_last_segment_includes_t1_and_outside_kept():
     assert [s.t for s in out[1]] == [0.0, 5.0] and out[2] == []
     segs2 = [StableSegment(0.0, 1.0, False)]
     assert [s.t for s in T.filter_stable(tl, segs2)[1]] == [5.0]
+
+def test_smooth_speed_does_not_difference_across_gap():
+    ts = [0, .2, .4, 5.4, 5.6, 5.8]
+    feet = [(100, 400)] * 3 + [(400, 400)] * 3
+    v = T.smooth_speed(ts, feet, [5.0] * 6, 500.0, 1.0)
+    assert all(x == pytest.approx(0.0) for x in v)  # cross-gap average would be ~0.58 m/s
+
+def test_smooth_speed_lone_sample_run_is_none():
+    v = T.smooth_speed([0, .2, .4, 9.0], [(0, 0), (0, 0), (0, 0), (50, 0)], [5.0] * 4, 500.0, 1.0)
+    assert v[3] is None and v[0] == pytest.approx(0.0)
+
+def test_smooth_speed_constant_walk_ends_unbiased():
+    ts = [i * 0.2 for i in range(20)]
+    v = T.smooth_speed(ts, [(100 + 20 * i, 400) for i in range(20)], [5.0] * 20, 500.0, 1.0)
+    true = 100 * 5.0 / 500.0
+    assert v[0] == pytest.approx(true, rel=0.2) and v[-1] == pytest.approx(true, rel=0.2)

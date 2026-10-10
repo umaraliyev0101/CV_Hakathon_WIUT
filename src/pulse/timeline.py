@@ -19,16 +19,30 @@ def smooth_speed(ts, feet_px, depths_z, f_px: float, window_s: float) -> list[fl
         return [None] * n
     t = np.asarray(ts, dtype=float)
     p = np.asarray(feet_px, dtype=float).reshape(n, 2)
-    half = window_s / 2.0
+    gaps = np.diff(t)
+    brk = max(3.0 * float(np.median(gaps)), window_s)
+    starts = [0] + [i + 1 for i in range(n - 1) if gaps[i] > brk] + [n]
+    out: list[float | None] = []
+    for r0, r1 in zip(starts[:-1], starts[1:]):
+        out.extend(_run_speed(t[r0:r1], p[r0:r1], depths_z[r0:r1], f_px, window_s))
+    return out
+
+
+def _run_speed(t, p, zs, f_px: float, window_s: float) -> list[float | None]:
+    n = len(t)
+    if n < 2:
+        return [None] * n
     sm = np.empty_like(p)
     for i in range(n):
-        m = np.abs(t - t[i]) <= half + 1e-9
+        # symmetric window, truncated to the available half-width on both sides (no end bias)
+        hw = min(window_s / 2.0, t[i] - t[0], t[-1] - t[i])
+        m = np.abs(t - t[i]) <= hw + 1e-9
         sm[i] = p[m].mean(axis=0)
     out: list[float | None] = []
     for i in range(n):
         a, b = max(i - 1, 0), min(i + 1, n - 1)
         dt = t[b] - t[a]
-        z = depths_z[i]
+        z = zs[i]
         if dt <= 0 or z is None or not math.isfinite(z):
             out.append(None)
             continue
