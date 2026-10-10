@@ -4,9 +4,16 @@ per-video cache so roles and thresholds can change without running a single mode
 `run_perception` makes one pass over the (sampled, resized) frames and returns a `PerceptionResult`: flat arrays of
 tracked observations (frame, track, box, score, 17 keypoints), every raw person detection (so rendering can blur
 faces of people that were never tracked), the car boxes of the first frame, and one identity and one outfit
-descriptor per track. While streaming it keeps, per track, the `crops_per_track` best observations (largest
-box area x detector score) as small crops; after the pass those are embedded and averaged. Nothing here recognises
-faces: descriptors come from whole-body and torso crops, and the saved track thumbnails are face-blurred.
+descriptor per real track. While streaming it keeps, per track, the `crops_per_track` best observations (largest
+box area x detector score) as small crops; after the pass those of the real tracks are embedded and averaged.
+Nothing here recognises faces: descriptors come from whole-body and torso crops, and the saved track thumbnails
+are face-blurred.
+
+Two cost savers, both visible in the result. Pose runs for a track only every `pose_every`-th sampled frame (all
+due boxes of a frame in one batched model call); in between, the track's last fresh keypoints ride along with its
+box (`carry_keypoints`). And only real tracks (`config.MIN_TRACK_OBS` observations spanning `config.MIN_TRACK_S`
+seconds, the same bar analysis applies) get descriptors and a crop file; shorter ones are flicker, but their
+observations and raw boxes stay in the arrays.
 
 Cache layout, one directory per `video_key`:
     perception.npz    plain numeric arrays only (never pickled; loaded with allow_pickle=False)
@@ -33,7 +40,7 @@ from typing import Callable
 import cv2
 import numpy as np
 
-from ..config import MAX_SECONDS, MAX_WIDTH, SAMPLE_FPS
+from ..config import MAX_SECONDS, MAX_WIDTH, MIN_TRACK_OBS, MIN_TRACK_S, SAMPLE_FPS
 from ..render import blur_faces
 from ..sources import VideoError, VideoInfo, iter_frames, probe
 from ..types import to_jsonable
@@ -46,9 +53,10 @@ log = logging.getLogger(__name__)
 CAR_CLASSES = (2, 5, 7)          # COCO: car, bus, truck
 CROP_MAX_H = 160                 # stored crops are downscaled to at most this many pixels tall
 DEFAULT_CROPS_PER_TRACK = 4
+DEFAULT_POSE_EVERY = 2
 PROGRESS_EVERY = 10              # sampled frames between progress callbacks
 HSV_WEIGHT = 0.5                 # weight of the secondary half of each descriptor
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2               # 2: pose stride (carried keypoints) and descriptors for real tracks only
 NPZ_NAME, JSON_NAME, CROPS_NAME = "perception.npz", "perception.json", "crops"
 JPEG_QUALITY = 85
 _EPS = 1e-12
@@ -91,6 +99,19 @@ def _shrink(img: np.ndarray | None, max_h: int = CROP_MAX_H) -> np.ndarray | Non
         return img
     scale = max_h / img.shape[0]
     return cv2.resize(img, (max(1, round(img.shape[1] * scale)), max_h), interpolation=cv2.INTER_AREA)
+
+
+def carry_keypoints(kpts: np.ndarray, old_box, new_box) -> np.ndarray:
+    """`kpts` (17, 3) found for `old_box`, moved to `new_box` by the box change: x' = x1' + (x - x1) w'/w and
+    y' = y1' + (y - y1) h'/h; confidences are kept. A degenerate old box leaves them unchanged."""
+    ox1, oy1, ox2, oy2 = (float(v) for v in old_box)
+    nx1, ny1, nx2, ny2 = (float(v) for v in new_box)
+    ow, oh = ox2 - ox1, oy2 - oy1
+    out = np.array(kpts, np.float32)
+    if ow > 0 and oh > 0:
+        out[:, 0] = nx1 + (out[:, 0] - ox1) * ((nx2 - nx1) / ow)
+        out[:, 1] = ny1 + (out[:, 1] - oy1) * ((ny2 - ny1) / oh)
+    return out
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
@@ -141,18 +162,25 @@ def _write_jpeg(path: Path, img: np.ndarray) -> None:
 
 def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS, max_width: int = MAX_WIDTH,
                    max_seconds: float = MAX_SECONDS, progress: Callable[[float, str], None] | None = None,
-                   crops_dir: str | Path | None = None,
-                   crops_per_track: int = DEFAULT_CROPS_PER_TRACK) -> PerceptionResult:
+                   crops_dir: str | Path | None = None, crops_per_track: int = DEFAULT_CROPS_PER_TRACK,
+                   pose_every: int = DEFAULT_POSE_EVERY) -> PerceptionResult:
     """Run the whole perception stack over `path` (sampled at `sample_fps`, resized to `max_width`, cut at
     `max_seconds`). `progress(fraction, message)` is called about every 10 sampled frames and finally with 1.0.
-    With `crops_dir`, each track's face-blurred best crop is written there as `<track_id>.jpg`.
-    Raises `VideoError` when the file cannot be decoded.
+    With `crops_dir`, each real track's face-blurred best crop is written there as `<track_id>.jpg`.
+    `pose_every` is the pose stride: a track gets fresh keypoints on its first frame and then whenever
+    `pose_every` sampled frames have passed since its last fresh ones (1 = every frame); in between they are
+    carried along with its box. A box too small for pose (no keypoints came back) is retried every frame.
+    Only real tracks (see the module docstring) get `track_emb` / `track_outfit` entries and crop files.
+    Raises `VideoError` when the file cannot be decoded, ValueError for `pose_every < 1`.
 
     Timings: `decode` is probing plus frame decoding; `embed` is everything appearance-related (cutting crops,
     descriptors, thumbnails); `total` is the wall time of the whole call.
     """
     t_start = time.perf_counter()
     keep = max(1, int(crops_per_track))
+    pose_every = int(pose_every)
+    if pose_every < 1:
+        raise ValueError("pose_every must be >= 1")
     tm = {"decode": 0.0, "detect": 0.0, "track": 0.0, "pose": 0.0, "embed": 0.0}
 
     t0 = time.perf_counter()
@@ -172,6 +200,9 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
     cars: list[list[float]] = []
     heaps: dict[int, list] = {}                          # track -> min-heap of (priority, seq, person crop, torso crop)
     best: dict[int, tuple[float, np.ndarray]] = {}       # track -> (priority, face-blurred person crop)
+    pose_state: dict[int, tuple[int, np.ndarray, tuple]] = {}   # track -> (frame, keypoints, box) of last fresh pose
+    n_obs: dict[int, int] = {}                           # track -> observations so far
+    t_span: dict[int, list[float]] = {}                  # track -> [first, last] observation time
     seq = itertools.count()
     out_dir = Path(crops_dir) if crops_dir is not None else None
 
@@ -205,8 +236,24 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
             kpts = np.zeros((len(tracked), 17, 3), np.float32)
             if tracked and stack.pose is not None:
                 t0 = time.perf_counter()
-                boxes = np.asarray([d.bbox for _, d in tracked], np.float64)
-                kpts = np.asarray(stack.pose(frame, boxes), np.float32).reshape(len(tracked), 17, 3)
+                due = []                                 # tracked boxes that need fresh keypoints this frame
+                for j, (tid, d) in enumerate(tracked):
+                    last = pose_state.get(tid)
+                    if last is None or fi - last[0] >= pose_every:
+                        due.append(j)
+                    else:
+                        kpts[j] = carry_keypoints(last[1], last[2], d.bbox)
+                if due:
+                    boxes = np.asarray([tracked[j][1].bbox for j in due], np.float64)
+                    fresh = np.asarray(stack.pose(frame, boxes), np.float32).reshape(len(due), 17, 3)
+                    for n, j in enumerate(due):
+                        tid, d = tracked[j]
+                        kpts[j] = fresh[n]
+                        x1, y1, x2, y2 = d.bbox
+                        if fresh[n, :, 2].max() > 0 and x2 > x1 and y2 > y1:
+                            pose_state[tid] = (fi, fresh[n].copy(), (x1, y1, x2, y2))
+                        else:                            # nothing came back (too small a box): try again next frame
+                            pose_state.pop(tid, None)
                 tm["pose"] += time.perf_counter() - t0
 
             t0 = time.perf_counter()
@@ -219,6 +266,9 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
                 obs_bbox.append((x1, y1, x2, y2))
                 obs_score.append(score)
                 obs_kpts.append(kpts[j])
+                n_obs[tid] = n_obs.get(tid, 0) + 1
+                span = t_span.setdefault(tid, [float(t), float(t)])
+                span[1] = float(t)
                 prio = max(0.0, x2 - x1) * max(0.0, y2 - y1) * score
                 heap = heaps.setdefault(tid, [])
                 if len(heap) < keep or prio > heap[0][0]:
@@ -244,11 +294,15 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
         frames.close()
 
     t0 = time.perf_counter()
+    real = {tid for tid, (first, last) in t_span.items()
+            if n_obs[tid] >= MIN_TRACK_OBS and last - first >= MIN_TRACK_S - 1e-6}
+    heaps = {tid: h for tid, h in heaps.items() if tid in real}
     track_emb, track_outfit = _describe(stack, heaps)
     if out_dir is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
         for tid, (_, thumb) in best.items():
-            _write_jpeg(out_dir / f"{tid}.jpg", thumb)
+            if tid in real:
+                _write_jpeg(out_dir / f"{tid}.jpg", thumb)
     tm["embed"] += time.perf_counter() - t0
 
     tm["total"] = time.perf_counter() - t_start
@@ -348,7 +402,8 @@ def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=N
     """`(result, was_cached)`: the saved perception of this exact video + parameters + stack when there is one,
     otherwise run it (via the module-level `run_perception`) and save it under `cache_root/<video_key>/`.
 
-    `kw` may carry `sample_fps`, `max_width`, `max_seconds` and `crops_per_track`; anything else is a TypeError.
+    `kw` may carry `sample_fps`, `max_width`, `max_seconds`, `crops_per_track` and `pose_every`; anything else
+    is a TypeError.
     A cache entry that cannot be read is discarded and recomputed. New entries are built in a temporary
     directory and moved into place, so a crash or a concurrent run never leaves a half-written entry. The returned
     result always describes the video at `path` (the stored path is replaced, since the same bytes may have
@@ -358,10 +413,15 @@ def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=N
     max_width = kw.pop("max_width", MAX_WIDTH)
     max_seconds = kw.pop("max_seconds", MAX_SECONDS)
     crops_per_track = kw.pop("crops_per_track", DEFAULT_CROPS_PER_TRACK)
+    pose_every = kw.pop("pose_every", DEFAULT_POSE_EVERY)
     if kw:
         raise TypeError(f"cached_perception() got unexpected keyword arguments: {sorted(kw)}")
     cache_root = Path(cache_root)
-    name = stack.name if crops_per_track == DEFAULT_CROPS_PER_TRACK else f"{stack.name}|crops={crops_per_track}"
+    name = stack.name                       # non-default knobs that change the result are part of the key
+    if crops_per_track != DEFAULT_CROPS_PER_TRACK:
+        name += f"|crops={crops_per_track}"
+    if pose_every != DEFAULT_POSE_EVERY:
+        name += f"|pose_every={pose_every}"
     d = cache_root / video_key(path, sample_fps, max_width, max_seconds, name)
 
     if d.is_dir():
@@ -380,7 +440,8 @@ def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=N
     tmp = cache_root / f".tmp-{d.name}-{uuid.uuid4().hex[:8]}"
     try:
         res = run_perception(path, stack, sample_fps=sample_fps, max_width=max_width, max_seconds=max_seconds,
-                             progress=progress, crops_dir=tmp / CROPS_NAME, crops_per_track=crops_per_track)
+                             progress=progress, crops_dir=tmp / CROPS_NAME, crops_per_track=crops_per_track,
+                             pose_every=pose_every)
         save_result(res, tmp)
         try:
             os.replace(tmp, d)

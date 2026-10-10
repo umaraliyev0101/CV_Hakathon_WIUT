@@ -71,6 +71,11 @@ LIVE_DETECTOR = "yolox_nano@2"
 SAMPLE_FPS = 5.0
 MAX_WIDTH = 960
 MAX_SECONDS = 300.0
+# A track is "real" (worth describing, and kept by analysis) with at least this many observations spanning at
+# least this many seconds; shorter ones are detector flicker. Perception skips their appearance work and analysis
+# drops them (build_persons min_track_obs / min_track_s), so both use these constants.
+MIN_TRACK_OBS = 3
+MIN_TRACK_S = 1.0
 
 
 def repo_root() -> Path:

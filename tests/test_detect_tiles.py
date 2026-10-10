@@ -266,8 +266,12 @@ def test_detector_default_follows_config(fake_yolox):
 
 
 class FakePose:
+    """Batch-aware stand-in for the RTMPose session: `calls` counts session.run calls, `batches` records the batch
+    size of each, so `sum(batches)` is how many boxes actually reached the model."""
+
     def __init__(self):
         self.calls = 0
+        self.batches = []
 
     def get_inputs(self):
         return [SimpleNamespace(name="input", shape=["batch", 3, 256, 192])]
@@ -275,13 +279,20 @@ class FakePose:
     def get_outputs(self):
         return [SimpleNamespace(name="simcc_x"), SimpleNamespace(name="simcc_y")]
 
+    def peaks(self, blob):
+        """Per input row: (x peak index, y peak index), by default the centre of the crop."""
+        return [(192, 256)] * len(blob)
+
     def run(self, names, feed):
+        blob = feed["input"]
+        assert blob.ndim == 4 and blob.shape[1:] == (3, 256, 192)
         self.calls += 1
-        assert feed["input"].shape == (1, 3, 256, 192)
-        sx = np.zeros((1, 17, 384), np.float32)
-        sy = np.zeros((1, 17, 512), np.float32)
-        sx[..., 192] = 1.0  # peak at the centre of the crop
-        sy[..., 256] = 1.0
+        self.batches.append(len(blob))
+        sx = np.zeros((len(blob), 17, 384), np.float32)
+        sy = np.zeros((len(blob), 17, 512), np.float32)
+        for b, (px, py) in enumerate(self.peaks(blob)):
+            sx[b, :, px] = 1.0
+            sy[b, :, py] = 1.0
         return [sx, sy]
 
 
@@ -312,13 +323,75 @@ def test_pose_min_height_is_a_parameter_with_default_40(fake_pose):
     boxes = np.array([[10, 10, 40, 49], [10, 10, 40, 50]], float)  # heights 39 (skipped) and 40 (kept)
     out = pe(img, boxes)
     assert fake_pose.calls == 1 and out[0, :, 2].max() == 0 and out[1, :, 2].min() == 1.0
-    fake_pose.calls = 0
+    fake_pose.calls, fake_pose.batches = 0, []
     out = pe(img, boxes, min_height=0)
-    assert fake_pose.calls == 2
+    assert fake_pose.batches == [2]                      # both boxes reached the model, in one batch
     out = pe(img, np.array([[10, 10, 40, 400]], float), min_height=500)
-    assert (out == 0).all() and fake_pose.calls == 2
+    assert (out == 0).all() and fake_pose.batches == [2]
 
 
 def test_pose_no_boxes(fake_pose):
     out = pose.PoseEstimator()(np.zeros((48, 64, 3), np.uint8), np.zeros((0, 4)))
     assert out.shape == (0, 17, 3) and fake_pose.calls == 0
+
+
+class ContentPose(FakePose):
+    """Peaks depend on each crop's pixels, so a crop run in the wrong batch row would give a different keypoint."""
+
+    def peaks(self, blob):
+        return [(int(abs(float(b.sum())) * 7) % 380, int(abs(float(b.mean())) * 900) % 500) for b in blob]
+
+
+def _gradient_frame():
+    ys, xs = np.indices((480, 640))
+    return np.dstack([(xs * 0.4 + ys * 0.2) % 256, (xs * 0.1 + ys * 0.5) % 256, (xs + ys) % 256]).astype(np.uint8)
+
+
+def test_pose_runs_every_eligible_box_in_one_session_call(fake_pose):
+    pe = pose.PoseEstimator()
+    boxes = np.array([[100, 50, 200, 350], [300, 100, 380, 300], [10, 10, 40, 40], [400, 200, 500, 470],
+                      [50, 300, 120, 460]], float)       # the third is 30 px tall: gated out
+    out = pe(_gradient_frame(), boxes)
+    assert fake_pose.calls == 1 and fake_pose.batches == [4]
+    assert out.shape == (5, 17, 3) and (out[2] == 0).all()
+    for i in (0, 1, 3, 4):
+        np.testing.assert_allclose(out[i, :, 2], 1.0)
+        np.testing.assert_allclose(out[i, 0, :2], [(boxes[i, 0] + boxes[i, 2]) / 2, (boxes[i, 1] + boxes[i, 3]) / 2],
+                                   atol=1.0)
+
+
+def test_batched_pose_equals_the_per_box_results(monkeypatch):
+    sess = ContentPose()
+    monkeypatch.setattr(pose, "ensure_model", lambda name: Path(f"{name}.onnx"))
+    monkeypatch.setattr(R, "make_session", lambda path, threads=None: sess)
+    pe = pose.PoseEstimator()
+    frame = _gradient_frame()
+    boxes = np.array([[100, 50, 200, 350], [300, 100, 380, 300], [10, 10, 40, 40], [400, 200, 500, 470],
+                      [50, 300, 120, 460]], float)
+    out = pe(frame, boxes)
+    assert sess.batches == [4]
+    ref = ContentPose()
+    expected = np.zeros((5, 17, 3), np.float32)
+    for i, box in enumerate(boxes):                      # what the model did before batching: one box per run
+        if box[3] - box[1] < 40:
+            continue
+        blob, center, scale = R.rtmpose_preprocess(frame, box, (192, 256))
+        sx, sy = ref.run(None, {"input": blob})
+        k, c = R.rtmpose_decode(sx, sy, center, scale, (192, 256))
+        expected[i, :, :2], expected[i, :, 2] = k, c
+    assert ref.batches == [1, 1, 1, 1]
+    np.testing.assert_allclose(out, expected, atol=1e-5)
+    assert len({tuple(np.round(out[i, 0, :2], 1)) for i in (0, 1, 3, 4)}) == 4      # the rows really differ
+
+
+def test_pose_with_a_fixed_batch_model_runs_one_box_at_a_time(monkeypatch):
+    class Fixed(FakePose):
+        def get_inputs(self):
+            return [SimpleNamespace(name="input", shape=[1, 3, 256, 192])]
+
+    sess = Fixed()
+    monkeypatch.setattr(pose, "ensure_model", lambda name: Path(f"{name}.onnx"))
+    monkeypatch.setattr(R, "make_session", lambda path, threads=None: sess)
+    boxes = np.array([[100, 50, 200, 350], [300, 100, 380, 300], [400, 200, 500, 470]], float)
+    out = pose.PoseEstimator()(_gradient_frame(), boxes)
+    assert sess.batches == [1, 1, 1] and (out[..., 2] == 1.0).all()

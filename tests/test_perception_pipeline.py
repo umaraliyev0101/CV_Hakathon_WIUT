@@ -1,5 +1,6 @@
 """Perception pipeline: detect -> track -> pose -> embed over a video, the per-video cache, and the face blur
 helpers that make the saved track crops safe to show."""
+import inspect
 from pathlib import Path
 
 import cv2
@@ -8,7 +9,7 @@ import pytest
 
 from showroom_coach.perception import pipeline
 from showroom_coach.perception.pipeline import (
-    cached_perception, load_result, run_perception, save_result, video_key,
+    cached_perception, carry_keypoints, load_result, run_perception, save_result, video_key,
 )
 from showroom_coach.perception.stack import PerceptionStack, fake_stack
 from showroom_coach.render import blur_faces, face_region
@@ -204,6 +205,191 @@ def test_unreadable_input_raises_video_error(tmp_path):
         video_key(tmp_path / "missing.mp4", 5.0, 960, 300.0, "fake")
 
 
+# --------------------------------------------------------------------------- pose stride
+
+
+def _pose_logging_stack():
+    st = fake_stack()
+    seen = []
+    real = st.pose
+
+    def pose(frame, boxes):
+        seen.append(len(boxes))
+        return real(frame, boxes)
+
+    st.pose = pose
+    return st, seen
+
+
+def test_carry_keypoints_follows_the_box():
+    k = np.zeros((17, 3), np.float32)
+    k[0] = (150, 200, 0.8)
+    k[1] = (100, 100, 0.5)
+    out = carry_keypoints(k, (100, 100, 200, 300), (120, 100, 220, 260))      # moved right 20, 20% shorter
+    np.testing.assert_allclose(out[0], (170, 180, 0.8), atol=1e-4)            # x' = x1' + (x-x1) w'/w, conf kept
+    np.testing.assert_allclose(out[1], (120, 100, 0.5), atol=1e-4)
+    out = carry_keypoints(k, (100, 100, 200, 300), (100, 100, 150, 300))      # half as wide
+    np.testing.assert_allclose(out[0], (125, 200, 0.8), atol=1e-4)
+    assert k[0, 0] == 150                                                       # the input is not modified
+    assert np.array_equal(carry_keypoints(k, (5, 5, 5, 9), (0, 0, 10, 10)), k)   # degenerate old box: unchanged
+
+
+def test_pose_every_defaults_to_two():
+    assert inspect.signature(run_perception).parameters["pose_every"].default == 2
+
+
+def test_pose_stride_halves_pose_work(synth_video):
+    st1, seen1 = _pose_logging_stack()
+    every = run_perception(synth_video, st1, pose_every=1)
+    st2, seen2 = _pose_logging_stack()
+    strided = run_perception(synth_video, st2)
+    assert sum(seen1) == len(every.obs_track)                       # stride 1: every tracked box gets pose
+    assert 0.4 * sum(seen1) <= sum(seen2) <= 0.6 * sum(seen1)       # stride 2: about half
+    assert len(strided.obs_track) == len(every.obs_track)
+    assert (strided.obs_kpts[..., 2] > 0).all()                     # skipped frames still have keypoints
+
+
+def test_carried_keypoints_follow_a_moving_box(synth_video):
+    every = run_perception(synth_video, fake_stack(), pose_every=1)
+    strided = run_perception(synth_video, fake_stack(), pose_every=2)
+    # the fake skeleton is an affine function of its box, so a carry mapped by the box change must equal fresh pose,
+    # while an unmapped (stale) carry would be off by the red walker's ~27 px per frame
+    np.testing.assert_allclose(strided.obs_kpts, every.obs_kpts, atol=1e-2)
+    red = max(every.track_ids(), key=lambda i: np.ptp(every.obs_bbox[every.obs_idx(i), 0]))
+    assert np.ptp(every.obs_kpts[every.obs_idx(red), 0, 0]) > 300
+
+
+def test_each_track_gets_fresh_pose_on_its_first_frame_and_every_other_frame_after(synth_video):
+    calls = {"n": 0}
+    real = fake_stack().pose
+
+    def pose(frame, boxes):
+        calls["n"] += 1
+        out = real(frame, boxes)
+        out[..., 2] = 0.1 + 0.01 * calls["n"]                       # every call leaves its own confidence
+        return out
+
+    st = fake_stack()
+    st.pose = pose
+    res = run_perception(synth_video, st, pose_every=2)
+    for i in res.track_ids():
+        conf = res.obs_kpts[res.obs_idx(i), 0, 2]
+        assert np.array_equal(conf[1::2], conf[0:len(conf) - 1:2])      # odd observations carry the one before
+        assert np.all(conf[2::2] != conf[0:-2:2])                       # even ones are fresh
+        assert len(set(conf.tolist())) == (len(conf) + 1) // 2
+
+
+def test_pose_every_one_runs_pose_for_every_box_and_zero_is_rejected(synth_video):
+    st, seen = _pose_logging_stack()
+    res = run_perception(synth_video, st, pose_every=1)
+    assert sum(seen) == len(res.obs_track)
+    with pytest.raises(ValueError):
+        run_perception(synth_video, fake_stack(), pose_every=0)
+
+
+def test_boxes_too_small_for_pose_are_retried_every_frame(make_video, tmp_path):
+    path = make_video(tmp_path / "v.avi", seconds=1.2, fps=10, size=(320, 240), movers=[])
+    n = {"i": -1}
+    pose_frames = []
+
+    def detect(frame):
+        n["i"] += 1
+        return [Det((20.0, 20.0, 60.0, 50.0 + 4.0 * n["i"]), 0.9, 0)]        # 30, 34, 38 px tall, then 42, 46, ...
+
+    def pose(frame, boxes):
+        pose_frames.append(n["i"])
+        out = np.zeros((len(boxes), 17, 3), np.float32)
+        for k, b in enumerate(boxes):
+            if b[3] - b[1] >= 40:                                              # like PoseEstimator: tiny box -> zeros
+                out[k, :, 2] = 0.9
+        return out
+
+    res = run_perception(path, PerceptionStack("small", detect, pose, None), sample_fps=10.0)
+    (tid,) = res.track_ids()
+    conf = res.obs_kpts[res.obs_idx(tid), 0, 2]
+    assert (conf[:3] == 0).all() and np.allclose(conf[3:], 0.9)
+    assert pose_frames[:6] == [0, 1, 2, 3, 5, 7]       # retried while too small, then every second frame
+
+
+# --------------------------------------------------------------------------- only real tracks are described
+
+
+def _flicker_video_stack(make_video, tmp_path):
+    """30 frames at 10 fps. A: all frames. B: 2 frames. C: 4 frames (3 observations, 0.2 s). D: 13 frames (1.1 s)."""
+    path = make_video(tmp_path / "v.avi", seconds=3.0, fps=10, size=(640, 240), movers=[])
+    n = {"i": -1}
+
+    def detect(frame):
+        n["i"] += 1
+        i = n["i"]
+        out = [Det((20.0, 20.0, 80.0, 200.0), 0.9, 0)]
+        if 5 <= i <= 6:
+            out.append(Det((150.0, 20.0, 210.0, 200.0), 0.9, 0))
+        if 10 <= i <= 13:
+            out.append(Det((300.0, 20.0, 360.0, 200.0), 0.9, 0))
+        if 15 <= i <= 27:
+            out.append(Det((450.0, 20.0, 510.0, 200.0), 0.9, 0))
+        return out
+
+    return path, PerceptionStack("flicker", detect, None, None)
+
+
+def test_min_track_constants_match_the_analysis_filter():
+    from showroom_coach import config
+    assert config.MIN_TRACK_OBS == 3 and config.MIN_TRACK_S == 1.0
+
+
+def test_only_real_tracks_are_embedded_and_get_crops(make_video, tmp_path):
+    path, st = _flicker_video_stack(make_video, tmp_path)
+    res = run_perception(path, st, sample_fps=10.0, crops_dir=tmp_path / "crops")
+    ids = res.track_ids()
+    span = {i: float(np.ptp(res.frame_times[res.obs_frame[res.obs_idx(i)]])) for i in ids}
+    n_obs = {i: len(res.obs_idx(i)) for i in ids}
+    real = {i for i in ids if n_obs[i] >= 3 and span[i] >= 1.0}
+    assert len(ids) == 4 and len(real) == 2 and sorted(n_obs.values()) == [1, 3, 12, 30]
+    assert set(res.track_emb) == real and set(res.track_outfit) == real
+    assert {int(p.stem) for p in (tmp_path / "crops").glob("*.jpg")} == real
+    # the short tracks are still in the observations and their raw boxes are kept for face blurring
+    assert set(res.obs_track.tolist()) == set(ids) and len(res.raw_frame) == 30 + 2 + 4 + 13
+
+
+def test_real_track_boundary_is_three_observations_and_one_second(make_video, tmp_path):
+    path = make_video(tmp_path / "v.avi", seconds=3.0, fps=10, size=(320, 240), movers=[])
+    n = {"i": -1}
+
+    def detect(frame):
+        n["i"] += 1
+        i = n["i"]
+        out = []
+        if 0 <= i <= 10:                                  # 11 sightings, 11 obs from frame 0: span exactly 1.0 s
+            out.append(Det((20.0, 20.0, 80.0, 200.0), 0.9, 0))
+        if 15 <= i <= 25:                                 # born later: first sighting is unconfirmed, 10 obs, 0.9 s
+            out.append(Det((200.0, 20.0, 260.0, 200.0), 0.9, 0))
+        return out
+
+    res = run_perception(path, PerceptionStack("edge", detect, None, None), sample_fps=10.0)
+    a, b = res.track_ids()
+    assert len(res.obs_idx(a)) == 11 and len(res.obs_idx(b)) == 10
+    assert float(np.ptp(res.frame_times[res.obs_frame[res.obs_idx(a)]])) == pytest.approx(1.0)
+    assert float(np.ptp(res.frame_times[res.obs_frame[res.obs_idx(b)]])) == pytest.approx(0.9)
+    assert set(res.track_emb) == {a}
+
+
+def test_no_real_track_means_no_embedder_call(make_video, tmp_path):
+    path = make_video(tmp_path / "v.avi", seconds=1.0, fps=10, size=(320, 240), movers=[])
+    n = {"i": -1}
+
+    def detect(frame):
+        n["i"] += 1
+        return [Det((20.0, 20.0, 80.0, 200.0), 0.9, 0)] if n["i"] in (2, 3) else []
+
+    embedded = []
+    st = PerceptionStack("none", detect, None, lambda crops: embedded.append(len(crops)) or np.zeros((len(crops), 4)))
+    res = run_perception(path, st, sample_fps=10.0, crops_dir=tmp_path / "crops")
+    assert res.track_ids() and res.track_emb == {} and embedded == []
+    assert not list((tmp_path / "crops").glob("*.jpg"))
+
+
 # --------------------------------------------------------------------------- crops are face-blurred
 
 
@@ -355,5 +541,8 @@ def test_real_stack_tracks_people_for_five_seconds_in_a_meva_clip():
     assert ids, "no person was tracked in the first 10 s"
     spans = [float(np.ptp(res.frame_times[res.obs_frame[res.obs_idx(i)]])) for i in ids]
     assert max(spans) >= 5.0, f"longest track spans only {max(spans):.1f} s"
-    assert set(res.track_emb) == set(ids) and res.track_emb[ids[0]].shape == (384 + 128,)
+    real = [i for i in ids if len(res.obs_idx(i)) >= 3 and
+            float(np.ptp(res.frame_times[res.obs_frame[res.obs_idx(i)]])) >= 1.0]
+    assert real and set(res.track_emb) == set(real) == set(res.track_outfit)     # flicker tracks are not described
+    assert all(res.track_emb[i].shape == (384 + 128,) for i in real)
     assert (res.obs_kpts[..., 2] > 0).any()
