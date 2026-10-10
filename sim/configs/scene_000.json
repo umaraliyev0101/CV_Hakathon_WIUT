@@ -1,0 +1,182 @@
+{
+ "scene_id": "s000",
+ "seed": 0,
+ "scenario": "greet_fast",
+ "duration_s": 20.0,
+ "fps_scene": 30,
+ "frame_step": 3,
+ "lighting": "day",
+ "room": {
+  "width_m": 20.0,
+  "depth_m": 14.0,
+  "height_m": 5.0,
+  "wall_thickness_m": 0.2
+ },
+ "entrance": {
+  "wall": "south",
+  "center_x_m": 7.5,
+  "width_m": 2.4,
+  "height_m": 2.6
+ },
+ "cars": [
+  {
+   "id": 1,
+   "center_m": [
+    5.6,
+    4.4
+   ],
+   "length_m": 4.5,
+   "width_m": 1.85,
+   "height_m": 1.45,
+   "yaw_deg": -45.0,
+   "paint": [
+    0.55,
+    0.03,
+    0.03
+   ]
+  },
+  {
+   "id": 2,
+   "center_m": [
+    12.0,
+    9.5
+   ],
+   "length_m": 4.7,
+   "width_m": 1.9,
+   "height_m": 1.5,
+   "yaw_deg": 0.0,
+   "paint": [
+    0.05,
+    0.12,
+    0.35
+   ]
+  },
+  {
+   "id": 3,
+   "center_m": [
+    15.0,
+    3.5
+   ],
+   "length_m": 4.4,
+   "width_m": 1.8,
+   "height_m": 1.42,
+   "yaw_deg": 90.0,
+   "paint": [
+    0.75,
+    0.75,
+    0.78
+   ]
+  }
+ ],
+ "zone_apron_m": 1.2,
+ "desk": {
+  "center_m": [
+   0.95,
+   6.3
+  ],
+  "length_m": 1.6,
+  "width_m": 0.7,
+  "height_m": 0.75,
+  "yaw_deg": 0.0
+ },
+ "camera": {
+  "id": 1,
+  "position_m": [
+   0.5,
+   0.5,
+   3.0
+  ],
+  "yaw_deg": 45.0,
+  "pitch_deg": -35.0,
+  "hfov_deg": 74.0,
+  "width_px": 1280,
+  "height_px": 720
+ },
+ "navigation": {
+  "body_radius_m": 0.3,
+  "clearance_m": 0.25,
+  "accel_mps2": 1.0,
+  "decel_mps2": 1.5,
+  "turn_rate_dps": 180.0
+ },
+ "uniform": {
+  "top": [
+   0.03,
+   0.03,
+   0.04
+  ],
+  "vest": [
+   0.7,
+   0.02,
+   0.02
+  ],
+  "trousers": [
+   0.04,
+   0.04,
+   0.05
+  ]
+ },
+ "persons": [
+  {
+   "id": 1,
+   "role": "staff",
+   "height_m": 1.78,
+   "outfit": "uniform",
+   "hard_negative": false,
+   "spawn_m": [
+    1.5,
+    5.35
+   ],
+   "spawn_yaw_deg": 110.0,
+   "present_at_start": true,
+   "enter_t": 0.0,
+   "speed_mps": [
+    1.2,
+    1.4
+   ]
+  },
+  {
+   "id": 2,
+   "role": "customer",
+   "height_m": 1.7,
+   "outfit": "casual",
+   "hard_negative": false,
+   "colors": {
+    "top": [
+     0.1,
+     0.3,
+     0.65
+    ],
+    "trousers": [
+     0.2,
+     0.17,
+     0.12
+    ]
+   },
+   "spawn_m": [
+    7.5,
+    0.45
+   ],
+   "spawn_yaw_deg": 140.0,
+   "present_at_start": false,
+   "enter_t": 0.0,
+   "speed_mps": [
+    1.15,
+    1.35
+   ]
+  }
+ ],
+ "script": {
+  "customer": 2,
+  "staff": 1,
+  "customer_target_m": [
+   3.9,
+   3.4
+  ],
+  "customer_look_at": "car_1",
+  "staff_start_walk_t": 3.0,
+  "staff_stop_dist_m": 1.1,
+  "staff_approach_angles_deg": 15.0,
+  "min_talk_s": 6.0
+ }
+}
