@@ -1,6 +1,7 @@
 """Synthetic pinhole people and scripted timelines for tests."""
 import math
 import numpy as np
+from showroom_coach.events import PersonState
 from showroom_coach.geometry import Camera
 
 # (height fraction of H, lateral metres (+ = person's left), forward metres) in COCO order
@@ -51,3 +52,25 @@ def project_person(cam: Camera, x: float, z: float, facing=(0.0, -1.0), H: float
 def unit(deg: float):
     """Floor direction from an angle in degrees: 0° = +X (image right), 90° = +Z (away from camera)."""
     return (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
+
+
+def script(duration: float, dt: float, people: dict):
+    """people: pid -> dict(role=..., pos=f(t)->(x,z)|None, facing=f(t)->vec|None, edge=f(t)->bool)."""
+    tl = []
+    for i in range(int(round(duration / dt)) + 1):
+        t = round(i * dt, 6)
+        states = []
+        for pid, p in people.items():
+            xz = p["pos"](t)
+            if xz is None:
+                continue
+            fac = p.get("facing")
+            edge = p.get("edge")
+            states.append(PersonState(pid, tuple(xz), p.get("role", "customer"),
+                                      fac(t) if fac else None, bool(edge(t)) if edge else False))
+        tl.append((t, states))
+    return tl
+
+
+def when(t0, t1, xz):
+    return lambda t: xz if t0 <= t <= t1 else None
