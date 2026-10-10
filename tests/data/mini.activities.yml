@@ -1,0 +1,10 @@
+# Excerpt adapted from MEVA (CC BY 4.0, Kitware/IARPA)
+# clip 2018-03-13.15-50-00.15-55-00.school.G421; the id2 7 and id2 99 lines are invented to cover an "other" actor and key order
+- {'act': {'act2': {'person_exits_scene_through_structure': 1.0}, 'actors': [{'id1': 43, 'timespan': [{'tsr0': [1577, 1654]}]}], 'id2': 19, 'src_status': 'good', 'timespan': [{'tsr0': [1577, 1654]}]}}
+- {'act': {'act2': {'person_enters_scene_through_structure': 1.0}, 'actors': [{'id1': 66, 'timespan': [{'tsr0': [3736, 3799]}]}], 'id2': 28, 'src_status': 'good', 'timespan': [{'tsr0': [3736, 3799]}]}}
+- { meta: "not an activity record" }
+- {'act': {'act2': {'person_talks_to_person': 1.0}, 'actors': [{'id1': 108, 'timespan': [{'tsr0': [6809, 9000]}]}, {'id1': 106, 'timespan': [{'tsr0': [6745, 9000]}]}, {'id1': 107, 'timespan': [{'tsr0': [6745, 9000]}]}], 'id2': 64, 'src_status': 'good', 'timespan': [{'tsr0': [6745, 9000]}]}}
+- {'act': {'act2': {'person_picks_up_object': 1.0}, 'actors': [{'id1': 107, 'timespan': [{'tsr0': [273, 288]}]}, {'id1': 8, 'timespan': [{'tsr0': [273, 288]}]}], 'id2': 7, 'src_status': 'good', 'timespan': [{'tsr0': [273, 288]}]}}
+- {'act': {'id2': 99, 'src_status': 'good', 'timespan': [{'tsr0': [100, 120]}], 'actors': [{'timespan': [{'tsr0': [101, 119]}], 'id1': 66}], 'act2': {'person_opens_facility_door': 1.0}}}
+- {'act': {'act2': {'person_talks_to_person': 1.0}, 'actors': [{'id1': 5, 'timespan': [{'tsr0': [5445, 
+this line is not a record at all

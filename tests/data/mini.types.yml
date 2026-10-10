@@ -1,0 +1,11 @@
+# Excerpt adapted from MEVA (CC BY 4.0, Kitware/IARPA)
+# clip 2018-03-13.15-50-00.15-55-00.school.G421; the id1 70 line is invented to cover key order and several classes
+- {'types': {'cset3': {'other': 1.0}, 'id1': 8}}
+- {'types': {'cset3': {'person': 1.0}, 'id1': 43}}
+- {'types': {'cset3': {'person': 1.0}, 'id1': 66}}
+- {'types': {'cset3': {'person': 1.0}, 'id1': 106}}
+- {'types': {'cset3': {'person': 1.0}, 'id1': 107}}
+- {'types': {'cset3': {'person': 1.0}, 'id1': 108}}
+- {'types': {'id1': 70, 'cset3': {'person': 0.4, 'vehicle': 0.6}}}
+- { meta: "not a types record" }
+- {'types': {'cset3': {'person': 1.0}}}

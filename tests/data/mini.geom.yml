@@ -1,0 +1,21 @@
+# Excerpt adapted from MEVA (CC BY 4.0, Kitware/IARPA)
+# clip 2018-03-13.15-50-00.15-55-00.school.G421; one malformed record of each kind is added on purpose
+- {'geom': {'g0': '1177 396 1263 521', 'id0': 33, 'id1': 8, 'keyframe': True, 'ts0': 273}}
+- {'geom': {'g0': '1177 398 1263 523', 'id0': 34, 'id1': 8, 'keyframe': False, 'ts0': 274}}
+- { meta: "not a geom record" }
+- {'geom': {'g0': '844 155 947 401', 'id0': 66413, 'id1': 43, 'keyframe': True, 'ts0': 1577}}
+- {'geom': {'g0': '846 155 950 400', 'id0': 66414, 'id1': 43, 'keyframe': False, 'ts0': 1578}}
+- {'geom': {'g0': '777 113 867 319', 'id0': 65665, 'id1': 66, 'keyframe': True, 'ts0': 3736}}
+- {'geom': {'g0': '774 113 865 319', 'id0': 65666, 'id1': 66, 'keyframe': False, 'ts0': 3737}}
+- {'geom': {'g0': '1433 255 1570 587', 'id0': 25003, 'id1': 106, 'keyframe': True, 'ts0': 6745}}
+- {'geom': {'g0': '1433 255 1570 587', 'id0': 25004, 'id1': 106, 'keyframe': False, 'ts0': 6746}}
+- {'geom': {'g0': '1460 254 1578 580', 'id0': 25067, 'id1': 106, 'keyframe': False, 'ts0': 6809}}
+- {'geom': {'g0': 'x y z w', 'id0': 25068, 'id1': 106, 'keyframe': False, 'ts0': 6810}}
+- {'geom': {'g0': '1248 231 1380 492', 'id0': 27259, 'id1': 107, 'keyframe': True, 'ts0': 6745}}
+- {'geom': {'g0': '1248 231 1380 492', 'id0': 27260, 'id1': 107, 'keyframe': False, 'ts0': 6746}}
+- {'geom': {'g0': '1222 213 1333 485', 'id0': 27323, 'id1': 107, 'keyframe': False, 'ts0': 6809}}
+- {'geom': {'ts0': 6810, 'keyframe': False, 'id1': 107, 'id0': 27324, 'g0': '1222 213 1333 485'}}
+- {'geom': {'g0': '1407 262 1550 671', 'id0': 22811, 'id1': 108, 'keyframe': True, 'ts0': 6809}}
+- {'geom': {'g0': '1400 262 1547 670', 'id0': 22812, 'id1': 108, 'keyframe': False, 'ts0': 6810}}
+- {'geom': {'g0': '1400 262 1547
+this line is not a record at all
