@@ -68,6 +68,12 @@ def _cmd_bench_detectors(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_webcam_check(args: argparse.Namespace) -> int:
+    from .webcam import webcam_check
+
+    return webcam_check(out=args.out)
+
+
 class _Progress:
     """Progress callback for a long stage: one stderr line each time another 10% is done."""
 
@@ -301,6 +307,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", help="result JSON (default runs/bench/detectors.json)")
     p.set_defaults(handler=_cmd_bench_detectors)
 
+    p = sub.add_parser("webcam-check",
+                       help="grab one real webcam frame (saved blurred) and run the live engine on it once")
+    p.add_argument("--out", help="where to save the blurred copy (default runs/webcam_grab.jpg)")
+    p.set_defaults(handler=_cmd_webcam_check)
     from .config import MAX_SECONDS, PRESETS, SAMPLE_FPS
 
     p = sub.add_parser("analyze",

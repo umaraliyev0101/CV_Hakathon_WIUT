@@ -1,0 +1,79 @@
+/* Showroom Coach: live camera page. Loaded after style.css and uses its tokens (blue = staff, orange = customer,
+   red = needs attention, everything else neutral). */
+
+.live__head { display: flex; justify-content: space-between; align-items: end; gap: 1.5rem 2rem; flex-wrap: wrap; }
+.live__lede { margin-top: 0.4rem; }
+.live__demo { margin-top: 0.4rem; display: inline-block; padding: 0.1rem 0.7rem; border: 1px dashed var(--ink-3); border-radius: 999px; font-size: 0.86rem; font-weight: 600; color: var(--ink-2); }
+.live__controls { display: flex; align-items: end; gap: 0.9rem; flex-wrap: wrap; }
+.live__controls .field { min-width: 0; }
+.live__controls select { min-width: 15rem; min-height: 3rem; }
+.live__controls .btn--lg { min-width: 10.5rem; }
+.btn--stop { background: var(--alert); border-color: var(--alert); color: #fff; }
+.btn--stop:hover { background: #A52716; border-color: #A52716; }
+
+.live__grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(19rem, 1fr); gap: 1rem; align-items: start; }
+.live__main, .live__side { display: grid; gap: 1rem; min-width: 0; align-content: start; }
+
+/* the picture */
+.live__stage { aspect-ratio: auto; min-height: 14rem; }
+.live__stage canvas { width: 100%; height: auto; max-height: 72vh; object-fit: contain; background: #11161D; cursor: default; }
+.live__stage canvas.is-over-person { cursor: pointer; }
+.live__stage canvas.is-stale { filter: brightness(0.55) saturate(0.4); }
+.live__video { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; overflow: hidden; }
+.live__msg { position: absolute; inset: 0; z-index: 2; align-content: center; margin: auto; max-width: none; background: rgba(17, 22, 29, 0.82); }
+.live__msg[hidden] { display: none; }
+.live__msg p { max-width: 34rem; }
+.live__msg.is-problem strong { color: #FFB4A8; }
+
+.live__chip { position: absolute; left: 0.7rem; top: 0.7rem; z-index: 3; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.75rem 0.2rem 0.6rem; border-radius: 999px; background: rgba(17, 22, 29, 0.82); color: #fff; font-size: 0.86rem; font-weight: 650; }
+.live__chip i { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #8A97A8; flex: none; }
+.live__chip[data-state="live"] i { background: #fff; animation: pulse 1.6s ease-in-out infinite; }
+.live__chip[data-state="connecting"] i { background: #C3CBD5; animation: pulse 1s ease-in-out infinite; }
+.live__chip[data-state="reconnecting"] i, .live__chip[data-state="problem"] i { background: #FF6B58; animation: pulse 0.9s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+.live__hud { position: absolute; right: 0.7rem; top: 0.7rem; z-index: 3; display: flex; gap: 0.9rem; padding: 0.2rem 0.75rem; border-radius: 999px; background: rgba(17, 22, 29, 0.82); color: #fff; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.live__hud b { font-family: var(--display); font-size: 1rem; }
+
+.live__legend { padding-inline: 0.2rem; }
+.live__line { display: inline-block; width: 1.5rem; height: 0; border-top: 3px solid var(--ink); border-radius: 2px; }
+.live__timer { display: inline-block; font-style: normal; font-size: 0.74rem; font-weight: 700; color: var(--ink); background: var(--cust); padding: 0 0.35rem; border-radius: 3px; }
+
+/* people buttons */
+.live__people { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+.live__empty { color: var(--ink-3); font-size: 0.93rem; }
+.pchip { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.35rem; padding: 0.2rem 0.85rem 0.2rem 0.6rem; border-radius: 999px; border: 2px solid var(--role, var(--cust)); background: var(--panel); color: var(--ink); font-weight: 650; font-size: 0.93rem; cursor: pointer; }
+.pchip:hover { background: var(--panel-2); }
+.pchip::before { content: ""; width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--role, var(--cust)); flex: none; }
+.pchip--staff { --role: var(--staff); }
+.pchip--customer { --role: var(--cust); }
+.pchip small { font-weight: 500; color: var(--ink-3); font-size: 0.8rem; }
+
+/* alerts and the event feed */
+.live__alerts li:not(.alerts__empty) { padding: 0.45rem 0.65rem; border: 1px solid var(--line); border-left: 5px solid var(--alert); border-radius: var(--radius); font-size: 0.92rem; line-height: 1.35; overflow-wrap: anywhere; }
+.live__feed { display: grid; gap: 0.3rem; max-height: 22rem; overflow: auto; margin-inline: -0.3rem; padding: 0.15rem 0.3rem; }
+.live__feed li:not(.alerts__empty) { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 0.6rem; padding: 0.3rem 0.55rem; border-left: 4px solid var(--line-strong); background: var(--panel-2); border-radius: 0 var(--radius) var(--radius) 0; font-size: 0.9rem; line-height: 1.35; }
+.live__feed li.is-alert { border-left-color: var(--alert); background: var(--alert-tint); }
+.live__feed li.is-note { border-left-style: dashed; color: var(--ink-3); }
+.live__feed .feed__t { font-family: var(--display); font-weight: 650; font-size: 1rem; }
+.live__feed .feed__text { overflow-wrap: anywhere; }
+
+#liveScorecard .table-wrap { margin-inline: -0.3rem; }
+#liveScorecard table { font-size: 0.88rem; }
+#liveScorecard th, #liveScorecard td { padding: 0.45rem 0.5rem; }
+#liveScorecard td.num { font-size: 1rem; }
+
+.toast[hidden] { display: none; }
+
+@media (max-width: 1100px) {
+  .live__grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .live__controls { width: 100%; }
+  .live__controls select { min-width: 0; width: 100%; }
+  .live__controls .field { flex: 1 1 12rem; }
+  .live__hud { top: auto; bottom: 0.7rem; right: 0.7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live__chip i { animation: none !important; }
+}
