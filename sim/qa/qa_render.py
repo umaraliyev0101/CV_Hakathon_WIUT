@@ -57,14 +57,27 @@ def run(clip_dir, qa):
             x1, y1, x2, y2 = p["box_xyxy"]
             if not (0 <= x1 < x2 <= W and 0 <= y1 < y2 <= H):
                 fails.append(f"t={fr['t']}: person {p['id']} box {p['box_xyxy']} outside image")
-    # track continuity: no gap > max_track_gap_frames while the person is well visible around it
+    # track continuity: fail on a gap > max_track_gap_frames during which the person was well
+    # visible (visible_frac = mask px / in-image solo px > track_gap_visible_frac, with an in-image
+    # silhouette of at least min_mask_px), i.e. a label dropout. Gaps while the person is out of the
+    # image or occluded are legitimate.
+    min_px = qa["labels"]["min_mask_px"]
     for pers in gt["persons"]:
-        seen = [next((p for p in fr["people"] if p["id"] == pers["id"]), None) for fr in gt["frames"]]
-        idx = [i for i, p in enumerate(seen) if p is not None]
-        for a, b in zip(idx[:-1], idx[1:]):
-            gap = b - a - 1
-            if gap > q["max_track_gap_frames"] and min(seen[a]["visible_frac"], seen[b]["visible_frac"]) > q["track_gap_visible_frac"]:
-                fails.append(f"person {pers['id']}: track gap of {gap} frames ({a}->{b}) while visible_frac > {q['track_gap_visible_frac']}")
+        col = tuple(pers["mask_rgb"])
+        seen = [any(p["id"] == pers["id"] for p in fr["people"]) for fr in gt["frames"]]
+        run = 0
+        for k, s_ in enumerate(seen):
+            vis_gap = False
+            if not s_:
+                solo = labels.read_png_rgb(clip_dir / "solo" / f"p{pers['id']}" / f"{k:04d}.png")
+                full = int(np.all(solo == np.asarray(col, np.uint8), axis=-1).sum())
+                if full >= min_px:
+                    mk = labels.read_png_rgb(clip_dir / "mask" / f"{k:04d}.png")
+                    vis_gap = labels.visible_frac(mk, solo, col) > q["track_gap_visible_frac"]
+            run = run + 1 if vis_gap else 0
+            if run == q["max_track_gap_frames"] + 1:
+                fails.append(f"person {pers['id']}: unlabelled for > {q['max_track_gap_frames']} frames "
+                             f"(ending frame {k}) while visible_frac > {q['track_gap_visible_frac']}")
     n = len(gt["frames"]) or 1
     for pers in gt["persons"]:
         seen = sum(any(p["id"] == pers["id"] for p in fr["people"]) for fr in gt["frames"])

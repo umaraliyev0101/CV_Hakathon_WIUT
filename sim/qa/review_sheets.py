@@ -62,6 +62,31 @@ def make(clip, out):
             mid = len(best) // 2
             for k, p in best[mid - 3: mid + 3]:
                 tile(frames[k], p["box_xyxy"], f"WALK f{k} #{pers['id']}", pad=0.6)
+    # in-place turns (stepped turn clips): 6 consecutive output frames around the longest turn
+    import json
+    tl_path = clip.resolve().parents[1] / "scenes" / gt["scene_id"] / "timeline.json"
+    if not tl_path.exists():
+        tl_path = Path(__file__).resolve().parents[2] / "data" / "synthetic" / "scenes" / gt["scene_id"] / "timeline.json"
+    tl = json.loads(tl_path.read_text())
+    for pers in gt["persons"]:
+        st = tl["agents"][str(pers["id"])]["frames"]
+        turn = [k for k, fr in enumerate(gt["frames"]) if st[fr["scene_frame"]]["anim_clip"].startswith("turn")]
+        runs, cur_r = [], []
+        for k in turn:
+            if cur_r and k != cur_r[-1] + 1:
+                runs.append(cur_r)
+                cur_r = []
+            cur_r.append(k)
+        if cur_r:
+            runs.append(cur_r)
+        if not runs:
+            continue
+        r = max(runs, key=len)
+        ks = list(range(max(0, r[0] - 1), min(n, r[0] + 5)))
+        for k in ks:
+            p = next((q for q in gt["frames"][k]["people"] if q["id"] == pers["id"]), None)
+            if p is not None:
+                tile(frames[k], p["box_xyxy"], f"TURN f{k} #{pers['id']} {st[gt['frames'][k]['scene_frame']]['anim_clip']}", pad=0.6)
     rows, cur, x = [], np.zeros((H, W, 3), np.uint8), 0
     for t in tiles:
         if x + t.shape[1] > W:
