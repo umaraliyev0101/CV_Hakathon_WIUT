@@ -7,3 +7,6 @@ deck/build/shots/
 deck/build/qa/
 deck/build/qa.html
 deck/build/deck.html
+
+# browser-automation scratch (Playwright MCP snapshots)
+.playwright-mcp/
