@@ -10,6 +10,7 @@ Conventions: images are BGR uint8 (OpenCV); boxes are xyxy in source-image pixel
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -26,12 +27,24 @@ IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], np.float32)  # RGB order
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], np.float32)
 
 
+def providers() -> list[str]:
+    """onnxruntime providers: CPU, or CUDA first when ORT_DEVICE=cuda and onnxruntime-gpu is installed.
+
+    Operators the CUDA provider lacks (e.g. in the int8 DINOv2 export) run on the CPU provider."""
+    if os.environ.get("ORT_DEVICE", "").strip().lower() == "cuda":
+        if hasattr(ort, "preload_dlls"):
+            ort.preload_dlls()  # CUDA/cuDNN from the nvidia-* pip wheels
+        if "CUDAExecutionProvider" in ort.get_available_providers():
+            return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    return ["CPUExecutionProvider"]
+
+
 def make_session(path: Path, threads: int | None = None) -> ort.InferenceSession:
-    """CPU-only onnxruntime session; `threads` intra-op threads (default 4)."""
+    """onnxruntime session (CPU unless ORT_DEVICE=cuda, see `providers`); `threads` intra-op threads (default 4)."""
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = threads or 4
     opts.log_severity_level = 3  # errors only: the exports carry harmless unused-initializer notes
-    return ort.InferenceSession(str(path), sess_options=opts, providers=["CPUExecutionProvider"])
+    return ort.InferenceSession(str(path), sess_options=opts, providers=providers())
 
 
 # --------------------------------------------------------------------------- NMS

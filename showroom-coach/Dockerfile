@@ -33,6 +33,12 @@ WORKDIR /app
 COPY . /app
 RUN pip install --no-cache-dir .
 
+# ORT_GPU=1 (deploy/docker-compose.yml): swap in onnxruntime-gpu with its CUDA/cuDNN pip wheels; the app uses it
+# when ORT_DEVICE=cuda and a GPU is passed in, else it stays on the CPU provider.
+ARG ORT_GPU=0
+RUN if [ "$ORT_GPU" = 1 ]; then pip uninstall -y onnxruntime \
+    && pip install --no-cache-dir "onnxruntime-gpu[cuda,cudnn]==1.23.2"; fi
+
 # Model weights (permissive licences, sha256-pinned in the registry): fetched at build time, not shipped in the repo.
 RUN showroom-coach fetch-models yolox_nano rtmpose_s dinov2_small
 
