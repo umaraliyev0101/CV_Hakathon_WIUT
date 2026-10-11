@@ -1033,3 +1033,14 @@ def test_main_oracle_flag_reaches_eval_clip_and_marks_the_output(csv_and_split, 
                     str(tmp_path / "plain.json")]) == 0
     assert all(kw["oracle"] is False for kw in seen)
     assert json.loads((tmp_path / "plain.json").read_text(encoding="utf-8"))["mode"] == "system"
+
+
+def test_a_clip_listed_in_both_dev_and_test_is_rejected(csv_and_split, tmp_path, monkeypatch, capsys):
+    clips, split = csv_and_split
+    split.write_text(json.dumps({"dev": ["c1.G1", "c2.G2"], "test": ["c2.G2", "c3.G3"]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="both dev and test.*c2.G2"):
+        me.select_clips(me.read_clips(clips), "test", split)
+    monkeypatch.setattr(me, "eval_clip", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(me, "_default_stack", lambda: "STACK")
+    assert me.main(["--clips", str(clips), "--split", "test", "--split-file", str(split), "--out", str(tmp_path / "o.json")]) == 2
+    assert "both dev and test" in capsys.readouterr().err

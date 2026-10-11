@@ -746,6 +746,9 @@ def _load_split(path: Path) -> dict:
     if not (isinstance(data, dict) and all(isinstance(data.get(k), list) and all(isinstance(n, str) for n in data[k])
                                            for k in ("dev", "test"))):
         raise ValueError(f"split file {path} must be a JSON object with 'dev' and 'test' lists of clip names")
+    both = sorted(set(data["dev"]) & set(data["test"]))
+    if both:
+        raise ValueError(f"split file {path} lists clips in both dev and test: {both}")
     return data
 
 

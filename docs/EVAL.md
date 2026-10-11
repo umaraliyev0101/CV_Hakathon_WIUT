@@ -5,13 +5,14 @@ Everything here was measured on one i5-10210U laptop (8 logical CPUs, 16 GB, no 
 
 **Bottom line.** The pipeline does not reach the engagement target on MEVA. On the four held-out test clips it finds
 **1.1% of the ground-truth talks** (twin-aware; 0.5% strict) against a target of 70%, and it matches only 17.6% of the
-annotated person boxes at all. Arrival and leaving timing is good when the person is followed (median error 0.8 s) but the
-recall is 20.6% (2.9% strict). Staff suggestion and greet time could not be evaluated because there is no labelled showroom footage.
-With the ground-truth boxes in place of the detections (the oracle ablation) the same engagement rule reaches
-44.1% talk recall (twin-aware; 32.3% strict) on test, so the detector accounts for most of the gap, but the rule alone is also under the target.
-File mode ran at 0.98x real time on a 60 s clip with about 11 people and 0.71x on a 5 min clip with about 12, and
-live mode at 0.9 to 3.9 fps, all with other work on the machine; the idle-machine speed benchmark is still to come (see
-"Speed (idle machine)").
+annotated person boxes at all. Where an actor is followed, arrival and leaving are timed closely (median absolute error
+0.8 s over the 7 matched events, window 5 s), but the recall is 20.6% (2.9% strict). Staff suggestion and greet time could
+not be evaluated because there is no labelled showroom footage. With the ground-truth boxes in place of the detections
+(the oracle ablation) the same engagement rule reaches 44.1% talk recall (twin-aware; 32.3% strict) on test, so detection and tracking account for
+most of the gap, but the rule alone is also under the target at the settings tested on test. On a near-idle machine file
+mode runs at 1.07x real time on a 60 s clip at 960 px and 0.87x on a 12-person 720p clip, live mode at 3.61 fps in process
+and 4.45 fps end to end over the WebSocket (3.8 people per frame), and a 60 s upload reaches the confirm step in 60.3 s.
+The test clips were used more than once; see "Test-set exposure".
 
 ## Data
 
@@ -56,9 +57,8 @@ machine that was shared with other work:
 
 The split was written to `data/meva/split.json` on 2026-10-11 **before any tuning** and has not changed. It is roughly
 40% dev (3 clips) and 60% test (4 clips), and the test set contains two cameras that never appear in dev (G423 and
-G421), so the test result is not only "the same camera on another day". Dev clips are used for tuning only; test clips
-were measured once with the settings chosen on dev (plus one comparison run with the untuned settings, reported below,
-and the three oracle-ablation runs described in its own section).
+G421), so the test result is not only "the same camera on another day". Dev clips are used for tuning only. The test clips
+were scored with fixed settings (five runs in all, and some earlier use); "Test-set exposure" lists everything.
 
 ```json
 {
@@ -77,6 +77,9 @@ and the three oracle-ablation runs described in its own section).
   ]
 }
 ```
+
+The `note` field is the file's original text from before tuning and is left as written; its "measured once" understates how
+the test clips were used, which "Test-set exposure" lists.
 
 ### No showroom footage
 
@@ -145,7 +148,9 @@ the first or last second of the clip are not scored. `recall_tracked` again coun
 ground truth once, then scores the grid merge_thr in {0.20, 0.30, 0.40, 0.50} x dist in {1.5, 2.0, 2.5, 3.0} m x
 min_dur in {2, 4, 6, 8} s (gap tolerance fixed at 1.5 s), pooled over the dev clips. The choice maximises the
 twin-aware talk F1, the harmonic mean of `recall_all` and `precision_mapped`; ties are broken by the persons' IDF1, then
-by the settings nearest the untuned defaults. The test clips are never opened by the tuner. The chosen `dist` and
+by the settings nearest the untuned defaults. The tuner works on the cached perception only, so anything that changes the detections is not tuned: the detector score
+threshold (the original plan had 0.3 and 0.4 in the grid) would need a new perception run of the dev clips for every value,
+about 15 minutes of CPU per value here, and was dropped. The test clips are never opened by the tuner. The chosen `dist` and
 `min_dur` are settings of this evaluation's roles-ignored pair detector; they do **not** change the product presets,
 which are fixed by the owner (`short`: engagement within 2.0 m for 8 s). The chosen `merge_thr` would replace the
 product default only if, at the chosen `dist` and `min_dur`, it beat 0.30 on twin-aware talk F1 or persons IDF1 without
@@ -195,12 +200,12 @@ What the grid says:
   `min_dur` is within noise. Larger `dist` finds more intervals and more false ones; larger `min_dur` trades recall
   for precision. No setting comes near the 70% target.
 * **merge_thr 0.20 has a better IDF1 (21.5% against 19.8%) but fragments the people (116, 76 and 64 persons in the three
-  clips against 59, 42 and 46) and ties on talk F1 (6.45% against 6.51%, one detection).** By the rule above it does not
-  beat 0.30, so the product default stays at **0.30**; `analysis.py` is unchanged. 0.40 and 0.50 are worse on both.
+  clips against 59, 42 and 46) and ties on talk F1: both match 10 of the 243 intervals, and the 0.07-point gap (6.45% against 6.51%) comes only
+  from 67 against 64 mapped detections.** By the rule above it does not beat 0.30, so the product default stays at **0.30**; `analysis.py` is unchanged. 0.40 and 0.50 are worse on both.
 * The enter/exit recall of 14.7% at 0.20 against 2.9% at the others is an artefact of fragmentation (more persons mean
   more presence boundaries to match), not a better identity model; it is not part of the selection.
 
-### Test (4 clips, measured once)
+### Test (4 clips; exposure listed below)
 
 Settings: `short` preset, dist 2.5 m, min_dur 8 s, gap tolerance 1.5 s, merge_thr 0.30, first 150 s of each clip
 (`runs/eval/meva_test.json`). 3000 sampled frames and 54 162 annotated person boxes.
@@ -254,8 +259,9 @@ How to read it:
   percentages to carry more than "very low": each of the 4 matches is a quarter of the result.
 * The strict and twin-aware columns differ in what they credit, not in the detections: the same 128 intervals of ours are
   scored. The start-time errors (16.2 s strict, 4.6 s twin-aware) are medians of 2 and 4 matches.
-* Arrival and leaving is timed well when the person is followed: median error 0.8 s, and 7 of the 9 events of actors we
-  followed fall within 5 s. Overall recall is 20.6% twin-aware and 2.9% strict (one event). Both G330 clips (one dev, one test)
+* Where an actor is followed, arrival and leaving are timed closely: the median absolute error is 0.8 s over the 7
+  matched events, and 7 of the 9 events of followed actors fall within the 5 s window (the other 2 do not). Overall
+  recall is 20.6% (7 of 34) twin-aware and 2.9% (1 of 34) strict. Both G330 clips (one dev, one test)
   have no enter/exit events at all.
 
 **Untuned settings on the same test clips**, for comparison (`runs/eval/meva_test_default.json`; tracking and
@@ -296,6 +302,24 @@ were chosen on, so they are optimistic):
 
 Per-clip tables for test and dev are in the appendix.
 
+**Test-set exposure.** The test clips were not untouched, and "measured once" would overstate it. Everything that was done
+with them:
+
+* *Before the split existed* (`data/meva/split.json` was written at 06:50 on 2026-10-11): `runs/eval/meva_smoke.json`
+  (06:45) scored the first 60 s of the G421 clip, now a test clip, with the default settings (strict 1 of 21 talk pair
+  intervals, twin-aware 2 of 21). The twin-aware id mapping and the twin clusters were developed in that period with that
+  G421 clip in view, so the twin-aware rule is not independent of the test data.
+* *G421 and G423 for other work.* A G421 cut (`meva_b_60s`, 180 to 240 s) was used for smoke tests, live-mode runs and the
+  duplicate-id bug work, and the full 5 min G421 clip for a file-mode speed run (0.71x). G423, also a test clip, was used
+  for the live-mode speed runs (from 123 s, and the 20 s cut used by `bench`). None of the speed runs used labels.
+* *Clip selection.* The seven clips were chosen for their annotated talk counts before the split, so the annotation counts
+  of all of them, test clips included, were known.
+* *After the split:* five scored runs on the test clips with fixed settings: system at 2.5 m / 8 s (chosen on dev) and at
+  2.0 m / 8 s (untuned), and the oracle ablation at 2.5 m / 8 s, 2.0 m / 8 s and 1.5 m / 6 s (the last picked on dev
+  only). The full per-clip test tables were printed and read when they were written.
+* No threshold, rule or setting of the evaluation was chosen or changed because of a test result. The pre-split G421 use is
+  the main place where the test data could have influenced a design choice of the evaluation, through the twin-aware mapping.
+
 ## Ablation: oracle tracks (perfect detection and tracking)
 
 **Why.** The system result is dominated by detection (17.6% of the annotated boxes are matched), so it cannot say
@@ -332,14 +356,14 @@ tracker or identity-merge miss.
 Talk results with oracle tracks, per setting (twin-aware is the headline; strict also counts twin annotations of one
 person as different people, so it is lower):
 
-| pair-detector settings | split | strict recall_all | twin-aware recall_all | twin-aware precision_mapped | median start error (twin-aware) | pair intervals detected |
-|---|---|---|---|---|---|---|
-| dist 2.5 m, min_dur 8 s (chosen on dev for the system) | dev | 34.9% (94/269) | **52.3%** (127/243) | 28.0% (127/453) | 0.1 s | 453 |
-| dist 2.5 m, min_dur 8 s (chosen on dev for the system) | test | 32.3% (126/390) | **44.1%** (158/358) | 26.0% (158/608) | 0.1 s | 608 |
-| dist 2.0 m, min_dur 8 s (untuned reference) | dev | 32.0% (86/269) | **46.1%** (112/243) | 32.7% (112/343) | 0.1 s | 343 |
-| dist 2.0 m, min_dur 8 s (untuned reference) | test | 27.4% (107/390) | **37.2%** (133/358) | 30.0% (133/444) | 0.1 s | 444 |
-| dist 1.5 m, min_dur 6 s (chosen on dev with oracle tracks) | dev | 32.7% (88/269) | **46.5%** (113/243) | 41.5% (113/272) | 0.1 s | 272 |
-| dist 1.5 m, min_dur 6 s (chosen on dev with oracle tracks) | test | 24.4% (95/390) | **31.8%** (114/358) | 33.1% (114/344) | 0.1 s | 344 |
+| pair-detector settings | split | strict recall_all | twin-aware recall_all | twin-aware precision_mapped | pair intervals detected |
+|---|---|---|---|---|---|
+| dist 2.5 m, min_dur 8 s (chosen on dev for the system) | dev | 34.9% (94/269) | **52.3%** (127/243) | 28.0% (127/453) | 453 |
+| dist 2.5 m, min_dur 8 s (chosen on dev for the system) | test | 32.3% (126/390) | **44.1%** (158/358) | 26.0% (158/608) | 608 |
+| dist 2.0 m, min_dur 8 s (untuned reference) | dev | 32.0% (86/269) | **46.1%** (112/243) | 32.7% (112/343) | 343 |
+| dist 2.0 m, min_dur 8 s (untuned reference) | test | 27.4% (107/390) | **37.2%** (133/358) | 30.0% (133/444) | 444 |
+| dist 1.5 m, min_dur 6 s (chosen on dev with oracle tracks) | dev | 32.7% (88/269) | **46.5%** (113/243) | 41.5% (113/272) | 272 |
+| dist 1.5 m, min_dur 6 s (chosen on dev with oracle tracks) | test | 24.4% (95/390) | **31.8%** (114/358) | 33.1% (114/344) | 344 |
 
 The dev grid with oracle tracks (`runs/eval/tune_dev_oracle.json`; the F1 pick is in bold):
 
@@ -382,10 +406,13 @@ Enter and exit with oracle tracks:
 **Reading.**
 
 * Perfect detection and tracking lift test talk recall from 1.1% to 44.1% (twin-aware; strict
-  0.5% to 32.3%) at the same settings. So most of the system's shortfall is detection and tracking.
-* The engagement logic alone is **still under the 70% target**: 44.1% on test and 52.3% on dev at 2.5 m and
+  0.5% to 32.3%) at the same settings. So most of the system's shortfall is detection and tracking, not the rule.
+* The engagement logic alone is **still under the 70% target at the settings run on test**: 44.1% on test and 52.3% on dev at 2.5 m and
   8 s, with a precision of 26.0% (about three of four proximity intervals it finds on annotated people are not
-  annotated talks). Once a pair is found its start time is accurate (median 0.1 s).
+  annotated talks). The oracle's start-time error (median 0.1 s) and enter/exit timing say nothing about the system: the
+  oracle boxes exist only during the annotated spans, so a pair's start and an actor's arrival coincide with the annotation
+  by construction (the same circularity as the enter/exit recall below), and those columns are left out of the oracle talk
+  table.
 * On the dev grid recall rises with `dist` and falls with `min_dur`. 70% is reached only at 2.5 m or 3.0 m with a minimum
   of 4 s or less (four of the 16 settings), and then the precision is 13% to 22%. The F1 pick (1.5 m, 6 s) is a precision-
   oriented setting: dev recall 46.5% with a precision of 41.5%, test recall 31.8% with a precision of 33.1%. The settings were not chosen for
@@ -407,13 +434,14 @@ Enter and exit with oracle tracks:
 * *Actor ids are not people.* MEVA gives a person a new actor id per annotated activity and the oracle cannot link them
   (persons found per clip are in the table above, far more than there are people in the scene). The twin collapse only
   joins ids whose boxes coincide at the same time.
-* *Three looks at test.* The two prescribed settings and the dev-picked one were each run once on test; the headline is
-  the system's pre-chosen 2.5 m / 8 s.
+* *Test exposure.* The oracle was run three times on test (2.5 m / 8 s, 2.0 m / 8 s, 1.5 m / 6 s), after two system runs:
+  five scored runs on test in all, none used to choose a setting. The headline is the system's pre-chosen 2.5 m / 8 s.
+  See "Test-set exposure".
 
 ## Speed
 
-Measured earlier in the project with the machine shared with other work (other agents' test and perception runs), so
-these are lower bounds on what an idle machine does, not benchmark figures.
+The first two blocks were measured earlier in the project with the machine shared with other work (other agents' test
+and perception runs) and are not benchmark figures; the "idle machine" section below is the later, near-idle measurement.
 
 **File mode** (from `PROGRESS.md`, M2 and M3 summaries; wall clock, i5-10210U, other work was loading the CPU during
 some runs; 5 fps sampling, at most 960 px wide):
@@ -446,20 +474,38 @@ run and 1.75 in another (`runs/live_file_client_run.txt`, `runs/live_file_client
 
 Measured during final verification; see PROGRESS.md Morning summary.
 
+These numbers were measured by the controller on a near-idle machine (07:30 to 07:42, logs in `runs/verify/`; one clip
+was run while another agent was working, marked below). The commands are `showroom-coach bench`,
+`showroom-coach analyze`, `scripts/live_file_client.py` against the server started by `run.bat`, and `scripts/smoke_api.py`.
+
+| measurement | clip | people | result |
+|---|---|---|---|
+| `bench`, file mode (fresh run, no cache) | `meva_a_60s_720p.mp4`, 720p, 60 s | 12.0 per frame | perception 68.9 s, **real-time factor 0.87x** (decode 2.6, detect 13.9, track 1.3, pose 20.0, embed 31.1 s); render 13.8 s (4.3x real time) |
+| `analyze`, fresh cache | `meva_a_60s`, 960 px, 60 s | 31 persons found | perception 56.2 s, **real-time factor 1.07x** |
+| `analyze`, fresh cache | `meva_b_60s`, 60 s | 33 persons found | perception 106.4 s, **real-time factor 0.56x**; another agent was running then, so possibly contended |
+| `bench`, live mode, in process | `meva_g423_20s.mp4`, 100 frames | 3.8 per frame (min 3, max 7) | **3.61 fps** mean, 3.39 median (277 ms mean, p95 486 ms); embedding 14.5 s of 27.7 s |
+| real `/ws/live` through `live_file_client.py` (server from `run.bat`) | same clip, 100 frames | 3.8 per frame (min 3, max 6) | **end-to-end 4.45 fps**, round trip 5.21 fps (192 ms mean) |
+| web smoke, `run.bat` + `smoke_api.py --budget 180` | `meva_a_60s` | | upload to needs_confirm **60.3 s (budget met)**, roles round trip 0.14 s, video ready 12.2 s later |
+
+The in-process and WebSocket live figures are on the same clip but are different measurements: the first times
+`LiveSession.process` alone, the second counts the whole round trip of a frame (the server's own mean of 7.90 fps is an
+average of per-frame rates and is not comparable). The two straddle the 4 fps target.
+
 (The command that produces these figures is `showroom-coach bench`; see "Reproduce".)
 
 ## Targets vs measured
 
 | Target (design spec, section 6) | Measured | Status |
 |---|---|---|
-| Talk / engagement recall >= 70% on MEVA | **System:** 1.1% test twin-aware (4 of 358), 0.5% strict (2 of 390); 13.3% when both actors are followed; dev 4.1%. **Oracle tracks (perfect detection and tracking):** 44.1% test twin-aware, 32.3% strict; dev 52.3% | ❌ missed, with and without perfect tracking |
+| Talk / engagement recall >= 70% on MEVA | **System:** 1.1% test twin-aware (4 of 358), 0.5% strict (2 of 390); 13.3% when both actors are followed; dev 4.1%. **Oracle tracks (perfect detection and tracking):** 44.1% test twin-aware, 32.3% strict at 2.5 m / 8 s; dev 52.3%. A recall-first setting reaches 79% to 80% on the oracle dev grid (3.0 m, 2 to 4 s) at 13% to 18% precision; it was not run on test | ❌ missed, with and without perfect tracking |
 | Staff suggestion >= 80% correct | not measurable: no labelled showroom data | not measured |
 | Greet-time median error <= 2 s | not measurable: no labelled showroom data | not measured |
-| File mode >= 1x real time | 0.98x on a 60 s clip with about 11 people, 0.71x on a 5 min clip with about 12 people, both with other work on the machine; idle-machine benchmark pending | ❌ missed in the measured conditions |
-| Live mode >= 4 fps | 0.9 to 3.9 fps over all recorded runs, with other work on the machine (3.5 fps at best on frames with 1 to 4 people; 3.9 fps server-reported on one 15-people run); idle-machine benchmark pending | ❌ missed in the measured conditions |
+| File mode >= 1x real time | 1.07x on the 60 s 960 px clip `meva_a_60s` (31 persons); 0.87x on the 12-person 720p cut of it; 0.56x on a 14-person 60 s clip (`meva_b_60s`, possibly contended). Earlier, with other work on the machine: 0.98x and 0.71x (5 min, 12 people) | ✅ on one clip, ❌ on the other two |
+| Live mode >= 4 fps (1 to 4 people) | On the 3.8-person clip: 4.45 fps end to end over the real WebSocket, 3.61 fps in the in-process bench. Earlier, with other work on the machine, 0.9 to 3.9 fps over all runs with retained logs (3.5 fps at best on frames with 1 to 4 people) | borderline: ✅ over the WebSocket, ❌ in process |
+| Upload to results in under 3 minutes (spec section 12) | 60.3 s from upload to the confirm step for the 60 s clip `meva_a_60s` (roles round trip 0.14 s, annotated video 12.2 s later) | ✅ met |
 
 Other measured values, with no target: tracking IDF1 13.5% (persons) and 15.5% (raw tracks), MOTA -27.4% and -28.1% on
-test; enter/exit recall 20.6% twin-aware (2.9% strict) with a median timing error of 0.8 s.
+test; enter/exit recall 20.6% twin-aware (2.9% strict) with a median absolute timing error of 0.8 s over the 7 matched events.
 
 ## Limitations
 
@@ -479,20 +525,21 @@ test; enter/exit recall 20.6% twin-aware (2.9% strict) with a median timing erro
   from 75 to 414 raw tracks per clip; there are several hundred ID switches per set. Pair intervals break when either
   person's id changes.
 * **Detector recall.** `yolox_nano@2` was chosen in the M0 benchmark for speed within 5 points of the best recall; its
-  recall on annotated people is 17.6% on test and 26.9% on dev, which is where most of the missed talks come from: with
-  ground-truth boxes instead of detections the same rule finds 44.1% (see the oracle ablation). The
-  best candidate of that benchmark, `yolox_s@2`, reached 30.9% recall at about ten times the time per frame and was not
-  run on the full evaluation.
+  recall on annotated people is 17.6% on test and 26.9% on dev, and detection and tracking together account for most of the
+  missed talks: with ground-truth boxes instead of detections the same rule finds 44.1% (see the oracle ablation). The
+  best candidate of that benchmark, `yolox_s@2`, reached 31.0% recall (404 of 1303 boxes) at about ten times the time per
+  frame and was not run on the full evaluation.
 * **150 s per clip, 7 clips.** Only the first 150 s of each 5 min clip are scored, and only 4 test clips (358 twin-aware
   talk pair intervals, 34 enter/exit events). The confidence interval on a rate like 4 of 358 is wide, and the dev
   tuning differences are within noise. Enter/exit events in the first or last second are skipped.
-* **Single run, no failure analysis.** The test clips were scored once per setting and not inspected afterwards to find
-  out why pairs were missed, to keep them untouched; the reasons above (detection recall, fragmentation, groups,
+* **Fixed settings, no failure analysis.** Each setting was run once on the test clips (five scored runs in all, see "Test-set
+  exposure") and the clips were not inspected afterwards to find out why pairs were missed; the reasons above (detection recall, fragmentation, groups,
   threshold choice) are measured only in aggregate.
 * **Geometry is uncalibrated.** Distances use a pinhole guess (70 degrees, 1.70 m people). Its accuracy on real footage
   is unmeasured; only synthetic people were checked (within 0.1%).
-* **CPU contention.** Perception and speed numbers were produced while other processes used the machine. They are not
-  idle-machine figures (see "Speed (idle machine)").
+* **CPU contention.** The perception timings of the cache runs and the earlier speed numbers were produced while other
+  processes used the machine; the "Speed (idle machine)" figures are near-idle, and one of them is marked as possibly
+  contended.
 * **Showroom parts unevaluated.** Staff suggestion, clicks per clip, greet time and walk-outs have no data here.
 
 ## Reproduce
@@ -600,6 +647,9 @@ twin-aware:
 | **Total** | 243 | 64 / 137 | 10 | 4.1% | 34.5% | 15.6% | 3.4 s | 34 | 2.9% | 50.0% | 1.2 s |
 
 ### Oracle tracks, test clips (dist 2.5 m, min_dur 8 s)
+
+The start-error and enter/exit timing columns of the oracle tables are circular (ground-truth boxes exist only while an
+actor is annotated) and say nothing about the system.
 
 | clip | MOTA tracks | IDF1 tracks | ID sw. | MOTA persons | IDF1 persons | ID sw. | precision | recall | GT boxes with a twin |
 |---|---|---|---|---|---|---|---|---|---|
