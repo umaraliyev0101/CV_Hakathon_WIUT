@@ -305,26 +305,36 @@ def rfdetr_output_names(session) -> list[str]:
     return names[:2]
 
 
+# Our fine-tuned RF-DETR (class_names=["person"]) numbers its classes from 0 with no background column, unlike
+# the COCO head: column 0 is person. Measured on the exported head (labels [1,300,2]): people score in column 0.
+FINETUNED_PERSON_MAP = np.array([0], dtype=np.int64)
+
+
 def rfdetr_postprocess(boxes: np.ndarray, logits: np.ndarray, orig_hw: tuple[int, int],
-                       score_thr: float, num_select: int = 300):
+                       score_thr: float, num_select: int = 300, class_map: np.ndarray | None = None):
     """Decode RF-DETR outputs: boxes [1,Q,4] normalised cx,cy,w,h and logits [1,Q,C].
 
-    Sigmoid scores; the background column (index 0) is never selected; the top `num_select`
-    (query, class) pairs above `score_thr` are returned as
+    Sigmoid scores; the top `num_select` (query, class) pairs above `score_thr` are returned as
     (boxes (K,4) xyxy in source pixels, scores (K,), cls (K,) COCO-80 index).
+    `class_map=None`: a COCO head (91 category-id columns, column 0 unused). Otherwise `class_map[i]` is the
+    COCO-80 index of head column i (-1 = drop), e.g. `FINETUNED_PERSON_MAP` for our person-only head.
     """
     logits = np.asarray(logits, dtype=np.float32)
     nclass = logits.shape[-1]
     probs = 1.0 / (1.0 + np.exp(-logits.reshape(-1, nclass)))
-    probs[:, 0] = -1.0
+    if class_map is None:
+        probs[:, 0] = -1.0
     flat = probs.ravel()
     k = min(num_select, flat.size)
     top = np.argpartition(flat, -k)[-k:]
     top = top[np.argsort(-flat[top])]
     query, label = top // nclass, top % nclass
-    in_range = label < len(_COCO91_TO_80)  # heads with extra classes: never alias them onto a COCO class
-    cls = np.where(in_range, _COCO91_TO_80[np.minimum(label, len(_COCO91_TO_80) - 1)], -1)
-    keep = (flat[top] > score_thr) & (label > 0) & (cls >= 0)
+    table = _COCO91_TO_80 if class_map is None else np.asarray(class_map)
+    in_range = label < len(table)  # heads with extra classes: never alias them onto a COCO class
+    cls = np.where(in_range, table[np.minimum(label, len(table) - 1)], -1)
+    keep = (flat[top] > score_thr) & (cls >= 0)
+    if class_map is None:
+        keep &= label > 0
 
     b = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)[query[keep]]
     wh = np.clip(b[:, 2:4], 0.0, None)

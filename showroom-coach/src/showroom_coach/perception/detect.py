@@ -76,7 +76,8 @@ class Detector:
             return R.yolox_postprocess(out, self.input_hw, ratio, self.score_thr, self.nms_thr)
         blob = R.rfdetr_preprocess(img, self.input_hw)
         raw_boxes, logits = self.session.run(self._out_names, {self.input_name: blob})
-        return R.rfdetr_postprocess(raw_boxes, logits, (h, w), self.score_thr)
+        class_map = R.FINETUNED_PERSON_MAP if self.name == FINETUNED_DETECTOR else None
+        return R.rfdetr_postprocess(raw_boxes, logits, (h, w), self.score_thr, class_map=class_map)
 
     def __call__(self, frame_bgr: np.ndarray) -> list[Det]:
         h, w = frame_bgr.shape[:2]

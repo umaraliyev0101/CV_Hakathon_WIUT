@@ -187,3 +187,32 @@ def test_real_onnx_runs_through_rfdetr_ft(monkeypatch):
     assert d.input_hw == (384, 384) and d._out_names == ["dets", "labels"]
     assert d.spec == f"rfdetr_ft-{models.short_sha256(REAL_FT)}@2"
     assert isinstance(d.persons(np.zeros((240, 320, 3), np.uint8)), list)
+
+
+# --- our real fine-tuned head: person is column 0 (class_names=["person"]), not COCO id 1 -------------------------
+
+def test_finetuned_map_reads_column_zero_as_person():
+    boxes = np.array([[[0.5, 0.5, 0.2, 0.4], [0.2, 0.2, 0.1, 0.1]]], np.float32)
+    logits = np.array([[[4.0, -6.0], [-6.0, -6.0]]], np.float32)          # query 0: column 0 sure, column 1 not
+    xyxy, scores, cls = R.rfdetr_postprocess(boxes, logits, (100, 200), 0.5, class_map=R.FINETUNED_PERSON_MAP)
+    assert len(scores) == 1 and cls.tolist() == [0]
+    assert np.allclose(xyxy[0], [80, 30, 120, 70])
+    # the COCO decoding of the same head would drop it (column 0 is COCO's unused slot): the bug this guards
+    assert len(R.rfdetr_postprocess(boxes, logits, (100, 200), 0.5)[1]) == 0
+
+
+_FT = Path(__file__).resolve().parents[2] / "models" / "showroom_detector_ft.onnx"
+
+
+@pytest.mark.skipif(not _FT.is_file(), reason="fine-tuned weights not present (models/ is gitignored)")
+def test_real_finetuned_weights_find_people(monkeypatch):
+    monkeypatch.setenv("SHOWROOM_RFDETR_FT", str(_FT))
+    clip = Path(__file__).resolve().parents[2] / "deploy" / "demo" / "s004_handoff_cam1_evening_dim.mp4"
+    if not clip.is_file():
+        pytest.skip("demo clip not present")
+    import cv2
+    cap = cv2.VideoCapture(str(clip))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 300)
+    ok, frame = cap.read()
+    assert ok
+    assert len(detect.Detector("rfdetr_ft").persons(frame)) >= 2      # three people are in this frame
