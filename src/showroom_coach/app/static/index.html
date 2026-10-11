@@ -182,9 +182,15 @@
         </div>
         <button type="button" class="btn" id="btnChange">Change roles</button>
         <nav class="exports" id="exports" aria-label="Downloads"></nav>
+        <div class="exports" id="salesTools" role="group" aria-label="Sales CSV (optional)">
+          <button type="button" class="btn btn--quiet" id="btnSales">Add sales CSV (optional)</button>
+          <button type="button" class="btn btn--quiet" id="btnSalesClear" hidden>Remove</button>
+          <input type="file" id="salesFile" accept=".csv,text/csv" hidden>
+        </div>
       </div>
     </div>
     <ul class="badges" id="resWarn"></ul>
+    <p class="muted" id="salesNote" role="status" hidden></p>
 
     <div class="empty-state" id="nobody" hidden>
       <h3 class="empty-state__title">Nobody was detected</h3>

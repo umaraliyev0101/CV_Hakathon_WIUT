@@ -19,6 +19,10 @@ exports and the timeline at once and draws the annotated video in a background t
 render revision and writes `annotated-<rev>.mp4`, a new name each time, because a browser on Windows keeps the file it
 is playing open and an open file cannot be replaced there. A newer call supersedes an older render still in flight
 (it stops at its next progress report), and only the latest revision may mark the video ready.
+
+An optional sales CSV (`set_sales`, spec 4.7) is kept on the job as parsed rows and joined to the scorecard whenever
+the results are read or the exports are written (`metrics.sales_conversion`), so it follows every re-score by name.
+It changes only the numbers of the scorecard, never the video, so it triggers no render.
 """
 
 from __future__ import annotations
@@ -37,6 +41,7 @@ from typing import TYPE_CHECKING, Callable
 from .. import config
 from ..analysis import Analysis, analyze, rescore
 from ..export import results_dict, write_all
+from ..metrics import sales_conversion, unmatched_sales
 from ..perception import pipeline
 from ..render import contact_sheets, render_video, save_thumbnails, timeline_png
 from ..sources import VideoError, probe
@@ -57,6 +62,7 @@ CONFIRMED_OR_LATER = ("needs_confirm", "rendering", "done")
 INCOMING_PREFIX = ".incoming-"               # uploads being received, before they become a job
 MAX_FILENAME_CHARS = 200
 CLOSE_TIMEOUT_S = 15.0
+MAX_UNMATCHED_LISTED = 50                    # salespeople of a sales CSV reported as "not matched", at most
 _JOB_ID = re.compile(r"[0-9a-f]{12}")
 # Files a client may fetch from a job directory; anything else (the upload, the cache, partial files) is not served.
 _FILES = re.compile(r"(annotated(-\d+)?\.mp4|timeline\.png|results\.json|events\.csv|scorecard\.csv"
@@ -99,6 +105,8 @@ class Job:
     an: Analysis | None = field(default=None, repr=False)
     thumbs: dict[int, str] = field(default_factory=dict, repr=False)
     rev: int = 0                         # render revision; bumped by every set_roles
+    sales: list[dict] | None = field(default=None, repr=False)   # rows of the optional sales CSV (set_sales)
+    sales_skipped: int = 0               # rows of that CSV that were invalid
     video_file: str | None = None        # the latest ready annotated video
     lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
     render_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -265,8 +273,28 @@ class JobManager:
         self._spawn(self._render, job, rev, an, name=f"render-{job.id}-{rev}")
         return an
 
+    def set_sales(self, job_id: str, rows: list[dict], skipped: int = 0) -> None:
+        """Keep these sales rows (`metrics.parse_sales_csv`, replacing any earlier ones) and rewrite the exports with
+        the sold and conversion columns. KeyError for an unknown job, JobConflict before `needs_confirm`."""
+        job = self.get(job_id)
+        with job.lock:
+            an = self._analysis_of(job)
+            job.sales, job.sales_skipped = [dict(r) for r in rows], int(skipped)
+            self._write_tables(job, an)
+
+    def clear_sales(self, job_id: str) -> None:
+        """Forget the sales rows; the scorecard goes back to blank sold and conversion. Does nothing if there are none."""
+        job = self.get(job_id)
+        with job.lock:
+            an = self._analysis_of(job)
+            had = job.sales is not None
+            job.sales, job.sales_skipped = None, 0
+            if had:
+                self._write_tables(job, an)
+
     def results(self, job_id: str) -> dict:
-        """The results object of the web API: the analysis plus video status, URLs and every warning."""
+        """The results object of the web API: the analysis plus video status, URLs and every warning (and, once a sales
+        CSV was added, its `sold`/`conversion` numbers and a `sales` summary)."""
         job = self.get(job_id)
         with job.lock:
             an = self._analysis_of(job)
@@ -278,7 +306,9 @@ class JobManager:
                 "export": {"json": self._url(job, "results.json"), "events_csv": self._url(job, "events.csv"),
                            "scorecard_csv": self._url(job, "scorecard.csv")},
                 "warnings": self._warnings(job, an),
+                **self._sales_extra(job, an),
             }
+            an = self._with_sales(job, an)
         return results_dict(an, extra)
 
     def file(self, job_id: str, name: str) -> Path:
@@ -315,8 +345,31 @@ class JobManager:
     def _warnings(job: Job, an: Analysis) -> list[str]:
         return list(an.warnings) + [w for w in job.warnings if w not in an.warnings]
 
+    @staticmethod
+    def _with_sales(job: Job, an: Analysis) -> Analysis:
+        """`an` with the sales CSV joined to its scorecard (the stored analysis never holds sales numbers)."""
+        with job.lock:
+            if job.sales is None:
+                return an
+            return dataclasses.replace(an, scorecard=sales_conversion(an.scorecard, job.sales, an.names))
+
+    @staticmethod
+    def _sales_extra(job: Job, an: Analysis) -> dict:
+        """``{"sales": {"rows", "unmatched", "skipped"}}`` once a sales CSV was added, else ``{}``."""
+        with job.lock:
+            if job.sales is None:
+                return {}
+            unmatched = unmatched_sales(an.scorecard, job.sales, an.names)[:MAX_UNMATCHED_LISTED]
+            return {"sales": {"rows": len(job.sales), "unmatched": unmatched, "skipped": job.sales_skipped}}
+
+    def _write_tables(self, job: Job, an: Analysis) -> None:
+        """results.json, events.csv and scorecard.csv (with the sales numbers, if any)."""
+        with job.lock:
+            extra = {"warnings": self._warnings(job, an), **self._sales_extra(job, an)}
+            write_all(self._with_sales(job, an), job.dir, extra=extra)
+
     def _write_exports(self, job: Job, an: Analysis) -> None:
-        write_all(an, job.dir, extra={"warnings": self._warnings(job, an)})
+        self._write_tables(job, an)
         timeline_png(an, job.dir / "timeline.png")
 
     def _spawn(self, target, *args, name: str) -> None:

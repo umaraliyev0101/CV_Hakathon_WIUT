@@ -9,6 +9,9 @@
     GET  /api/jobs/{id}/people           confirm-view people; 409 before needs_confirm
     POST /api/jobs/{id}/roles            {"roles", "names", "preset"} -> results (instant re-score, video re-rendered)
     GET  /api/jobs/{id}/results          results; 409 before needs_confirm
+    POST /api/jobs/{id}/sales            multipart `file` = sales CSV (salesperson,timestamp,sold; <= 1 MB) -> results
+                                         with sold/conversion per salesperson; 400 / 409 / 411 / 413 / 415
+    DELETE /api/jobs/{id}/sales          forget the sales CSV -> results; 409 before needs_confirm
     GET  /api/jobs/{id}/files/{name}     whitelisted outputs (HTTP Range supported, so the video can seek)
     WS   /ws/live?preset=short           live camera protocol (live_ws.serve_live)
 
@@ -17,7 +20,7 @@ Content-Length, or sent with chunked Transfer-Encoding, is refused with 411 (bro
 h11 never delivers more body than declared), and a declared length over 1 GB (plus 1 MiB of multipart framing) with
 413. Starlette then parses the multipart body, spooling the file part to a temporary file (bounded by that length), so
 the file type (415) and the preset (400) are checked only after the body has arrived, but before anything is kept in
-the jobs directory. The file is copied there in 1 MB chunks with the 1 GB cap counted again, under an ASCII name
+the jobs directory. The optional sales CSV (at most 1 MB) is read into memory the same way and kept only as parsed rows. The file is copied there in 1 MB chunks with the 1 GB cap counted again, under an ASCII name
 (`<id>/upload<ext>`), never under the client's file name. Job directories older than 24 h are deleted when the app
 starts.
 """
@@ -39,6 +42,7 @@ from starlette.datastructures import UploadFile
 from .. import config
 from ..live import LiveSession
 from ..live_ws import serve_live
+from ..metrics import SalesCsvError, parse_sales_csv
 from ..perception.stack import PerceptionStack, default_stack
 from ..types import to_jsonable
 from .jobs import ALLOWED_EXTENSIONS, JobConflict, JobManager, upload_extension
@@ -51,6 +55,9 @@ STATIC_DIR = Path(__file__).with_name("static")
 MAX_UPLOAD_BYTES = 1 << 30            # 1 GB; read at request time
 MULTIPART_SLACK = 1 << 20             # form fields and boundaries on top of the file itself
 CHUNK = 1 << 20
+MAX_SALES_BYTES = 1 << 20             # a sales CSV; read at request time
+SALES_EXTENSIONS = (".csv", ".txt")
+SALES_TYPES = ("text/csv", "application/csv", "application/vnd.ms-excel", "text/plain")   # browsers differ on Windows
 MAX_NAME_CHARS = 40
 ROLES = ("staff", "customer")
 NO_STORE = {"Cache-Control": "no-store"}
@@ -232,6 +239,49 @@ def create_app(stack_factory: Callable[[], PerceptionStack] | None = None, jobs_
     def job_results(job_id: str):
         _job_or_404(job_id)
         try:
+            return manager.results(job_id)
+        except JobConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.post("/api/jobs/{job_id}/sales")
+    async def job_sales(job_id: str, request: Request):
+        _job_or_404(job_id)
+        limit = MAX_SALES_BYTES
+        length = request.headers.get("content-length", "").strip()
+        if "chunked" in request.headers.get("transfer-encoding", "").lower() or not length.isdigit():
+            raise HTTPException(411, "The upload must declare its size (Content-Length); chunked uploads are refused.")
+        if int(length) > limit + MULTIPART_SLACK:
+            raise HTTPException(413, "The sales CSV is larger than 1 MB.")
+        async with request.form(max_files=1, max_fields=10) as form:
+            upload = form.get("file")
+            if not isinstance(upload, UploadFile):
+                raise HTTPException(400, "No file was sent (form field 'file').")
+            kind = (upload.content_type or "").split(";")[0].strip().lower()
+            if not ((upload.filename or "").lower().endswith(SALES_EXTENSIONS) or kind in SALES_TYPES):
+                raise HTTPException(415, "Unsupported file type. Use a CSV file (salesperson,timestamp,sold).")
+            data = await upload.read(limit + 1)
+        if len(data) > limit:
+            raise HTTPException(413, "The sales CSV is larger than 1 MB.")
+        try:
+            rows = parse_sales_csv(data.decode("utf-8-sig"))
+        except UnicodeDecodeError:
+            raise HTTPException(400, "The sales CSV must be UTF-8 text. In Excel use Save As > CSV UTF-8.") from None
+        except SalesCsvError as exc:
+            raise HTTPException(400, f"Sales CSV: {exc}") from None
+
+        def store() -> dict:
+            manager.set_sales(job_id, rows, rows.skipped)
+            return manager.results(job_id)
+        try:
+            return await run_in_threadpool(store)
+        except JobConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.delete("/api/jobs/{job_id}/sales")
+    def job_sales_clear(job_id: str):
+        _job_or_404(job_id)
+        try:
+            manager.clear_sales(job_id)
             return manager.results(job_id)
         except JobConflict as exc:
             raise HTTPException(409, str(exc)) from None

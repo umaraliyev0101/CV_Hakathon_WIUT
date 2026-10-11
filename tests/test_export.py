@@ -136,7 +136,7 @@ def test_scorecard_csv_columns_and_store_row(tmp_path):
     with open(path, newline="", encoding="utf-8-sig") as f:
         header = next(csv.reader(f))
     assert header == ["staff", "name", "greets", "median_time_to_greet", "customers_engaged", "engaged_total_s",
-                      "engaged_median_s", "missed_while_free", "walkouts_while_free",
+                      "engaged_median_s", "missed_while_free", "walkouts_while_free", "sold", "conversion",
                       "customers", "greeted", "greet_rate", "walkouts", "unattended_wait_s", "wait_alerts"]
     rows = _rows(path)
     assert len(rows) == 2
@@ -146,13 +146,26 @@ def test_scorecard_csv_columns_and_store_row(tmp_path):
     assert float(staff["engaged_total_s"]) == pytest.approx(21.0) and float(staff["median_time_to_greet"]) == 5.0
     assert staff["walkouts_while_free"] == "1" and staff["missed_while_free"] == "0"
     assert all(staff[c] == "" for c in ("customers", "greeted", "greet_rate", "walkouts", "unattended_wait_s", "wait_alerts"))
+    assert staff["sold"] == "" and staff["conversion"] == ""                      # blank without a sales CSV
     assert (store["staff"], store["name"]) == ("STORE", "")
     assert (store["customers"], store["greeted"], store["walkouts"], store["wait_alerts"]) == ("2", "1", "1", "1")
     assert float(store["greet_rate"]) == pytest.approx(s.greet_rate, abs=1e-3)
     assert float(store["unattended_wait_s"]) == pytest.approx(s.unattended_wait_s, abs=1e-3)
     assert store["greets"] == "1" and float(store["median_time_to_greet"]) == 5.0       # the two shared meanings
     assert all(store[c] == "" for c in ("customers_engaged", "engaged_total_s", "engaged_median_s",
-                                        "missed_while_free", "walkouts_while_free"))
+                                        "missed_while_free", "walkouts_while_free", "sold", "conversion"))
+
+
+def test_scorecard_csv_has_sold_and_conversion_when_a_sales_csv_was_joined(tmp_path):
+    from showroom_coach.metrics import sales_conversion
+    an = _analysis()
+    card = sales_conversion(an.scorecard, [{"salesperson": "Aziz", "timestamp": "", "sold": True}], an.names)
+    rows = _rows(write_scorecard_csv(dataclasses.replace(an, scorecard=card), tmp_path / "s.csv"))
+    staff, store = rows
+    assert staff["customers_engaged"] == "1" and staff["sold"] == "1" and float(staff["conversion"]) == 1.0
+    assert store["sold"] == "" and store["conversion"] == ""
+    data = json.loads(write_all(dataclasses.replace(an, scorecard=card), tmp_path)["results.json"].read_text())
+    assert data["scorecard"]["staff"][0]["sold"] == 1 and data["scorecard"]["staff"][0]["conversion"] == 1.0
 
 
 def test_none_values_become_blank_cells(tmp_path):

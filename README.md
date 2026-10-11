@@ -175,6 +175,16 @@ python -m showroom_coach.evaluation.meva_eval --clips data\meva\clips.csv --spli
 needs no camera), and `scripts\webcam_grab.py` is the same as `webcam-check`. The MEVA-derived sample clips in
 `data\samples\` exist on the build machine only; videos and weights are never committed.
 
+### Sales CSV (optional)
+
+On the results page, "Add sales CSV (optional)" takes a file with one row per lead or sale: `salesperson,timestamp,sold`
+(`sold` is 1/0, yes/no or true/false; at most 10,000 rows and 1 MB). Each salesperson then gets `sold` and
+`conversion` (sold divided by customers engaged) in the scorecard and in `scorecard.csv`. A row belongs to the staff
+member with that name (typed on the confirm page; case and spacing are ignored) or `S<number>`, the label used in the
+video; names that match nobody are listed and ignored. [`docs/sample_sales.csv`](docs/sample_sales.csv) is **SYNTHETIC
+sample data** (invented names, dates and sales) that only shows the format. Sales are not tied to the engagements the
+camera saw, so on a short clip the conversion can be above 100%; it is shown as computed.
+
 ### Tests
 
 ```

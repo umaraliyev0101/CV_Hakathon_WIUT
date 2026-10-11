@@ -5,10 +5,11 @@ video status). It is written as plain ASCII JSON (non-ASCII names are ``\\uXXXX`
 it whatever its default encoding is. The CSVs are UTF-8 with a header row and a byte-order mark (``utf-8-sig``), which
 is what makes Excel on Windows show Cyrillic and Uzbek names correctly; read them with ``encoding="utf-8-sig"``.
 
-``scorecard.csv`` has one row per salesperson and a final ``STORE`` row. The first nine columns are the staff card;
-the last six are store-only and blank on staff rows. On the STORE row only the two staff columns that mean the same
-thing store-wide are filled: ``greets`` (customers greeted) and ``median_time_to_greet``; the other staff columns stay
-blank, because summing them would double count (a missed customer is counted once for every free salesperson).
+``scorecard.csv`` has one row per salesperson and a final ``STORE`` row. The first eleven columns are the staff card
+(the last two, ``sold`` and ``conversion``, are blank unless a sales CSV was added); the last six are store-only and
+blank on staff rows. On the STORE row only the two staff columns that mean the same thing store-wide are filled:
+``greets`` (customers greeted) and ``median_time_to_greet``; the other staff columns stay blank, because summing them
+would double count (a missed customer is counted once for every free salesperson).
 
 Names are typed by the user and these files are opened in spreadsheets, so a name that starts with ``=``, ``+``,
 ``-`` or ``@`` gets a leading apostrophe in the CSVs (formula injection); the JSON keeps the exact text.
@@ -36,7 +37,7 @@ __all__ = ["atomic_replace", "results_dict", "write_all", "write_events_csv", "w
 
 EVENT_COLUMNS = ("type", "t", "t_end", "customer", "staff", "staff_name", "detail")
 STAFF_COLUMNS = ("staff", "name", "greets", "median_time_to_greet", "customers_engaged", "engaged_total_s",
-                 "engaged_median_s", "missed_while_free", "walkouts_while_free")
+                 "engaged_median_s", "missed_while_free", "walkouts_while_free", "sold", "conversion")
 STORE_COLUMNS = ("customers", "greeted", "greet_rate", "walkouts", "unattended_wait_s", "wait_alerts")
 STORE_ROW = "STORE"
 DECIMALS = 3
@@ -134,9 +135,10 @@ def write_scorecard_csv(an: Analysis, path) -> Path:
     blank_store = [""] * len(STORE_COLUMNS)
     rows = [[_num(c.staff), _text(c.name), _num(c.greets), _num(c.median_time_to_greet), _num(c.customers_engaged),
              _num(c.engaged_total_s), _num(c.engaged_median_s), _num(c.missed_while_free),
-             _num(c.walkouts_while_free), *blank_store] for c in an.scorecard.staff]
+             _num(c.walkouts_while_free), _num(c.sold), _num(c.conversion), *blank_store]
+            for c in an.scorecard.staff]
     s = an.scorecard.store
-    rows.append([STORE_ROW, "", _num(s.greeted), _num(s.median_time_to_greet), "", "", "", "", "",
+    rows.append([STORE_ROW, "", _num(s.greeted), _num(s.median_time_to_greet), "", "", "", "", "", "", "",
                  _num(s.customers), _num(s.greeted), _num(s.greet_rate), _num(s.walkouts),
                  _num(s.unattended_wait_s), _num(s.wait_alerts)])
     return _write_atomic(path, _csv_bytes(STAFF_COLUMNS + STORE_COLUMNS, rows))

@@ -16,6 +16,7 @@ const MOCK = Q.has('mock');
 const POLL_MS = 700;
 const ALLOWED_EXT = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 const MAX_BYTES = 1024 ** 3;
+const MAX_SALES_BYTES = 1024 ** 2;   // sales CSV, optional
 const STAGES = ['Upload', 'Detect people', 'Work out roles', 'Ready to confirm'];
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -81,12 +82,13 @@ function detailOf(data, fallback) {
 
 async function api(method, path, body) {
   if (MOCK) return mockApi(method, path, body);
+  const form = body instanceof FormData;      // a file: the browser sets the multipart Content-Type itself
   let res;
   try {
     res = await fetch(path, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
+      headers: body && !form ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? (form ? body : JSON.stringify(body)) : undefined,
     });
   } catch {
     throw new ApiError(0, 'Could not reach the Showroom Coach server. Is it still running?');
@@ -127,7 +129,7 @@ function uploadMessage(status, data) {
 
 /* ------------------------------------------------------- mock mode only */
 
-const mock = { t0: 0, rescored: 0, roles: null, names: null };
+const mock = { t0: 0, rescored: 0, roles: null, names: null, sales: null };
 
 /** Maps an API call to static/mock/*.json. Progress is simulated over ~5 s; a re-score "renders" for 2.5 s. */
 async function mockApi(method, path, body) {
@@ -139,6 +141,10 @@ async function mockApi(method, path, body) {
   const withEdits = (r) => {                       // keep roles/names the user posted
     if (mock.roles) r.roles = { ...r.roles, ...mock.roles };
     if (mock.names) r.names = { ...r.names, ...mock.names };
+    if (mock.sales) {                              // pretend every salesperson sold twice
+      r.sales = mock.sales;
+      for (const s of r.scorecard.staff) { s.sold = 2; s.conversion = s.customers_engaged ? 2 / s.customers_engaged : null; }
+    }
     return r;
   };
   if (path === '/api/presets') return read('presets.json');
@@ -149,7 +155,7 @@ async function mockApi(method, path, body) {
       await sleep(MOCK_SLOW ? 700 : 140);
     }
     if (body.attempt.aborted) throw new ApiError(-1, 'Upload cancelled.');
-    Object.assign(mock, { t0: Date.now(), rescored: 0, roles: null, names: null });
+    Object.assign(mock, { t0: Date.now(), rescored: 0, roles: null, names: null, sales: null });
     return { job_id: 'mock0001' };
   }
   if (path.endsWith('/people')) {
@@ -160,6 +166,11 @@ async function mockApi(method, path, body) {
       if (mock.names?.[p.pid] !== undefined) p.name = mock.names[p.pid] || null;
     }
     return d;
+  }
+  if (path.endsWith('/sales')) {
+    if (method === 'DELETE') mock.sales = null;
+    else mock.sales = { rows: Math.max(0, (await body.get('file').text()).split(/\r?\n/).filter(Boolean).length - 1), unmatched: ['Karim'], skipped: 0 };
+    return withEdits(await read('results.json'));
   }
   if (path.endsWith('/roles')) {
     mock.rescored = Date.now();
@@ -548,7 +559,9 @@ function renderResults(r, nobody) {
   $('#resultsBody').hidden = nobody;
   $('#btnChange').hidden = nobody;
   $('#resPreset').closest('.field').hidden = nobody;
+  $('#salesTools').hidden = nobody;
   if (nobody) {
+    $('#salesNote').hidden = true;
     state.tl = null; state.videoEl = null; state.videoToken++;
     $('#resMeta').textContent = `${state.job?.filename || 'Clip'}, ${mmss(r.duration)} long, no people detected`;
     renderBadges($('#resWarn'), (r.warnings || []).filter((w) => !w.startsWith('nobody detected')));   // the empty state already says it
@@ -571,6 +584,7 @@ function renderResults(r, nobody) {
   renderAlerts(r);
   renderTimeline(r);
   renderScorecard(r);
+  renderSalesNote(r);
 }
 
 function renderVideo(r) {
@@ -849,6 +863,64 @@ function renderScorecard(r) {
       cols.map(([, get, bad]) => el('td', { class: `num${bad && bad(s) ? ' is-bad' : ''}`, text: String(get(s) ?? '—') }))))))));
 }
 
+/* sales CSV (optional) ------------------------------------------------ */
+
+/** The button label, the Remove button and the one-line summary of what the server read from the sales CSV. */
+function renderSalesNote(r) {
+  const s = r.sales, note = $('#salesNote');
+  $('#btnSales').textContent = s ? 'Replace sales CSV' : 'Add sales CSV (optional)';
+  $('#btnSalesClear').hidden = !s;
+  note.hidden = !s;
+  if (!s) { note.textContent = ''; return; }
+  const parts = [`Sales CSV: ${plural(s.rows, 'row')} read`];
+  if (s.skipped) parts.push(`${plural(s.skipped, 'row')} skipped as invalid`);
+  const lost = s.unmatched || [];
+  if (lost.length) {
+    const more = lost.length > 5 ? ` and ${lost.length - 5} more` : '';
+    parts.push(`Not matched to a salesperson: ${lost.slice(0, 5).join(', ')}${more} (names must match the ones typed on the confirm page, or use S<number>)`);
+  }
+  note.textContent = `${parts.join('. ')}.`;
+}
+
+/** Send a sales CSV (or `null` to remove it) and redraw the scorecard from the answer. */
+async function sendSales(file) {
+  const epoch = state.epoch, id = state.jobId;
+  if (file && file.size > MAX_SALES_BYTES) return showNotice(`${file.name} is larger than 1 MB. A sales CSV should be much smaller than that.`);
+  const buttons = [$('#btnSales'), $('#btnSalesClear')];
+  for (const b of buttons) b.disabled = true;
+  try {
+    let r;
+    if (file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      r = await api('POST', `/api/jobs/${id}/sales`, fd);
+    } else {
+      r = await api('DELETE', `/api/jobs/${id}/sales`);
+    }
+    if (epoch !== state.epoch) return;
+    showNotice('');
+    state.results = r;
+    renderScorecard(r);
+    renderSalesNote(r);
+    toast(file ? 'Sales CSV added' : 'Sales CSV removed');
+  } catch (err) {
+    if (epoch === state.epoch) showNotice(err.message);
+  } finally {
+    for (const b of buttons) b.disabled = false;
+  }
+}
+
+function bindSales() {
+  const input = $('#salesFile');
+  $('#btnSales').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    input.value = '';                               // the same file can be chosen again after a fix
+    if (file) sendSales(file);
+  });
+  $('#btnSalesClear').addEventListener('click', () => sendSales(null));
+}
+
 /* ----------------------------------------------------------------- init */
 
 function bindResults() {
@@ -913,6 +985,7 @@ async function init() {
   if (MOCK) $('.brand').append(el('span', { class: 'mockflag', text: 'Demo data' }));
   bindUpload();
   bindResults();
+  bindSales();
   $('#analyseHint').textContent = 'Choose a video to start.';
   setView('upload');
   await loadPresets();
