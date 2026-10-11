@@ -222,6 +222,26 @@ def test_to_dict_matches_the_api_contract(meet_res):
 
 # --------------------------------------------------------------------------- real clip (slow)
 
+def test_analyze_merge_thr_is_passed_to_build_persons_and_defaults_to_the_old_value(meet_res, monkeypatch):
+    import inspect
+
+    import showroom_coach.analysis as A
+    assert (inspect.signature(analyze).parameters["merge_thr"].default
+            == inspect.signature(build_persons).parameters["merge_thr"].default == 0.30)
+    seen = []
+    real = A.build_persons
+
+    def spy(res, merge_thr=None, **kw):
+        seen.append(merge_thr)
+        return real(res, merge_thr=merge_thr, **kw)
+
+    monkeypatch.setattr(A, "build_persons", spy)
+    default = analyze(meet_res, preset="short")
+    custom = analyze(meet_res, preset="short", merge_thr=0.41)
+    assert seen == [0.30, 0.41]
+    assert [p.track_ids for p in default.persons] == [p.track_ids for p in custom.persons]    # two distinct people
+
+
 @pytest.mark.slow
 def test_real_clip_end_to_end():
     from showroom_coach import models as M

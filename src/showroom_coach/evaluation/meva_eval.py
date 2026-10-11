@@ -4,17 +4,21 @@ MEVA (Corona et al., WACV 2021; Kitware/IARPA; CC BY 4.0) gives person boxes for
 annotated activity, plus the activities themselves. This module scores the offline pipeline against them on the sampled
 frames, with the ground truth taken at the matching source frame and scaled to the processed frames:
 
-* ``match_ids`` maps our track or person ids to ground-truth actors by a vote of per-frame IoU matches.
+* ``match_ids`` maps our track or person ids to ground-truth actors by a vote of per-frame IoU matches; ``twin_clusters``
+  finds the actors that MEVA annotated twice for one physical person.
 * ``tracking_metrics`` is MOTA / IDF1 (motmetrics), once for raw tracks and once for the merged persons.
 * ``pair_intervals`` finds every period in which two people stood within ``dist`` metres for ``min_dur`` seconds (roles
   ignored, same streak rule as the event engine's engagement); ``talk_eval`` compares them with
   ``person_talks_to_person``.
-* ``enter_exit_eval`` compares the first/last time a mapped person is present with the enter/exit-through-structure events.
-* ``eval_clip`` runs all of it for one clip, ``aggregate`` pools clips (counts are summed first, so the averages are
-  micro-averages), ``main`` is the command line:
+* ``enter_exit_eval`` compares the presence of a mapped person with the enter/exit-through-structure events, as the
+  nearest presence boundary and as first/last seen.
+* ``eval_clip`` runs all of it for one clip. Talks and enter/exit are scored twice and reported side by side: ``strict``
+  (an id maps to one actor if it is on it for >= 3 frames and >= 30% of its own frames; twin actors are separate) and
+  ``twin_aware`` (an id also maps when it is on >= 50% of a briefly annotated actor's frames, and twin actors count as
+  one person, on both sides). ``aggregate`` pools clips (counts are summed first, so the averages are micro-averages),
+  ``main`` is the command line:
 
-      python -m showroom_coach.evaluation.meva_eval --clips data/meva/clips.csv --split dev \
-          --split-file data/meva/split.json --out runs/eval/meva_dev.json
+      python -m showroom_coach.evaluation.meva_eval --clips data/meva/clips.csv --split dev           --split-file data/meva/split.json --out runs/eval/meva_dev.json
 
 Only part of each scene is annotated (the actors of the annotated activities). A person we track who was never
 annotated therefore counts as a false positive; tracking precision and MOTA are pessimistic for that reason. Talk
@@ -26,9 +30,9 @@ from __future__ import annotations
 
 import argparse
 import csv
-import functools
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -36,7 +40,6 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-import motmetrics as mm
 import numpy as np
 
 from .. import analysis, config
@@ -48,10 +51,16 @@ from .kpf import Activity, GeomBox, load_activities, load_geom, load_types, pers
 GT_TALK = "person_talks_to_person"
 GT_ENTER = "person_enters_scene_through_structure"
 GT_EXIT = "person_exits_scene_through_structure"
+VARIANTS = ("strict", "twin_aware")  # the two ways of crediting talks and enter/exit events to our persons
 
 ID_IOU = 0.3          # IoU a detection needs with a ground-truth box to vote for that actor
 ID_MIN_VOTES = 3      # votes (matched frames) an id needs for the actor that won ...
-ID_MIN_SHARE = 0.30   # ... and the share of the id's observed frames those votes must make up
+ID_MIN_SHARE = 0.30   # ... and the share of the id's observed frames those votes must make up ...
+ID_ACTOR_SHARE = 0.50  # ... or the share of the actor's own annotated frames (in the evaluated window) they make up
+TWIN_IOU = 0.70       # two actors are twins when their boxes overlap this much ...
+TWIN_SHARE = 0.50     # ... on this share of their co-annotated sampled frames ...
+TWIN_MIN_FRAMES = 3   # ... and they are co-annotated on at least this many
+TWIN_DEDUPE_TIOU = 0.80  # twin-aware talks: ground-truth intervals of one cluster pair this similar are one conversation
 MOT_IOU = 0.5         # IoU for a tracking match (distance 1 - IoU <= 0.5)
 TALK_TIOU = 0.30      # temporal IoU for a detected interval to match a ground-truth pair interval
 TALK_TIOU_2 = 0.10    # the secondary, looser line
@@ -67,10 +76,17 @@ NOTES = [
     "span intersected with both actors' own spans. Our intervals are every person pair within --dist metres for "
     "--min-dur seconds (roles ignored). A match needs the same mapped pair and temporal IoU >= 0.3 (secondary line 0.1).",
     "recall_all counts every ground-truth pair interval; recall_tracked only those whose two actors both map from a "
-    "person of ours; precision_mapped only counts our intervals whose two persons both map to annotated actors.",
+    "person of ours; precision_mapped only counts our intervals whose two persons both map to annotated actors "
+    "(n_det_mapped of n_det).",
+    "strict: an id maps to the actor it votes for most if the votes are >= 3 and >= 30% of the id's observed frames; "
+    "twin actors are separate. twin_aware: the id also maps when its votes are >= 50% of that actor's annotated sampled "
+    "frames (a briefly annotated actor can only collect a few votes), and actors whose boxes have IoU >= 0.7 on >= 50% "
+    "of >= 3 co-annotated sampled frames are one person: an event or talk pair is credited to any member of the "
+    "cluster, GT talk pairs that become identical (same cluster pair, interval tIoU >= 0.8) count once, and pairs "
+    "between two members of one cluster are dropped.",
     "Enter/exit: the ground-truth time is the start (enter) or end (exit) of the event; ours is the start or end of the "
-    "nearest presence interval of any person mapped to that actor; a match is within 5 s. Events in the first and last "
-    "second of the clip are ignored.",
+    "nearest presence interval of any person mapped to that actor (main numbers), or the earliest start / latest end "
+    "of them (first_last); a match is within 5 s. Events in the first and last second of the clip are ignored.",
     "Averages over clips are micro-averages (counts summed first); median errors are pooled over all matches.",
 ]
 
@@ -142,18 +158,24 @@ def _gt_at(gt_boxes, res, f: int, scale: float) -> tuple[list[int], np.ndarray]:
 # ---------------------------------------------------------------------------------------------------- id mapping
 
 def match_ids(res, an_or_none, gt_boxes: dict[int, list[GeomBox]], use_persons: bool, iou_thr: float = ID_IOU,
-              min_votes: int = ID_MIN_VOTES, min_share: float = ID_MIN_SHARE) -> dict[int, int]:
+              min_votes: int = ID_MIN_VOTES, min_share: float = ID_MIN_SHARE,
+              min_actor_share: float | None = ID_ACTOR_SHARE) -> dict[int, int]:
     """Our id (a track id, or a person id with ``use_persons``) -> the ground-truth actor it follows.
 
     On every sampled frame the ground-truth person boxes of the matching source frame (scaled by ``res.video.scale``)
     are matched one-to-one, greedily by IoU (>= ``iou_thr``), with our observations of that frame; each match is a vote
-    of that id for that actor. An id maps to the actor with the most votes (ties: the lower actor id) if the votes are
-    at least ``min_votes`` and at least ``min_share`` of the id's observed frames. Several of our ids may map to one
-    actor (fragments of one person).
+    of that id for that actor. An id maps to the actor with the most votes (ties: the lower actor id) when the votes are
+    at least ``min_votes`` and either at least ``min_share`` of the id's observed frames or at least ``min_actor_share``
+    of the actor's own annotated frames among the sampled frames (an actor annotated for a few seconds can only collect
+    a few votes). ``min_actor_share=None`` drops the second condition: the strict rule of the first version. Several of
+    our ids may map to one actor (fragments of one person).
     """
     ids, keep = _hyp_ids(res, an_or_none, use_persons)
     scale = float(res.video.scale)
     votes: dict[int, Counter] = defaultdict(Counter)
+    annotated: Counter = Counter()  # actor -> sampled frames on which it has a box
+    for f in range(len(res.frame_times)):
+        annotated.update(b.actor for b in gt_boxes.get(int(res.src_frame_idx[f]), ()))
     for f, obs in _group_by_frame(res.obs_frame, keep).items():
         actors, g_boxes = _gt_at(gt_boxes, res, f, scale)
         if not actors:
@@ -164,9 +186,50 @@ def match_ids(res, an_or_none, gt_boxes: dict[int, list[GeomBox]], use_persons: 
     out: dict[int, int] = {}
     for hid, counter in votes.items():
         actor, n = max(counter.items(), key=lambda kv: (kv[1], -kv[0]))
-        if n >= min_votes and n >= min_share * seen[hid] - 1e-9:
+        if n < min_votes:
+            continue
+        if n >= min_share * seen[hid] - 1e-9 or (min_actor_share is not None
+                                                 and n >= min_actor_share * annotated[actor] - 1e-9):
             out[hid] = actor
     return dict(sorted(out.items()))
+
+
+def twin_clusters(res, gt_boxes: dict[int, list[GeomBox]], iou_thr: float = TWIN_IOU, min_share: float = TWIN_SHARE,
+                  min_frames: int = TWIN_MIN_FRAMES) -> dict[int, int]:
+    """Ground-truth actors that are the same physical person: ``{actor: representative}`` for every actor in a cluster
+    of two or more (the representative is the cluster's lowest actor id and maps to itself).
+
+    MEVA often annotates one person as several actors. Two actors are twins when their boxes have IoU >= ``iou_thr`` on
+    at least ``min_share`` of the sampled frames on which both are annotated, and both are annotated together on at
+    least ``min_frames`` of them. Twin-ness is transitive.
+    """
+    both: Counter = Counter()
+    hit: Counter = Counter()
+    for f in range(len(res.frame_times)):
+        boxes = gt_boxes.get(int(res.src_frame_idx[f]), ())
+        if len(boxes) < 2:
+            continue
+        arr = np.array([b.bbox for b in boxes], float)
+        iou = _iou_matrix(arr, arr)
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                key = tuple(sorted((boxes[i].actor, boxes[j].actor)))
+                both[key] += 1
+                hit[key] += iou[i, j] >= iou_thr - 1e-12
+    parent: dict[int, int] = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for (a, b), n in both.items():
+        if n >= min_frames and hit[(a, b)] >= min_share * n - 1e-9:
+            ra, rb = find(a), find(b)
+            parent[max(ra, rb)] = min(ra, rb)
+    return {actor: find(actor) for actor in sorted(parent)}
 
 
 def gt_duplicate_counts(res, gt_boxes: dict[int, list[GeomBox]], iou_thr: float = 0.7) -> tuple[int, int]:
@@ -198,6 +261,15 @@ _MOT_COUNTS = ("num_objects", "num_misses", "num_false_positives", "num_switches
                "idfn")
 
 
+def _motmetrics():
+    """The motmetrics module, imported on first use (it is an optional dependency, the ``eval`` extra)."""
+    try:
+        import motmetrics
+    except ImportError as exc:
+        raise RuntimeError('the MEVA tracking metrics need the "motmetrics" package: pip install -e ".[eval]"') from exc
+    return motmetrics
+
+
 def _mot_summary(c: dict) -> dict:
     """MOTA, IDF1, precision and recall from the raw counts (None where the denominator is 0)."""
     objects, det = c.get("num_objects", 0), c.get("num_detections", 0)
@@ -220,6 +292,7 @@ def tracking_metrics(res, an, gt_boxes: dict[int, list[GeomBox]], use_persons: b
     ``num_misses``, ``num_false_positives``, ``num_switches``, ``num_detections``, ``idtp``, ``idfp``, ``idfn``.
     Unannotated people we track are false positives (see the module docstring).
     """
+    mm = _motmetrics()
     ids, keep = _hyp_ids(res, an, use_persons)
     groups = _group_by_frame(res.obs_frame, keep)
     scale = float(res.video.scale)
@@ -291,14 +364,20 @@ class GtPair:
 
 
 def gt_talk_pairs(talks: list[Activity], fps: float, t_max: float | None = None,
-                  persons: set[int] | None = None) -> list[GtPair]:
+                  persons: set[int] | None = None, clusters: dict[int, int] | None = None) -> list[GtPair]:
     """Ground-truth pair intervals of the ``person_talks_to_person`` activities in ``talks``.
 
     A group of k actors becomes all k*(k-1)/2 pairs. A pair's span is the activity span intersected with both actors'
     own spans; a pair is skipped when that is empty, when an actor has no span of its own, when it is shorter than a
     frame, or (with ``persons``) when an actor is not a person. Times are frames / ``fps`` (end = last frame);
     ``t_max`` cuts the interval at that time and drops pairs that start after it.
+
+    With ``clusters`` (twin-aware mode, see ``twin_clusters``; an empty dict still counts) every actor is replaced by
+    its cluster's representative; pairs between two actors of one cluster are dropped, and pairs of one cluster pair
+    whose intervals overlap with temporal IoU >= ``TWIN_DEDUPE_TIOU`` are one conversation annotated twice: the first
+    is kept.
     """
+    canon = (lambda x: x) if clusters is None else (lambda x: clusters.get(x, x))
     out: list[GtPair] = []
     for act in talks:
         if act.name != GT_TALK:
@@ -317,7 +396,13 @@ def gt_talk_pairs(talks: list[Activity], fps: float, t_max: float | None = None,
                     t1 = min(t1, t_max)
                 if t1 <= t0:
                     continue
-                out.append(GtPair(a, b, t0, t1, act.act_id))
+                ca, cb = sorted((canon(a), canon(b)))
+                if ca == cb:
+                    continue  # a talk between two annotations of one person
+                if clusters is not None and any(g.a == ca and g.b == cb and _tiou(t0, t1, g.t0, g.t1) >= TWIN_DEDUPE_TIOU
+                                                for g in out):
+                    continue
+                out.append(GtPair(ca, cb, t0, t1, act.act_id))
     return out
 
 
@@ -331,7 +416,7 @@ def _talk_summary(c: dict, errs: list[float]) -> dict:
     """Ratios and median errors from the counts of ``_match_talk`` (also used to pool clips)."""
     return {
         "n_gt": c["n_gt"], "n_gt_tracked": c["n_gt_tracked"], "n_det": c["n_det"], "n_det_mapped": c["n_det_mapped"],
-        "n_matched": c["n_matched"],
+        "n_matched": c["n_matched"], "n_gt_collapsed": c.get("n_gt_collapsed", 0),
         "recall_all": _ratio(c["n_matched"], c["n_gt"]),
         "recall_tracked": _ratio(c["n_matched"], c["n_gt_tracked"]),
         "precision_mapped": _ratio(c["n_matched"], c["n_det_mapped"]),
@@ -341,12 +426,12 @@ def _talk_summary(c: dict, errs: list[float]) -> dict:
     }
 
 
-_TALK_COUNTS = ("n_gt", "n_gt_tracked", "n_det", "n_det_mapped", "n_matched")
+_TALK_COUNTS = ("n_gt", "n_gt_tracked", "n_det", "n_det_mapped", "n_matched", "n_gt_collapsed")
 
 
 def talk_eval(intervals, talks: list[Activity], id_map: dict[int, int], fps: float, tiou_thr: float = TALK_TIOU,
               t_max: float | None = None, persons: set[int] | None = None,
-              secondary_tiou: float | None = TALK_TIOU_2) -> dict:
+              secondary_tiou: float | None = TALK_TIOU_2, clusters: dict[int, int] | None = None) -> dict:
     """Detected pair intervals against the ground-truth talks (see the module docstring and ``gt_talk_pairs``).
 
     ``intervals`` are ``(pid_a, pid_b, t0, t1)``; ``id_map`` maps our person ids to actors. A detection matches a
@@ -357,15 +442,23 @@ def talk_eval(intervals, talks: list[Activity], id_map: dict[int, int], fps: flo
     n_det_mapped (detections whose two persons both map), n_matched, recall_all, recall_tracked, precision_mapped,
     median_start_err_s (median |our start - GT start| over the matches), median_start_bias_s (signed; positive = we
     start late) and the signed ``start_errs_s``. The same under ``"tiou_<secondary>"`` for the looser threshold.
+
+    ``clusters`` switches on twin-aware mode: actors that are twins (``twin_clusters``) count as one, on the
+    ground-truth side (``gt_talk_pairs``) and for the actors our persons map to; ``n_gt_collapsed`` is the number of
+    ground-truth pair intervals folded away by that. Without it the mapping is strict: one actor per id.
     """
-    gt = gt_talk_pairs(talks, fps, t_max, persons)
-    mapped = set(id_map.values())
+    gt = gt_talk_pairs(talks, fps, t_max, persons, clusters)
+    n_collapsed = len(gt_talk_pairs(talks, fps, t_max, persons)) - len(gt) if clusters is not None else 0
+    canon = (lambda x: x) if clusters is None else (lambda x: clusters.get(x, x))
+    mapped = {canon(v) for v in id_map.values()}
     dets = []  # (mapped pair or None, t0, t1)
     for a, b, t0, t1 in intervals:
         ma, mb = id_map.get(a), id_map.get(b)
-        dets.append(((min(ma, mb), max(ma, mb)) if ma is not None and mb is not None else None, t0, t1))
+        pair = tuple(sorted((canon(ma), canon(mb)))) if ma is not None and mb is not None else None
+        dets.append((pair, t0, t1))
     base = {"n_gt": len(gt), "n_gt_tracked": sum(1 for g in gt if g.a in mapped and g.b in mapped),
-            "n_det": len(dets), "n_det_mapped": sum(1 for d in dets if d[0] is not None)}
+            "n_det": len(dets), "n_det_mapped": sum(1 for d in dets if d[0] is not None),
+            "n_gt_collapsed": n_collapsed}
 
     def at(thr: float) -> dict:
         by_pair = defaultdict(list)
@@ -394,24 +487,41 @@ def _ee_summary(n_gt: int, n_tracked: int, n_matched: int, errs: list[float]) ->
             "errs_s": [float(e) for e in errs]}
 
 
+def _ee_blocks(tally: dict) -> dict:
+    """``{"enter", "exit", "all"}`` summaries from ``{"enter": [n_gt, n_tracked, n_matched, errs], "exit": ...}``."""
+    out = {k: _ee_summary(*v) for k, v in tally.items()}
+    n_gt, n_tracked, n_matched = (sum(row[i] for row in tally.values()) for i in range(3))
+    out["all"] = _ee_summary(n_gt, n_tracked, n_matched, tally["enter"][3] + tally["exit"][3])
+    return out
+
+
 def enter_exit_eval(an, acts: list[Activity], id_map: dict[int, int], fps: float, window_s: float = ENTER_EXIT_WINDOW_S,
-                    t_end: float | None = None, edge_s: float = EDGE_S, persons: set[int] | None = None) -> dict:
+                    t_end: float | None = None, edge_s: float = EDGE_S, persons: set[int] | None = None,
+                    clusters: dict[int, int] | None = None) -> dict:
     """Recall and timing of our presence intervals against the enter / exit-through-structure events.
 
     The ground-truth time of an enter is the start of the actor's span in the activity (``f0`` for a lone actor), of an
-    exit its end (``f1``), in seconds. Ours is, over the presence intervals (``an.timelines[pid]["present"]``) of every
-    person mapped to that actor, the start (enter) or end (exit) nearest to the ground-truth time, so a person who
-    re-enters, or one split in fragments, is handled. A match is within ``window_s`` seconds (inclusive). Events in the
-    first or last ``edge_s`` seconds of the clip (``t_end`` = its processed length) are ignored, and any event after
-    ``t_end``.
+    exit its end (``f1``), in seconds. Two timings of ours are scored against it, both over the presence intervals
+    (``an.timelines[pid]["present"]``) of every person mapped to that actor (so fragments of one person are pooled):
 
-    Returns ``{"enter": ..., "exit": ..., "all": ...}``, each with n_gt, n_gt_tracked (the actor maps from one of our
-    persons), n_matched, recall_all, recall_tracked, median_abs_err_s, median_bias_s (signed; ours minus GT) and errs_s.
+    * nearest boundary (the main ``enter`` / ``exit`` / ``all`` blocks): the start (enter) or end (exit) of the presence
+      interval nearest to the ground-truth time, so a person who leaves and re-enters is handled;
+    * first / last seen (the same blocks under ``"first_last"``): the earliest start (enter) or latest end (exit) of any
+      of them, the brief's definition.
+
+    A match is within ``window_s`` seconds (inclusive). Events in the first or last ``edge_s`` seconds of the clip
+    (``t_end`` = its processed length) are ignored, and any event after ``t_end``. With ``clusters`` (twin-aware mode,
+    ``twin_clusters``) an actor counts as tracked when a person maps to any actor of its cluster.
+
+    Each block has n_gt, n_gt_tracked (the actor maps from one of our persons), n_matched, recall_all, recall_tracked,
+    median_abs_err_s, median_bias_s (signed; ours minus GT) and errs_s.
     """
+    canon = (lambda x: x) if clusters is None else (lambda x: clusters.get(x, x))
     pids_of: dict[int, list[int]] = defaultdict(list)
     for pid, actor in id_map.items():
-        pids_of[actor].append(pid)
-    tally = {"enter": [0, 0, 0, []], "exit": [0, 0, 0, []]}  # n_gt, n_tracked, n_matched, signed errors
+        pids_of[canon(actor)].append(pid)
+    # per timing, per kind: n_gt, n_tracked, n_matched, signed errors
+    tally = {mode: {"enter": [0, 0, 0, []], "exit": [0, 0, 0, []]} for mode in ("nearest", "first_last")}
     for act in acts:
         kind = {GT_ENTER: "enter", GT_EXIT: "exit"}.get(act.name)
         if kind is None:
@@ -423,21 +533,20 @@ def enter_exit_eval(an, acts: list[Activity], id_map: dict[int, int], fps: float
             t_gt = (span[0] if kind == "enter" else span[1]) / fps
             if t_end is not None and (t_gt < edge_s or t_gt > t_end - edge_s):
                 continue
-            row = tally[kind]
-            row[0] += 1
-            times = [iv[0 if kind == "enter" else 1] for pid in pids_of.get(actor, ())
+            times = [iv[0 if kind == "enter" else 1] for pid in pids_of.get(canon(actor), ())
                      for iv in an.timelines.get(pid, {}).get("present", ())]
-            if actor not in pids_of or not times:
-                continue
-            row[1] += 1
-            err = min((t - t_gt for t in times), key=abs)
-            if abs(err) <= window_s + 1e-9:
-                row[2] += 1
-                row[3].append(err)
-    out = {k: _ee_summary(*v) for k, v in tally.items()}
-    n_gt, n_tracked, n_matched = (sum(row[i] for row in tally.values()) for i in range(3))
-    out["all"] = _ee_summary(n_gt, n_tracked, n_matched, tally["enter"][3] + tally["exit"][3])
-    return out
+            ours = {"nearest": min(times, key=lambda t: abs(t - t_gt)) if times else None,
+                    "first_last": (min(times) if kind == "enter" else max(times)) if times else None}
+            for mode, t_ours in ours.items():
+                row = tally[mode][kind]
+                row[0] += 1
+                if t_ours is None:
+                    continue
+                row[1] += 1
+                if abs(t_ours - t_gt) <= window_s + 1e-9:
+                    row[2] += 1
+                    row[3].append(t_ours - t_gt)
+    return {**_ee_blocks(tally["nearest"]), "first_last": _ee_blocks(tally["first_last"])}
 
 
 # ---------------------------------------------------------------------------------------------------- aggregation
@@ -465,38 +574,35 @@ def _sum_ee(parts: list[dict]) -> dict:
     return _ee_summary(n("n_gt"), n("n_gt_tracked"), n("n_matched"), [e for p in parts for e in p.get("errs_s", ())])
 
 
+def _sum_ee_blocks(parts: list[dict]) -> dict:
+    keys = ("enter", "exit", "all")
+    out = {k: _sum_ee([p.get(k) or {} for p in parts]) for k in keys}
+    out["first_last"] = {k: _sum_ee([(p.get("first_last") or {}).get(k) or {} for p in parts]) for k in keys}
+    return out
+
+
 def aggregate(clips: list[dict]) -> dict:
     """Pool the per-clip results of ``eval_clip``: counts are summed and ratios recomputed (micro-average); median
-    errors are taken over the pooled matches."""
-    def per(variant, key):
-        return [(c.get(variant) or {}).get(key) or {} for c in clips]
+    errors are taken over the pooled matches. Clips that failed (``{"clip", "error"}``) are left out and counted in
+    ``n_failed``. The ``strict`` and ``twin_aware`` blocks are pooled separately."""
+    ok = [c for c in clips if "error" not in c]
 
-    boxes = sum(int(c.get("n_gt_boxes", 0)) for c in clips)
-    twins = sum(int(c.get("n_gt_dup_boxes", 0)) for c in clips)
+    def per(variant, key):
+        return [(c.get(variant) or {}).get(key) or {} for c in ok]
+
+    boxes = sum(int(c.get("n_gt_boxes", 0)) for c in ok)
+    twins = sum(int(c.get("n_gt_dup_boxes", 0)) for c in ok)
     return {
-        "n_clips": len(clips), "n_gt_boxes": boxes, "n_gt_dup_boxes": twins, "gt_dup_share": _ratio(twins, boxes),
+        "n_clips": len(ok), "n_failed": len(clips) - len(ok),
+        "n_gt_boxes": boxes, "n_gt_dup_boxes": twins, "gt_dup_share": _ratio(twins, boxes),
         "tracks": {"tracking": _sum_tracking(per("tracks", "tracking"))},
-        "persons": {
-            "tracking": _sum_tracking(per("persons", "tracking")),
-            "talk": _sum_talk(per("persons", "talk")),
-            "enter_exit": {k: _sum_ee([p.get(k) or {} for p in per("persons", "enter_exit")])
-                           for k in ("enter", "exit", "all")},
-        },
+        "persons": {"tracking": _sum_tracking(per("persons", "tracking"))},
+        **{variant: {"talk": _sum_talk(per(variant, "talk")),
+                     "enter_exit": _sum_ee_blocks(per(variant, "enter_exit"))} for variant in VARIANTS},
     }
 
 
 # ---------------------------------------------------------------------------------------------------- one clip
-
-def _analyze(res, preset: str, merge_thr: float):
-    """``analysis.analyze`` with the identity-merge threshold set. ``analyze`` has no such argument, so
-    ``build_persons`` is wrapped for the duration of the call."""
-    original = analysis.build_persons
-    analysis.build_persons = functools.partial(original, merge_thr=merge_thr)
-    try:
-        return analysis.analyze(res, preset=preset)
-    finally:
-        analysis.build_persons = original
-
 
 def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist: float = 2.0, min_dur: float = 8.0,
               gap_tol: float = 1.5, merge_thr: float = 0.30, limit_seconds: float | None = None) -> dict:
@@ -504,8 +610,9 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
 
     ``ann_prefix`` is the annotation path without ``.geom.yml`` / ``.activities.yml`` / ``.types.yml``. With
     ``limit_seconds`` only the first N seconds are processed, and the ground truth is cut to match. Tracking metrics
-    are computed for the raw tracks (``tracks``) and the merged persons (``persons``); the id map, engagement and
-    enter/exit evaluation use the persons (what the analysis reports).
+    are computed for the raw tracks (``tracks``) and the merged persons (``persons``). Engagement and enter/exit are
+    scored for the persons, twice: ``strict`` (each of our ids maps to one actor by the first version's share rule, no
+    twins) and ``twin_aware`` (the actor-share rule of ``match_ids`` and twin actors credited as one person).
     """
     started = time.perf_counter()
     prefix = str(ann_prefix)
@@ -514,16 +621,20 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
     acts = load_activities(prefix + ".activities.yml")
     res, cached = cached_perception(video, stack, cache_root,
                                     **({} if limit_seconds is None else {"max_seconds": float(limit_seconds)}))
-    an = _analyze(res, preset, merge_thr)
+    an = analysis.analyze(res, preset=preset, merge_thr=merge_thr)
     fps, t_end = float(res.video.src_fps), float(res.video.duration)
 
-    track_map = match_ids(res, None, gt_boxes, use_persons=False)
-    person_map = match_ids(res, an, gt_boxes, use_persons=True)
+    strict_map = match_ids(res, an, gt_boxes, True, min_actor_share=None)
+    twin_map = match_ids(res, an, gt_boxes, True)
+    clusters = twin_clusters(res, gt_boxes)
     intervals = pair_intervals(an, res, dist, min_dur, gap_tol)
     talks = [a for a in acts if a.name == GT_TALK]
-    gt_pairs = gt_talk_pairs(talks, fps, t_end, persons_gt)
     annotated = {b.actor for f in res.src_frame_idx for b in gt_boxes.get(int(f), ())}
     dup_counts = gt_duplicate_counts(res, gt_boxes)
+
+    def pairs(**kw):
+        return [[g.a, g.b, g.t0, g.t1] for g in gt_talk_pairs(talks, fps, t_end, persons_gt, **kw)]
+
     return {
         "clip": Path(prefix).name, "video": str(video), "duration_s": t_end, "src_fps": fps,
         "limit_s": limit_seconds, "cached": bool(cached), "n_sampled_frames": int(len(res.frame_times)),
@@ -531,14 +642,21 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
         "n_gt_boxes": dup_counts[1], "n_gt_dup_boxes": dup_counts[0], "gt_dup_share": _ratio(*dup_counts),
         "timings": {"perception_s": float(res.timings.get("total", 0.0)),
                     "eval_s": time.perf_counter() - started},
-        "tracks": {"id_map": track_map, "tracking": tracking_metrics(res, None, gt_boxes, False)},
-        "persons": {
-            "id_map": person_map,
-            "tracking": tracking_metrics(res, an, gt_boxes, True),
-            "talk": talk_eval(intervals, talks, person_map, fps, t_max=t_end, persons=persons_gt),
-            "enter_exit": enter_exit_eval(an, acts, person_map, fps, t_end=t_end, persons=persons_gt),
-            "intervals": [[a, b, person_map.get(a), person_map.get(b), t0, t1] for a, b, t0, t1 in intervals],
-            "gt_pairs": [[g.a, g.b, g.t0, g.t1] for g in gt_pairs],
+        "tracks": {"id_map": match_ids(res, None, gt_boxes, False, min_actor_share=None),
+                   "tracking": tracking_metrics(res, None, gt_boxes, False)},
+        "persons": {"tracking": tracking_metrics(res, an, gt_boxes, True),
+                    "intervals": [[a, b, t0, t1] for a, b, t0, t1 in intervals]},
+        "strict": {
+            "id_map": strict_map, "gt_pairs": pairs(),
+            "talk": talk_eval(intervals, talks, strict_map, fps, t_max=t_end, persons=persons_gt),
+            "enter_exit": enter_exit_eval(an, acts, strict_map, fps, t_end=t_end, persons=persons_gt),
+        },
+        "twin_aware": {
+            "id_map": twin_map, "clusters": clusters, "n_twin_actors": len(clusters),
+            "n_twin_clusters": len(set(clusters.values())), "gt_pairs": pairs(clusters=clusters),
+            "talk": talk_eval(intervals, talks, twin_map, fps, t_max=t_end, persons=persons_gt, clusters=clusters),
+            "enter_exit": enter_exit_eval(an, acts, twin_map, fps, t_end=t_end, persons=persons_gt,
+                                          clusters=clusters),
         },
     }
 
@@ -550,16 +668,29 @@ def read_clips(path) -> list[dict]:
         return list(csv.DictReader(fh))
 
 
+def _load_split(path: Path) -> dict:
+    """The split file: a JSON object whose ``dev`` and ``test`` are lists of clip names. ValueError otherwise."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"split file {path} cannot be read as JSON: {exc}") from exc
+    if not (isinstance(data, dict) and all(isinstance(data.get(k), list) and all(isinstance(n, str) for n in data[k])
+                                           for k in ("dev", "test"))):
+        raise ValueError(f"split file {path} must be a JSON object with 'dev' and 'test' lists of clip names")
+    return data
+
+
 def select_clips(rows: list[dict], which: str, split_file) -> list[dict]:
-    """The rows of one split. ``split_file`` is JSON ``{"dev": [clip, ...], "test": [clip, ...]}``. ``dev`` and
-    ``test`` need it; ``all`` is every clip listed in it (dev and test), or every row when there is no split file."""
+    """The rows of one split. ``split_file`` is JSON ``{"dev": [clip, ...], "test": [clip, ...]}`` (anything else is a
+    ValueError). ``dev`` and ``test`` need it; ``all`` is every clip listed in it (dev and test), or every row when there
+    is no split file."""
     path = Path(split_file) if split_file else None
     if path is None or not path.is_file():
         if which != "all":
             raise ValueError(f"--split {which} needs a split file ({path or 'none given'} not found)")
         return list(rows)
-    split = json.loads(path.read_text(encoding="utf-8"))
-    names = list(split.get("dev", [])) + list(split.get("test", [])) if which == "all" else list(split.get(which, []))
+    split = _load_split(path)
+    names = split["dev"] + split["test"] if which == "all" else split[which]
     known = {r["clip"] for r in rows}
     unknown = [n for n in names if n not in known]
     if unknown:
@@ -589,7 +720,7 @@ def _annotation_prefix(row: dict, clips_path: Path) -> Path:
 
 
 def _pct(x) -> str:
-    return "  n/a" if x is None else f"{100 * x:5.1f}%"
+    return "   n/a" if x is None else f"{100 * x:5.1f}%"
 
 
 def _num(x, spec=".2f", unit="") -> str:
@@ -601,24 +732,35 @@ def _label(clip: str) -> str:
     return ".".join([parts[0], parts[1], parts[-1]]) if len(parts) >= 4 else clip
 
 
-def _talk_line(t: dict) -> list[str]:
-    return [f"{t.get('n_gt', 0):>4}", _pct(t.get("recall_all")), _pct(t.get("recall_tracked")),
-            _pct(t.get("precision_mapped")), f"{_num(t.get('median_start_err_s'), '.1f', 's'):>6}"]
+def _talk_cols(t: dict) -> list[str]:
+    return [f"{t.get('n_gt', 0):>5}", _pct(t.get("recall_all")), _pct(t.get("recall_tracked")),
+            _pct(t.get("precision_mapped")), f"{t.get('n_det_mapped', 0)}/{t.get('n_det', 0)}".rjust(7),
+            f"{_num(t.get('median_start_err_s'), '.1f', 's'):>8}"]
 
 
-def _ee_line(e: dict) -> list[str]:
-    return [f"{e.get('n_gt', 0):>4}", _pct(e.get("recall_all")), _pct(e.get("recall_tracked")),
-            f"{_num(e.get('median_abs_err_s'), '.1f', 's'):>6}"]
+def _ee_cols(e: dict) -> list[str]:
+    a, fl = e.get("all") or {}, (e.get("first_last") or {}).get("all") or {}
+    return [f"{a.get('n_gt', 0):>4}", _pct(a.get("recall_all")), _pct(a.get("recall_tracked")),
+            f"{_num(a.get('median_abs_err_s'), '.1f', 's'):>6}", _pct(fl.get("recall_all")),
+            f"{_num(fl.get('median_abs_err_s'), '.1f', 's'):>8}"]
 
 
-def _trk_line(t: dict) -> list[str]:
+def _trk_cols(t: dict) -> list[str]:
     return [_pct(t.get("mota")), _pct(t.get("idf1")), f"{t.get('num_switches', 0):>5}"]
 
 
+VARIANT_TITLES = {
+    "strict": "STRICT: an id maps to one actor if it is on it for >= 3 and >= 30% of the id's frames; twin actors are separate",
+    "twin_aware": "TWIN-AWARE: also maps on >= 50% of a briefly annotated actor's frames; twin actors count as one person",
+}
+
+
 def format_tables(clips: list[dict], total: dict, params: dict | None = None) -> str:
-    """The per-clip and total tables as text."""
+    """The per-clip and total tables as text: tracking, then engagement and enter/exit for each variant."""
     w = max([len("clip")] + [len(_label(c["clip"])) for c in clips])
-    rows = [(_label(c["clip"]), c) for c in clips] + [("TOTAL", total)]
+    ok = [(_label(c["clip"]), c) for c in clips if "error" not in c]
+    failed = [(_label(c["clip"]), c) for c in clips if "error" in c]
+    rows = ok + [("TOTAL", total)]
     lines = [""]
     if params:
         lines.append("settings: " + " ".join(f"{k}={v}" for k, v in params.items()))
@@ -628,25 +770,36 @@ def format_tables(clips: list[dict], total: dict, params: dict | None = None) ->
               f"  {'prec':>6} {'recall':>6} {'dup':>6}"]
     for name, c in rows:
         p = c["persons"]["tracking"]
-        lines.append(f"{name:<{w}}  " + " ".join(_trk_line(c["tracks"]["tracking"])) + "  " + " ".join(_trk_line(p))
+        lines.append(f"{name:<{w}}  " + " ".join(_trk_cols(c["tracks"]["tracking"])) + "  " + " ".join(_trk_cols(p))
                      + f"  {_pct(p.get('precision'))} {_pct(p.get('recall'))} {_pct(c.get('gt_dup_share'))}")
-    lines += ["", "Engagement vs person_talks_to_person (roles ignored, tIoU >= 0.3) and enter/exit within 5 s",
-              f"{'clip':<{w}}  {'talks':>4} {'R_all':>6} {'R_trk':>6} {'P_map':>6} {'startErr':>8}"
-              f"  {'ev':>4} {'R_all':>6} {'R_trk':>6} {'|err|':>6}"]
-    for name, c in rows:
-        p = c["persons"]
-        lines.append(f"{name:<{w}}  " + " ".join(_talk_line(p["talk"])) + "  " + " ".join(_ee_line(p["enter_exit"]["all"])))
-    t = total["persons"]["talk"]
-    loose = next((v for k, v in t.items() if k.startswith("tiou_") and isinstance(v, dict)), None)
-    if loose:
-        lines += ["", f"Talk at tIoU >= {loose['tiou']:g}: recall_all {_pct(loose['recall_all']).strip()}, recall_tracked "
-                      f"{_pct(loose['recall_tracked']).strip()}, precision_mapped {_pct(loose['precision_mapped']).strip()}, "
-                      f"median start error {_num(loose['median_start_err_s'], '.1f', 's')}"]
-    e = total["persons"]["enter_exit"]
-    lines.append(f"Enter: recall_all {_pct(e['enter']['recall_all']).strip()} of {e['enter']['n_gt']}, median |err| "
-                 f"{_num(e['enter']['median_abs_err_s'], '.1f', 's')}; exit: recall_all {_pct(e['exit']['recall_all']).strip()} "
-                 f"of {e['exit']['n_gt']}, median |err| {_num(e['exit']['median_abs_err_s'], '.1f', 's')}")
-    lines.append("")
+    lines += [f"{name:<{w}}  ERROR: {c['error']}" for name, c in failed]
+    for variant in VARIANTS:
+        lines += ["", f"Engagement vs person_talks_to_person (roles ignored, tIoU >= 0.3) and enter/exit within 5 s, "
+                      f"{VARIANT_TITLES[variant]}",
+                  f"{'clip':<{w}}  {'talks':>5} {'R_all':>6} {'R_trk':>6} {'P_map':>6} {'map/det':>7} {'startErr':>8}"
+                  f"  {'ev':>4} {'R_all':>6} {'R_trk':>6} {'|err|':>6}  {'fl_R_all':>8} {'fl_|err|':>8}"]
+        for name, c in rows:
+            v = c[variant]
+            lines.append(f"{name:<{w}}  " + " ".join(_talk_cols(v["talk"])) + "  " + " ".join(_ee_cols(v["enter_exit"])))
+        lines += [f"{name:<{w}}  ERROR" for name, _ in failed]
+        t = total[variant]["talk"]
+        loose = next((v for k, v in t.items() if k.startswith("tiou_") and isinstance(v, dict)), None)
+        if loose:
+            lines.append(f"  talk at tIoU >= {loose['tiou']:g}: recall_all {_pct(loose['recall_all']).strip()}, "
+                         f"recall_tracked {_pct(loose['recall_tracked']).strip()}, precision_mapped "
+                         f"{_pct(loose['precision_mapped']).strip()}, median start error "
+                         f"{_num(loose['median_start_err_s'], '.1f', 's')}")
+        e = total[variant]["enter_exit"]
+        for label, block in (("nearest boundary", e), ("first/last seen", e.get("first_last") or {})):
+            en, ex = block.get("enter") or {}, block.get("exit") or {}
+            lines.append(f"  enter/exit, {label}: enter {_pct(en.get('recall_all')).strip()} of {en.get('n_gt', 0)} "
+                         f"(|err| {_num(en.get('median_abs_err_s'), '.1f', 's')}), exit "
+                         f"{_pct(ex.get('recall_all')).strip()} of {ex.get('n_gt', 0)} "
+                         f"(|err| {_num(ex.get('median_abs_err_s'), '.1f', 's')})")
+    twin_actors = sum(int(c.get("twin_aware", {}).get("n_twin_actors", 0)) for _, c in ok)
+    collapsed = total["twin_aware"]["talk"].get("n_gt_collapsed", 0)
+    lines += ["", f"twin clusters: {twin_actors} actors in clusters over {len(ok)} clip(s); {collapsed} ground-truth "
+                  "talk pair interval(s) folded into another by the twin-aware count", ""]
     return "\n".join(lines)
 
 
@@ -658,6 +811,14 @@ def _json_default(obj):
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     raise TypeError(f"{type(obj).__name__} is not JSON serialisable")
+
+
+def _write_results(path: Path, payload: dict) -> None:
+    """Write the JSON next to its final name first, then move it into place, so a crash never leaves half a file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=1, default=_json_default), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -681,18 +842,24 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    """Exit codes: 0 all clips evaluated, 1 a clip failed or nothing could be evaluated, 2 usage error."""
     args = _parser().parse_args(argv)
     clips_path = Path(args.clips)
     out_path = Path(args.out) if args.out else Path("runs") / "eval" / f"meva_{args.split}.json"
     try:
         rows = select_clips(read_clips(clips_path), args.split, args.split_file)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-
     if not rows:
         print(f"error: the {args.split!r} split selects no clips", file=sys.stderr)
         return 2
+    try:
+        _motmetrics()
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
     jobs, skipped = [], []
     for row in rows:
         video = clips_path.parent / "videos" / f"{row['clip']}.r13.avi"
@@ -711,19 +878,21 @@ def main(argv=None) -> int:
               "merge_thr": args.merge_thr, "limit_seconds": args.limit_seconds}
     stack = _default_stack()
     cache_root = Path(args.cache) if args.cache else config.cache_dir()
-    results = []
+    results: list[dict] = []
     for clip, video, prefix in jobs:
         print(f"evaluating {clip} ...", flush=True)
-        results.append(eval_clip(video, prefix, stack, cache_root, **params))
+        try:
+            results.append(eval_clip(video, prefix, stack, cache_root, **params))
+        except Exception as exc:  # one bad clip must not lose the others; KeyboardInterrupt still stops the run
+            message = f"{type(exc).__name__}: {exc}"
+            print(f"error: {clip}: {message}", file=sys.stderr)
+            results.append({"clip": clip, "error": message})
+        _write_results(out_path, {"split": args.split, "params": params, "notes": NOTES, "skipped": skipped,
+                                  "clips": results, "total": aggregate(results)})
     total = aggregate(results)
     print(format_tables(results, total, params))
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps({"split": args.split, "params": params, "notes": NOTES, "skipped": skipped,
-                                    "clips": results, "total": total}, indent=1, default=_json_default),
-                        encoding="utf-8")
     print(f"wrote {out_path}")
-    return 0
+    return 1 if total["n_failed"] else 0
 
 
 if __name__ == "__main__":

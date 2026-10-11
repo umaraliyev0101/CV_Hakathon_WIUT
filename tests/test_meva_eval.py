@@ -77,13 +77,17 @@ def test_match_ids_fragments_map_many_to_one():
     assert me.match_ids(make_res(20, obs), None, gt, False) == {1: 7, 2: 7}
 
 
-def test_match_ids_needs_three_votes_and_thirty_percent():
+def test_match_ids_strict_rule_needs_three_votes_and_thirty_percent():
     obs = (box_obs(range(2), 5, C_OUT)                                     # 2 obs, both matched: below 3 votes
            + box_obs(range(20), 6, B_OUT)                                  # 20 obs, actor 2 visible on 3 samples only
            + box_obs(range(10), 7, (800, 800, 900, 900))                   # never on anyone
            + box_obs(range(10), 8, A_OUT))                                 # always on actor 1
     gt = make_gt({1: A_SRC, 2: lambda f: B_SRC if f // 6 < 3 else None, 3: C_SRC}, 20)
-    assert me.match_ids(make_res(20, obs), None, gt, False) == {8: 1}      # 6: 3 votes of 20 frames = 15% < 30%
+    res = make_res(20, obs)
+    strict = me.match_ids(res, None, gt, False, min_actor_share=None)
+    assert strict == {8: 1}                                                # 6: 3 votes of 20 frames = 15% < 30%
+    # the default rule also maps 6: actor 2 is annotated on 3 frames and the track is on it for all 3
+    assert me.match_ids(res, None, gt, False) == {6: 2, 8: 1}
 
 
 def test_match_ids_exactly_thirty_percent_is_enough():
@@ -126,6 +130,88 @@ def test_match_ids_empty_inputs():
     res = make_res(5, [])
     assert me.match_ids(res, None, make_gt({1: A_SRC}, 5), False) == {}
     assert me.match_ids(make_res(5, box_obs(range(5), 1, A_OUT)), None, {}, False) == {}
+
+
+def actor_on(k0, overlap, annotated):
+    """Actor annotated on samples k0 .. k0+annotated-1; on A_SRC for the first `overlap` of them, on B_SRC after."""
+    def box(f):
+        k = f // 6 - k0
+        return (A_SRC if k < overlap else B_SRC) if 0 <= k < annotated else None
+    return box
+
+
+def test_match_ids_briefly_annotated_actor_maps_on_its_own_frames():
+    # a person followed for 40 frames; actor 5 is annotated on 6 of them and the person is on it for all 6:
+    # 6 votes are 15% of the person's frames (strict: no) but 100% of the actor's annotated frames
+    res = make_res(40, box_obs(range(40), 1, A_OUT))
+    gt = make_gt({5: actor_on(10, 6, 6)}, 40)
+    assert me.match_ids(res, None, gt, False, min_actor_share=None) == {}
+    assert me.match_ids(res, None, gt, False) == {1: 5}
+
+
+def test_match_ids_actor_share_is_half_of_the_actors_annotated_frames_and_votes_floor_stays_three():
+    res = make_res(40, box_obs(range(40), 1, A_OUT))
+    assert me.match_ids(res, None, make_gt({5: actor_on(10, 3, 6)}, 40), False) == {1: 5}   # 3 / 6 = 50%
+    assert me.match_ids(res, None, make_gt({5: actor_on(10, 3, 7)}, 40), False) == {}       # 3 / 7 = 43%
+    assert me.match_ids(res, None, make_gt({5: actor_on(10, 2, 2)}, 40), False) == {}       # 100% but only 2 votes
+
+
+def test_match_ids_uses_the_most_voted_actor_even_when_another_would_pass_the_actor_share():
+    res = make_res(40, box_obs(range(40), 1, A_OUT))
+    # actor 1: annotated on all 40 frames, overlapped on 5 (12% / 12%); actor 2: annotated on 4, overlapped on 4
+    gt = make_gt({1: actor_on(0, 5, 40), 2: actor_on(10, 4, 4)}, 40)
+    assert me.match_ids(res, None, gt, False) == {}
+
+
+def test_match_ids_actor_frames_are_counted_inside_the_evaluated_window_only():
+    # 20 sampled frames; the actor is annotated on samples 14-40, so 6 of them lie in the window and the person is on
+    # it for 4: 4 / 6 passes, while 4 / 27 (the whole annotation) or 4 / 20 of the person's frames would not
+    res = make_res(20, box_obs(range(20), 1, A_OUT))
+    gt = make_gt({5: actor_on(14, 4, 27)}, 41)
+    assert me.match_ids(res, None, gt, False, min_actor_share=None) == {}
+    assert me.match_ids(res, None, gt, False) == {1: 5}
+
+
+# ---------------------------------------------------------------------------------------------------- twin_clusters
+
+TWIN_SRC = (102, 100, 202, 300)                          # IoU with A_SRC = 98*200 / (2*20000 - 19600) = 0.96
+
+
+def test_twin_clusters_pair_up_actors_with_overlapping_boxes():
+    res = make_res(10, [])
+    gt = make_gt({1: A_SRC, 2: TWIN_SRC, 3: B_SRC}, 10)
+    assert me.twin_clusters(res, gt) == {1: 1, 2: 1}
+
+
+def test_twin_clusters_none_when_the_boxes_differ_or_no_actor_is_annotated_twice():
+    res = make_res(10, [])
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: (150, 100, 250, 300)}, 10)) == {}      # IoU 0.33
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: B_SRC}, 10)) == {}
+    assert me.twin_clusters(res, {}) == {}
+
+
+def test_twin_clusters_need_half_of_the_co_annotated_frames_and_at_least_three_of_them():
+    res = make_res(10, [])
+    def twin_on(n_twin):                                  # twin on A for the first n samples, elsewhere afterwards
+        return lambda f: TWIN_SRC if f // 6 < n_twin else B_SRC
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: twin_on(5)}, 10)) == {1: 1, 2: 1}      # 5 / 10
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: twin_on(4)}, 10)) == {}                # 4 / 10
+    short = lambda f: TWIN_SRC if f // 6 < 2 else None                                       # noqa: E731
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: short}, 10)) == {}                     # only 2 co-annotated
+    short3 = lambda f: TWIN_SRC if f // 6 < 3 else None                                      # noqa: E731
+    assert me.twin_clusters(res, make_gt({1: A_SRC, 2: short3}, 10)) == {1: 1, 2: 1}
+
+
+def test_twin_clusters_brief_twin_of_a_long_lived_actor():
+    res = make_res(40, [])
+    gt = make_gt({3: A_SRC, 9: lambda f: TWIN_SRC if 20 <= f // 6 < 24 else None}, 40)
+    assert me.twin_clusters(res, gt) == {3: 3, 9: 3}
+
+
+def test_twin_clusters_are_transitive_and_named_by_the_lowest_actor_id():
+    a, b, c = (100, 100, 200, 300), (115, 100, 215, 300), (130, 100, 230, 300)   # a~b, b~c (0.74), a vs c 0.54
+    gt = make_gt({7: a, 3: b, 5: c, 11: B_SRC}, 10)
+    assert me.twin_clusters(make_res(10, []), gt) == {3: 3, 5: 3, 7: 3}
 
 
 # ------------------------------------------------------------------------------------------------ tracking_metrics
@@ -381,6 +467,46 @@ def test_talk_eval_ignores_other_activities_and_clips_to_t_max():
     assert r["n_gt"] == 0
 
 
+def test_talk_eval_twin_actor_gets_credit_only_when_twin_aware():
+    dets, ids = [(101, 102, 10.0, 30.0)], {101: 11, 102: 2}          # our person follows actor 11, a twin of GT actor 1
+    strict = me.talk_eval(dets, [talk_act()], ids, FPS)
+    assert strict["recall_all"] == 0.0 and strict["n_gt_tracked"] == 0 and strict["precision_mapped"] == 0.0
+    twin = me.talk_eval(dets, [talk_act()], ids, FPS, clusters={1: 1, 11: 1})
+    assert twin["recall_all"] == 1.0 and twin["recall_tracked"] == 1.0 and twin["precision_mapped"] == 1.0
+    assert twin["n_gt"] == 1 and twin["n_gt_tracked"] == 1 and twin["tiou_0.1"]["recall_all"] == 1.0
+
+
+def test_talk_eval_twin_aware_merges_gt_pairs_that_become_identical():
+    same_talk_twice = [talk_act(300, 900, (1, 2), act_id=1), talk_act(300, 900, (11, 2), act_id=2)]
+    assert me.talk_eval([], same_talk_twice, {}, FPS)["n_gt"] == 2                                    # strict: untouched
+    r = me.talk_eval([], same_talk_twice, {}, FPS, clusters={1: 1, 11: 1})
+    assert r["n_gt"] == 1 and r["n_gt_collapsed"] == 1
+    # a different conversation of the twin at another time stays a separate ground-truth interval
+    other_time = [talk_act(300, 900, (1, 2), act_id=1), talk_act(1500, 1800, (11, 2), act_id=2)]
+    assert me.talk_eval([], other_time, {}, FPS, clusters={1: 1, 11: 1})["n_gt"] == 2
+    # an empty cluster map is still twin-aware mode: identical ground-truth pairs are one interval
+    assert me.talk_eval([], [talk_act(act_id=1), talk_act(act_id=2)], {}, FPS, clusters={})["n_gt"] == 1
+
+
+def test_talk_eval_twin_aware_dedupes_nearly_identical_spans_of_the_same_cluster_pair():
+    # the same conversation annotated for two twins with spans a second apart: 28 s vs 29 s
+    twice = [talk_act(300, 1140, (1, 2), act_id=1), talk_act(330, 1140, (11, 2), act_id=2)]
+    assert me.talk_eval([], twice, {}, FPS, clusters={1: 1, 11: 1})["n_gt"] == 1
+
+
+def test_talk_eval_twin_aware_drops_pairs_between_twins():
+    talk = [talk_act(300, 900, (1, 11))]
+    assert me.talk_eval([], talk, {}, FPS)["n_gt"] == 1
+    r = me.talk_eval([], talk, {}, FPS, clusters={1: 1, 11: 1})
+    assert r["n_gt"] == 0 and r["recall_all"] is None and r["n_gt_collapsed"] == 1
+
+
+def test_talk_eval_twin_aware_detection_between_two_persons_of_one_person_is_a_false_positive():
+    ids = {101: 1, 103: 11, 102: 2}
+    r = me.talk_eval([(101, 103, 10.0, 30.0)], [talk_act()], ids, FPS, clusters={1: 1, 11: 1})
+    assert r["n_det"] == 1 and r["n_det_mapped"] == 1 and r["n_matched"] == 0 and r["precision_mapped"] == 0.0
+
+
 # -------------------------------------------------------------------------------------------- enter_exit_eval
 
 def timelines(**present):
@@ -458,39 +584,76 @@ def test_enter_exit_empty_gives_none_not_zero_division():
     json.dumps(r)
 
 
+def test_enter_exit_twin_actor_event_is_credited_to_the_person_mapped_to_its_twin():
+    an = make_an([], timelines=timelines(p1=[[10.0, 40.0]]))
+    acts = [leave(1110, 1230, 293)]                                   # GT: actor 293 (a twin of actor 3) exits at 41 s
+    strict = me.enter_exit_eval(an, acts, {1: 3}, FPS, t_end=60.0)
+    assert strict["exit"]["n_gt"] == 1 and strict["exit"]["n_gt_tracked"] == 0 and strict["exit"]["n_matched"] == 0
+    twin = me.enter_exit_eval(an, acts, {1: 3}, FPS, t_end=60.0, clusters={3: 3, 293: 3})
+    assert twin["exit"]["n_gt_tracked"] == 1 and twin["exit"]["n_matched"] == 1
+    assert twin["exit"]["median_abs_err_s"] == pytest.approx(1.0)
+    # the other direction: the person follows the twin, the event is of the long-lived actor
+    twin2 = me.enter_exit_eval(an, [leave(1110, 1230, 3)], {1: 293}, FPS, t_end=60.0, clusters={3: 3, 293: 3})
+    assert twin2["exit"]["n_matched"] == 1
+
+
+def test_enter_exit_first_last_variant_uses_the_first_and_last_time_the_person_was_seen():
+    an = make_an([], timelines=timelines(p1=[[10.0, 20.0], [50.0, 70.0]], p2=[[75.0, 80.0]]))
+    acts = [enter(1440, 1500, 5), leave(2040, 2130, 5, 2)]            # GT: enter 48.0 s, exit 71.0 s
+    r = me.enter_exit_eval(an, acts, {1: 5}, FPS, t_end=100.0)
+    assert r["enter"]["n_matched"] == 1 and r["exit"]["n_matched"] == 1          # nearest boundary: 50.0 and 70.0
+    fl = r["first_last"]
+    assert fl["enter"]["n_matched"] == 0 and fl["enter"]["errs_s"] == []         # first seen 10.0: 38 s off
+    assert fl["exit"]["n_matched"] == 1 and fl["exit"]["median_abs_err_s"] == pytest.approx(1.0)   # last seen 70.0
+    assert fl["enter"]["n_gt"] == 1 and fl["enter"]["n_gt_tracked"] == 1
+    # persons that are fragments of one actor: first seen over all of them, last seen over all of them
+    r2 = me.enter_exit_eval(an, acts, {1: 5, 2: 5}, FPS, t_end=100.0)
+    assert r2["first_last"]["exit"]["n_matched"] == 0                            # last seen 80.0: 9 s off
+    assert r2["exit"]["n_matched"] == 1                                          # nearest end is still 70.0
+    assert r2["first_last"]["all"]["n_gt"] == 2
+
+
 # ------------------------------------------------------------------------------------------------- aggregation
 
-def clip_result(name, talk, ee, trk_p, trk_t):
-    return {"clip": name, "tracks": {"tracking": trk_t}, "persons": {"tracking": trk_p, "talk": talk,
-                                                                     "enter_exit": ee}}
+def clip_result(name, talk, ee, trk_p, trk_t, twin_talk=None, twin_ee=None):
+    return {"clip": name, "tracks": {"tracking": trk_t}, "persons": {"tracking": trk_p},
+            "strict": {"talk": talk, "enter_exit": ee},
+            "twin_aware": {"talk": twin_talk or talk, "enter_exit": twin_ee or ee}}
 
 
-def test_aggregate_is_micro_averaged_and_pools_errors():
+def test_aggregate_is_micro_averaged_and_pools_errors_for_both_variants():
     a_talk = me.talk_eval([(1, 2, 12.0, 32.0)], [talk_act()], {1: 1, 2: 2}, FPS)                  # 1/1, err 2
     b_acts = [talk_act(300, 900, (1, 2), act_id=i) for i in range(1, 4)]
     b_talk = me.talk_eval([(1, 2, 10.0, 30.0)], b_acts, {1: 1, 2: 2}, FPS)                         # 1/3, err 0
-    assert a_talk["recall_all"] == 1.0 and b_talk["recall_all"] == pytest.approx(1 / 3)
+    b_twin = me.talk_eval([(1, 2, 10.0, 30.0)], b_acts, {1: 1, 2: 2}, FPS, clusters={})            # 1/1: same talk x3
+    assert a_talk["recall_all"] == 1.0 and b_talk["recall_all"] == pytest.approx(1 / 3) and b_twin["recall_all"] == 1.0
     ee_a = me.enter_exit_eval(make_an([], timelines=timelines(p1=[[10.0, 40.0]])), [enter(270, 330, 5)],
                               {1: 5}, FPS, t_end=60.0)
-    ee_b = me.enter_exit_eval(make_an([], timelines=timelines(p1=[[11.0, 40.0]])),
-                              [enter(270, 330, 5), enter(300, 330, 6, 2), enter(330, 360, 7, 3)], {1: 5}, FPS,
-                              t_end=60.0)
+    ee_b_acts = [enter(270, 330, 5), enter(300, 330, 6, 2), enter(330, 360, 7, 3)]
+    ee_b_an = make_an([], timelines=timelines(p1=[[11.0, 40.0]]))
+    ee_b = me.enter_exit_eval(ee_b_an, ee_b_acts, {1: 5}, FPS, t_end=60.0)
+    ee_b_twin = me.enter_exit_eval(ee_b_an, ee_b_acts, {1: 5}, FPS, t_end=60.0, clusters={5: 5, 6: 5})
     res = make_res(10, box_obs(range(10), 1, A_OUT))
     trk = me.tracking_metrics(res, None, make_gt({1: A_SRC}, 10), False)
     clips = [{**clip_result("a", a_talk, ee_a, trk, trk), "n_gt_boxes": 10, "n_gt_dup_boxes": 4},
-             {**clip_result("b", b_talk, ee_b, trk, trk), "n_gt_boxes": 30, "n_gt_dup_boxes": 0}]
+             {**clip_result("b", b_talk, ee_b, trk, trk, b_twin, ee_b_twin), "n_gt_boxes": 30, "n_gt_dup_boxes": 0}]
     total = me.aggregate(clips)
     assert total["gt_dup_share"] == pytest.approx(4 / 40)
-    talk = total["persons"]["talk"]
+    talk = total["strict"]["talk"]
     assert talk["n_gt"] == 4 and talk["recall_all"] == pytest.approx(2 / 4)                        # (1 + 1) / (1 + 3)
     assert talk["median_start_err_s"] == pytest.approx(1.0)                                        # median(2, 0)
-    assert talk["n_det"] == 2 and talk["precision_mapped"] == 1.0
-    ee = total["persons"]["enter_exit"]["all"]
+    assert talk["n_det"] == 2 and talk["n_det_mapped"] == 2 and talk["precision_mapped"] == 1.0
+    ee = total["strict"]["enter_exit"]["all"]
     assert ee["n_gt"] == 4 and ee["n_matched"] == 2 and ee["recall_all"] == pytest.approx(0.5)
     assert ee["median_abs_err_s"] == pytest.approx(1.5)                                            # median(1, 2)
+    assert total["strict"]["enter_exit"]["first_last"]["all"]["n_matched"] == 2
+    twin_talk = total["twin_aware"]["talk"]                                                         # a's strict + b's twin
+    assert twin_talk["n_gt"] == 2 and twin_talk["recall_all"] == 1.0 and twin_talk["n_gt_collapsed"] == 2
+    twin_ee = total["twin_aware"]["enter_exit"]["all"]                                              # a + b (actor 6 credited)
+    assert twin_ee["n_gt"] == 4 and twin_ee["n_gt_tracked"] == 3 and twin_ee["n_matched"] == 3
     t = total["persons"]["tracking"]
     assert t["num_frames"] == 20 and t["mota"] == pytest.approx(1.0) and t["idf1"] == pytest.approx(1.0)
-    assert total["n_clips"] == 2
+    assert total["n_clips"] == 2 and total["n_failed"] == 0
 
 
 def test_aggregate_mota_is_computed_from_summed_counts():
@@ -502,8 +665,11 @@ def test_aggregate_mota_is_computed_from_summed_counts():
     assert total["tracks"]["tracking"]["mota"] == pytest.approx(1 - 5 / 20)
 
 
-def test_aggregate_of_nothing():
+def test_aggregate_skips_failed_clips_and_handles_nothing():
     assert me.aggregate([])["n_clips"] == 0
+    t = me.tracking_metrics(make_res(5, []), None, {}, False)
+    total = me.aggregate([{"clip": "x", "error": "ValueError: boom"}, clip_result("ok", {}, {}, t, t)])
+    assert total["n_clips"] == 1 and total["n_failed"] == 1
 
 
 # -------------------------------------------------------------------------------------------------- splits / CLI
@@ -545,18 +711,40 @@ def test_select_clips_all_with_a_split_file_means_the_clips_listed_in_it(csv_and
     assert [r["clip"] for r in me.select_clips(me.read_clips(clips), "all", split)] == ["c2.G2"]
 
 
+BAD_SPLITS = ['["c1.G1"]', '"c1.G1"', "null", "not json at all", '{"dev": "c1.G1", "test": []}', '{"dev": ["c1.G1"]}',
+              '{"dev": [], "test": {"a": 1}}', '{"dev": [1, 2], "test": []}', '{"dev": [null], "test": []}']
+
+
+@pytest.mark.parametrize("content", BAD_SPLITS)
+def test_a_split_file_that_is_not_an_object_of_dev_and_test_lists_is_rejected(csv_and_split, tmp_path, monkeypatch,
+                                                                              capsys, content):
+    clips, split = csv_and_split
+    split.write_text(content, encoding="utf-8")
+    with pytest.raises(ValueError, match="split file"):
+        me.select_clips(me.read_clips(clips), "all", split)
+    monkeypatch.setattr(me, "eval_clip", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(me, "_default_stack", lambda: "STACK")
+    rc = me.main(["--clips", str(clips), "--split", "dev", "--split-file", str(split), "--out", str(tmp_path / "o.json")])
+    assert rc == 2 and "split file" in capsys.readouterr().err
+
+
 def fake_clip_eval(clip, tag=1.0):
     trk = {"mota": tag, "idf1": tag, "num_switches": 0, "precision": tag, "recall": tag, "num_frames": 10,
            "num_objects": 10, "num_misses": 0, "num_false_positives": 0, "num_detections": 10, "idtp": 10,
            "idfp": 0, "idfn": 0}
-    talk = me.talk_eval([(1, 2, 10.0, 30.0)], [talk_act()], {1: 1, 2: 2}, FPS)
-    ee = me.enter_exit_eval(make_an([], timelines=timelines(p1=[[10.0, 40.0]])), [enter(270, 330, 5)], {1: 5}, FPS,
-                            t_end=60.0)
+    talk_args = ([(1, 2, 10.0, 30.0)], [talk_act()], {1: 1, 2: 2}, FPS)
+    ee_args = (make_an([], timelines=timelines(p1=[[10.0, 40.0]])), [enter(270, 330, 5)], {1: 5}, FPS)
     return {"clip": clip, "duration_s": 60.0, "cached": True, "timings": {"total": 1.0},
-            **clip_result(clip, talk, ee, trk, trk)}
+            "n_gt_boxes": 10, "n_gt_dup_boxes": 2, "gt_dup_share": 0.2,
+            **clip_result(clip, me.talk_eval(*talk_args), me.enter_exit_eval(*ee_args, t_end=60.0), trk, trk,
+                          me.talk_eval(*talk_args, clusters={}), me.enter_exit_eval(*ee_args, t_end=60.0, clusters={}))}
 
 
-def test_main_writes_json_and_prints_table(csv_and_split, tmp_path, monkeypatch, capsys):
+def Path_name(p):
+    return p.replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def test_main_writes_json_and_prints_both_variants(csv_and_split, tmp_path, monkeypatch, capsys):
     clips, split = csv_and_split
     seen = []
 
@@ -580,12 +768,39 @@ def test_main_writes_json_and_prints_table(csv_and_split, tmp_path, monkeypatch,
     assert [c["clip"] for c in data["clips"]] == ["c1.G1", "c2.G2"]
     assert data["total"]["n_clips"] == 2 and data["split"] == "dev"
     assert data["params"]["dist"] == 2.5 and data["notes"]
+    assert data["clips"][0]["strict"]["talk"]["recall_all"] == 1.0
+    assert data["total"]["strict"]["talk"]["n_gt"] == 2 and data["total"]["twin_aware"]["talk"]["n_gt"] == 2
+    assert data["total"]["twin_aware"]["enter_exit"]["first_last"]["all"]["n_gt"] == 2
     text = capsys.readouterr().out
     assert "c1.G1" in text and "c2.G2" in text and "TOTAL" in text and "MOTA" in text
+    assert "STRICT" in text and "TWIN-AWARE" in text
+    assert "1/1" in text                                              # n_det_mapped / n_det next to P_map
 
 
-def Path_name(p):
-    return p.replace("\\", "/").rsplit("/", 1)[-1]
+def test_main_records_a_failing_clip_and_continues_writing_the_json_after_each_clip(csv_and_split, tmp_path,
+                                                                                    monkeypatch, capsys):
+    clips, split = csv_and_split
+    out = tmp_path / "o.json"
+    on_disk_during_second = []
+
+    def fake_eval(video, ann, stack, cache_root, **kw):
+        name = video.name.split(".r13")[0]
+        if name == "c1.G1":
+            raise ValueError("boom")
+        on_disk_during_second.append(json.loads(out.read_text(encoding="utf-8")))
+        return fake_clip_eval(name)
+
+    monkeypatch.setattr(me, "eval_clip", fake_eval)
+    monkeypatch.setattr(me, "_default_stack", lambda: "STACK")
+    monkeypatch.setattr(me, "_files_exist", lambda *p: True)
+    rc = me.main(["--clips", str(clips), "--split", "dev", "--split-file", str(split), "--out", str(out)])
+    assert rc == 1                                                    # a clip failed
+    assert on_disk_during_second[0]["clips"] == [{"clip": "c1.G1", "error": "ValueError: boom"}]
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["clips"][0] == {"clip": "c1.G1", "error": "ValueError: boom"}
+    assert data["clips"][1]["clip"] == "c2.G2" and data["total"]["n_clips"] == 1 and data["total"]["n_failed"] == 1
+    captured = capsys.readouterr()
+    assert "ERROR" in captured.out and "boom" in captured.out and "boom" in captured.err
 
 
 def test_main_usage_errors_return_2(csv_and_split, tmp_path, monkeypatch, capsys):
@@ -618,18 +833,17 @@ def test_main_empty_split_is_a_usage_error(csv_and_split, tmp_path, monkeypatch,
     assert "no clips" in capsys.readouterr().err
 
 
-def test_analyze_passes_merge_thr_through_and_restores_build_persons(monkeypatch):
-    from showroom_coach import analysis
-    seen = {}
-
-    def spy(res, merge_thr=0.3, **kw):
-        seen["thr"] = merge_thr
-        raise RuntimeError("stop here")
-
-    monkeypatch.setattr(analysis, "build_persons", spy)
-    with pytest.raises(RuntimeError, match="stop here"):
-        me._analyze(NS(video=NS(duration=1.0)), "short", 0.41)
-    assert seen["thr"] == 0.41 and analysis.build_persons is spy
+def test_motmetrics_is_imported_lazily_with_a_clear_message(csv_and_split, tmp_path, monkeypatch, capsys):
+    import sys
+    monkeypatch.setitem(sys.modules, "motmetrics", None)              # `import motmetrics` now raises ImportError
+    with pytest.raises(RuntimeError, match="motmetrics"):
+        me.tracking_metrics(make_res(3, []), None, {}, False)
+    clips, split = csv_and_split
+    monkeypatch.setattr(me, "eval_clip", lambda *a, **k: pytest.fail("must not run"))
+    monkeypatch.setattr(me, "_default_stack", lambda: pytest.fail("must not build the stack"))
+    monkeypatch.setattr(me, "_files_exist", lambda *p: True)
+    rc = me.main(["--clips", str(clips), "--split", "dev", "--split-file", str(split), "--out", str(tmp_path / "o.json")])
+    assert rc == 2 and "motmetrics" in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------------------------------------ end to end
@@ -642,10 +856,12 @@ def _kpf_geom(path, boxes):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path):
+def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path, monkeypatch):
+    from showroom_coach import analysis
     from showroom_coach.perception.stack import fake_stack
     # meet_video: 20 s at 30 fps, 1280x720. Blue (actor 1) stands at x 600..680; red (actor 2) walks in 4-8 s, stays
-    # at x 470..550 until 18 s, then walks out. Both are 80x220 at y 250.
+    # at x 470..550 until 18 s, then walks out. Both are 80x220 at y 250. Actor 3 is a twin annotation of actor 2 for its
+    # last 4 s (a slightly larger box) and is the one that "exits"; actor 2 itself enters at 4 s.
     from tests.conftest import _customer_x1
     boxes = []
     for f in range(600):
@@ -654,35 +870,47 @@ def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path):
         x1 = _customer_x1(t)
         if x1 is not None:
             boxes.append((f, 2, (x1, 250, x1 + 80, 470)))
+            if t >= 16.0:
+                boxes.append((f, 3, (x1 - 2, 248, x1 + 82, 472)))
     prefix = tmp_path / "meet"
     _kpf_geom(tmp_path / "meet.geom.yml", boxes)
     (tmp_path / "meet.types.yml").write_text(
-        "- {'types': {'cset3': {'person': 1.0}, 'id1': 1}}\n- {'types': {'cset3': {'person': 1.0}, 'id1': 2}}\n",
-        encoding="utf-8")
+        "".join(f"- {{'types': {{'cset3': {{'person': 1.0}}, 'id1': {i}}}}}\n" for i in (1, 2, 3)), encoding="utf-8")
     span = "{'tsr0': [240, 540]}"
     (tmp_path / "meet.activities.yml").write_text(
         "- {'act': {'act2': {'person_talks_to_person': 1.0}, 'actors': [{'id1': 1, 'timespan': [" + span + "]}, "
         "{'id1': 2, 'timespan': [" + span + "]}], 'id2': 4, 'src_status': 'good', 'timespan': [" + span + "]}}\n"
         "- {'act': {'act2': {'person_enters_scene_through_structure': 1.0}, 'actors': [{'id1': 2, 'timespan': "
-        "[{'tsr0': [120, 150]}]}], 'id2': 5, 'src_status': 'good', 'timespan': [{'tsr0': [120, 150]}]}}\n",
+        "[{'tsr0': [120, 150]}]}], 'id2': 5, 'src_status': 'good', 'timespan': [{'tsr0': [120, 150]}]}}\n"
+        "- {'act': {'act2': {'person_exits_scene_through_structure': 1.0}, 'actors': [{'id1': 3, 'timespan': "
+        "[{'tsr0': [540, 570]}]}], 'id2': 6, 'src_status': 'good', 'timespan': [{'tsr0': [540, 570]}]}}\n",
         encoding="utf-8")
 
+    passed = []
+    real_analyze = analysis.analyze
+    monkeypatch.setattr(analysis, "analyze", lambda *a, **kw: (passed.append(kw), real_analyze(*a, **kw))[1])
     r = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", preset="short", dist=2.0, min_dur=8.0,
-                     gap_tol=1.5, merge_thr=0.30)
+                     gap_tol=1.5, merge_thr=0.37)
+    assert passed and passed[0]["merge_thr"] == 0.37 and passed[0]["preset"] == "short"
     json.dumps(r)
     assert r["clip"] == "meet"
-    for variant in ("tracks", "persons"):
-        t = r[variant]["tracking"]
-        assert t["recall"] > 0.9 and t["mota"] > 0.8 and t["num_switches"] == 0, (variant, t)
-    assert r["persons"]["id_map"]
-    assert sorted(set(r["persons"]["id_map"].values())) == [1, 2]
-    talk = r["persons"]["talk"]
-    assert talk["n_gt"] == 1 and talk["n_gt_tracked"] == 1
-    assert talk["recall_all"] == 1.0 and talk["precision_mapped"] == 1.0
-    assert 0.0 <= talk["median_start_err_s"] <= 4.0
-    ee = r["persons"]["enter_exit"]["enter"]
-    assert ee["n_gt"] == 1 and ee["n_matched"] == 1                  # GT enter at 4.0 s; the red box appears at 4.0 s
+    assert r["tracks"]["tracking"]["num_switches"] == 0 and r["persons"]["tracking"]["num_switches"] == 0
+    assert r["persons"]["tracking"]["recall"] > 0.8
+    strict, twin = r["strict"], r["twin_aware"]
+    assert sorted(set(strict["id_map"].values())) == [1, 2]
+    assert {int(k): v for k, v in twin["clusters"].items()} == {2: 2, 3: 2}
+    for variant in (strict, twin):
+        talk = variant["talk"]
+        assert talk["n_gt"] == 1 and talk["n_gt_tracked"] == 1
+        assert talk["recall_all"] == 1.0 and talk["precision_mapped"] == 1.0
+        assert 0.0 <= talk["median_start_err_s"] <= 4.0
+        enter_ev = variant["enter_exit"]["enter"]
+        assert enter_ev["n_gt"] == 1 and enter_ev["n_matched"] == 1          # GT enter at 4.0 s; the red box appears then
+        assert variant["enter_exit"]["first_last"]["enter"]["n_matched"] == 1
+    # the exit belongs to actor 3, the twin of actor 2: only the twin-aware numbers credit it
+    assert strict["enter_exit"]["exit"]["n_gt"] == 1 and strict["enter_exit"]["exit"]["n_gt_tracked"] == 0
+    assert twin["enter_exit"]["exit"]["n_gt_tracked"] == 1 and twin["enter_exit"]["exit"]["n_matched"] == 1
 
     short = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", limit_seconds=10.0)
     assert short["duration_s"] == pytest.approx(10.0, abs=0.3)
-    assert short["persons"]["talk"]["n_gt"] == 1                      # GT clipped to 8-10 s
+    assert short["strict"]["talk"]["n_gt"] == 1                      # GT clipped to 8-10 s

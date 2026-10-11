@@ -309,11 +309,13 @@ def _warnings(res: PerceptionResult, persons: list[Person], roles: dict[int, str
 
 def analyze(res: PerceptionResult, preset: str = "short", roles: dict[int, str] | None = None,
             names: dict[int, str] | None = None, camera: CameraConfig = CameraConfig(),
-            weights: RoleWeights = RoleWeights()) -> Analysis:
-    """The whole offline pass: steps 1-3 here, then ``rescore`` for events, metrics, timelines and warnings."""
+            weights: RoleWeights = RoleWeights(), merge_thr: float = 0.30) -> Analysis:
+    """The whole offline pass: steps 1-3 here, then ``rescore`` for events, metrics, timelines and warnings.
+
+    ``merge_thr`` is the appearance-distance threshold of the identity merge (``build_persons``); 0.30 is its default."""
     th = get_preset(preset)
     duration = float(res.video.duration)
-    persons, obs_pid = build_persons(res)
+    persons, obs_pid = build_persons(res, merge_thr=merge_thr)
     obs_xz, obs_src, obs_facing, obs_edge = compute_geometry(res, camera)
     features = _role_features(res, persons, obs_pid, obs_xz, weights)
     suggestions = {s.pid: s for s in suggest_roles(features, duration, weights)}
