@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import os
 import sys
 import time
 
@@ -277,9 +279,199 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         from .perception.stack import fake_stack
 
         kwargs["stack_factory"] = fake_stack
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     app = create_app(**kwargs)
     print(f"Showroom Coach running at http://{args.host}:{args.port}", flush=True)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    return 0
+
+
+def _cmd_eval_meva(args: argparse.Namespace) -> int:
+    """`showroom-coach eval-meva ...`: every flag goes to `evaluation.meva_eval.main` unchanged."""
+    from .evaluation import meva_eval
+
+    return int(meva_eval.main(list(args.rest)))
+
+
+def _p95(values: list[float]) -> float:
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))]
+
+
+def _bench_file(video, stack, detector: str, max_seconds: float, do_render: bool) -> dict:
+    """File mode: a fresh perception run (never the cache), then the offline analysis and the annotated video."""
+    import tempfile
+    from pathlib import Path
+
+    from . import analysis, render
+    from .perception import pipeline
+
+    t0 = time.perf_counter()
+    res = pipeline.run_perception(video, stack, max_seconds=max_seconds)
+    wall = time.perf_counter() - t0
+    t0 = time.perf_counter()
+    an = analysis.analyze(res)
+    analysis_s = time.perf_counter() - t0
+    render_s = None
+    if do_render:
+        with tempfile.TemporaryDirectory(prefix="showroom-bench-", ignore_cleanup_errors=True) as tmp:
+            t0 = time.perf_counter()
+            render.render_video(video, res, an, Path(tmp) / "bench.mp4")
+            render_s = time.perf_counter() - t0
+    duration = float(res.video.duration)
+    return {
+        "video": str(video), "detector": detector, "stack": res.stack_name, "duration_s": duration,
+        "width": res.video.width, "height": res.video.height, "sample_fps": res.video.sample_fps,
+        "n_sampled_frames": int(len(res.frame_times)), "perception_wall_s": wall,
+        "stages_s": {k: float(v) for k, v in res.timings.items() if k != "total"},
+        "rtf": duration / wall if wall > 0 else float("inf"),
+        "analysis_s": analysis_s, "render_s": render_s,
+        "render_rtf": duration / render_s if render_s else None,
+        "n_people": len(an.persons), "mean_people_per_frame": len(res.obs_frame) / max(1, len(res.frame_times)),
+    }
+
+
+def _bench_live(video, frames: int, stack, detector: str) -> dict:
+    """Live mode: `frames` sampled frames (5 fps timestamps) through a `LiveSession`, timing every `process` call. One
+    throwaway call on its own session first, so one-time model start-up costs are not counted."""
+    import dataclasses
+    import itertools
+    import statistics
+
+    from .config import MAX_WIDTH, SAMPLE_FPS
+    from .live import LiveSession
+    from .sources import VideoError, iter_frames
+
+    spent = {"detect": 0.0, "pose": 0.0, "embed": 0.0}
+
+    def timed(name, fn):
+        if fn is None:
+            return None
+
+        def run(*a, **k):
+            t0 = time.perf_counter()
+            try:
+                return fn(*a, **k)
+            finally:
+                spent[name] += time.perf_counter() - t0
+        return run
+
+    timed_stack = dataclasses.replace(stack, detect=timed("detect", stack.detect), pose=timed("pose", stack.pose),
+                                      embed=timed("embed", stack.embed))
+    source = iter_frames(video, sample_fps=SAMPLE_FPS, max_width=MAX_WIDTH, max_seconds=frames / SAMPLE_FPS + 1.0)
+    first = next(source, None)
+    if first is None:
+        raise VideoError(f"cannot read video: no frames in {video}")
+    LiveSession(timed_stack).process(first[2], 0.0)
+    spent.update(dict.fromkeys(spent, 0.0))
+    session = LiveSession(timed_stack)
+    times: list[float] = []
+    people: list[int] = []
+    for _, t, frame in itertools.islice(itertools.chain([first], source), frames):
+        t0 = time.perf_counter()
+        overlay = session.process(frame, t)
+        times.append(time.perf_counter() - t0)
+        people.append(len(overlay["people"]))
+    total = sum(times)
+    return {
+        "video": str(video), "detector": detector, "stack": stack.name, "frames": len(times), "wall_s": total,
+        "fps_mean": len(times) / total if total > 0 else float("inf"),
+        "fps_median": 1.0 / statistics.median(times) if statistics.median(times) > 0 else float("inf"),
+        "ms_mean": 1000 * total / len(times), "ms_median": 1000 * statistics.median(times),
+        "ms_p95": 1000 * _p95(times), "people_mean": statistics.fmean(people), "people_min": min(people),
+        "people_max": max(people), "stages_s": dict(spent),
+    }
+
+
+def _bench_text(data: dict) -> str:
+    m = data["machine"]
+    lines = [f"Showroom Coach bench ({m['cpu_count']} logical CPUs, {m['processor'] or m['platform']})"]
+    f = data.get("file")
+    if f:
+        stages = ", ".join(f"{k} {v:.1f} s" for k, v in f["stages_s"].items())
+        lines += [f"file mode   {os.path.basename(f['video'])}: {f['duration_s']:.1f} s of video, {f['width']}x{f['height']}, "
+                  f"{f['sample_fps']:g} fps sampling, {f['n_sampled_frames']} frames, "
+                  f"{f['mean_people_per_frame']:.1f} people per frame",
+                  f"  perception    {f['perception_wall_s']:.1f} s wall, fresh run, no cache ({stages}); stack {f['stack']}",
+                  f"  real-time factor  {f['rtf']:.2f}x  ({f['duration_s']:.1f} s of video / {f['perception_wall_s']:.1f} s "
+                  "perception; above 1 is faster than real time)",
+                  f"  analysis      {f['analysis_s']:.2f} s ({f['n_people']} people)"]
+        lines.append("  render        skipped" if f["render_s"] is None else
+                     f"  render        {f['render_s']:.1f} s for the annotated video ({f['render_rtf']:.1f}x real time)")
+    lv = data.get("live")
+    if lv:
+        st = lv["stages_s"]
+        stages = ", ".join(f"{k} {v:.1f} s" for k, v in st.items())
+        lines += [f"live mode   {os.path.basename(lv['video'])}: {lv['frames']} frames through LiveSession, detector "
+                  f"{lv['detector']}, stack {lv['stack']}",
+                  f"  processed fps  mean {lv['fps_mean']:.2f} (frames / total time), median {lv['fps_median']:.2f}  "
+                  f"({lv['ms_mean']:.0f} ms mean, {lv['ms_median']:.0f} ms median, {lv['ms_p95']:.0f} ms p95 per frame)",
+                  f"  people per frame  mean {lv['people_mean']:.1f} (min {lv['people_min']}, max {lv['people_max']})",
+                  f"  stage time    {stages} of {lv['wall_s']:.1f} s"]
+    return "\n".join(lines)
+
+
+def _cmd_bench(args: argparse.Namespace) -> int:
+    import datetime
+    import platform
+    from pathlib import Path
+
+    from . import config, models
+    from .perception import stack as stacks
+    from .sources import VideoError
+    from .types import to_jsonable
+
+    if args.frames < 1:
+        print("--frames must be at least 1", file=sys.stderr)
+        return 2
+    if not args.max_seconds > 0:
+        print("--max-seconds must be greater than 0", file=sys.stderr)
+        return 2
+    video = Path(args.video)
+    live_video = Path(args.live_video) if args.live_video else video
+    out = Path(args.out) if args.out else config.repo_root() / "runs" / "bench" / "bench.json"
+    data: dict = {"created": datetime.datetime.now().astimezone().isoformat(timespec="seconds"), "fake": bool(args.fake),
+                  "machine": {"cpu_count": os.cpu_count() or 1, "platform": platform.platform(),
+                              "processor": platform.processor(), "python": platform.python_version()}}
+    loaded: dict[str, object] = {}
+
+    def stack_for(spec: str):
+        if args.fake:
+            return stacks.fake_stack()
+        if spec not in loaded:
+            print(f"loading models ({spec}) ...", file=sys.stderr, flush=True)
+            loaded[spec] = stacks.default_stack(spec)
+        return loaded[spec]
+
+    try:
+        if args.mode in ("both", "file"):
+            spec = config.DEFAULT_DETECTOR
+            print(f"file mode: {video.name} ...", file=sys.stderr, flush=True)
+            data["file"] = _bench_file(video, stack_for(spec), "fake" if args.fake else spec, args.max_seconds,
+                                       not args.no_render)
+        if args.mode in ("both", "live"):
+            spec = config.LIVE_DETECTOR
+            print(f"live mode: {live_video.name}, {args.frames} frames ...", file=sys.stderr, flush=True)
+            data["live"] = _bench_live(live_video, args.frames, stack_for(spec), "fake" if args.fake else spec)
+    except VideoError as exc:
+        text = str(exc)
+        print(text if text.startswith("cannot read video") else f"cannot read video: {text}", file=sys.stderr)
+        return 2
+    except ValueError as exc:                                    # a malformed detector spec in the configuration
+        print(f"cannot use the configured detector: {exc}", file=sys.stderr)
+        return 2
+    except models.ModelUnavailable as exc:
+        print(f"models unavailable: {exc}\nrun 'showroom-coach fetch-models' while online, or try --fake for a dry run",
+              file=sys.stderr)
+        return 1
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(to_jsonable(data), indent=1), encoding="utf-8")
+    except OSError as exc:
+        print(f"cannot write {out}: {exc}", file=sys.stderr)
+        return 1
+    print(_printable(_bench_text(data), sys.stdout.encoding))
+    print(f"wrote {out}")
     return 0
 
 
@@ -330,6 +522,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cache", help="perception cache directory (default runs/cache)")
     p.set_defaults(handler=_cmd_analyze)
 
+    p = sub.add_parser("eval-meva", add_help=False,
+                       help="evaluate tracking, engagement and enter/exit against MEVA (flags: eval-meva --help)")
+    p.add_argument("rest", nargs=argparse.REMAINDER, help="passed on to python -m showroom_coach.evaluation.meva_eval")
+    p.set_defaults(handler=_cmd_eval_meva)
+
+    p = sub.add_parser("bench", help="speed: file-mode real-time factor with per-stage times, live-mode fps")
+    p.add_argument("--video", required=True, help="video for the file-mode run (and the live run unless --live-video)")
+    p.add_argument("--frames", type=int, default=100, help="frames fed to the live session (default 100)")
+    p.add_argument("--live-video", help="video for the live run (default: --video)")
+    p.add_argument("--mode", choices=("both", "file", "live"), default="both", help="what to measure (default both)")
+    p.add_argument("--max-seconds", type=float, default=MAX_SECONDS,
+                   help=f"file mode: process only the first N seconds (default {MAX_SECONDS:g})")
+    p.add_argument("--no-render", action="store_true", help="file mode: skip timing the annotated-video render")
+    p.add_argument("--fake", action="store_true", help="use the model-free test stack (tests only)")
+    p.add_argument("--out", help="result JSON (default runs/bench/bench.json)")
+    p.set_defaults(handler=_cmd_bench)
+
     p = sub.add_parser("serve", help="start the web app (upload, results, live webcam)")
     p.add_argument("--host", default="127.0.0.1", help="interface to listen on (default 127.0.0.1)")
     p.add_argument("--port", type=int, default=8000, help="port (default 8000)")
@@ -339,6 +548,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["eval-meva"]:        # argparse cannot forward a leading option such as --split to a REMAINDER
+        return _cmd_eval_meva(argparse.Namespace(rest=argv[1:]))
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.version:
