@@ -283,9 +283,10 @@ a bundle.
 - **No face recognition, ever.** There is no face detector, face embedding or face matching anywhere in the code. A
   person's face is never stored as an identity.
 - **Faces are blurred in everything we show.** Every rendered video frame, contact-sheet panel and saved thumbnail is
-  blurred before anything is drawn on it, and so is the live canvas. The blur region comes from the nose, eye and ear
-  keypoints, with the top 20% of the person box as a fallback, including people the tracker discarded as noise. An
-  automated test measures the face region before and after (see Results).
+  blurred before anything is drawn on it, and so is the live canvas. Two regions are blurred per person: one from the
+  nose, eye and ear keypoints, and the top 20% of the person box, so a misplaced keypoint cannot leave the head
+  visible; the box top also covers people the tracker discarded as noise. Automated tests measure the face region
+  before and after (see Results).
 - **Body-appearance descriptors are used only to merge track fragments inside one video** (so one person who left and
   re-entered the frame is counted once) and to compare outfits for the staff suggestion. They are never matched to a
   database and never stored as an identity. They are computed from whole-body crops, which include the head, so treat

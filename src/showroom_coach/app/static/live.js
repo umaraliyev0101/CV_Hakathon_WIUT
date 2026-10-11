@@ -4,7 +4,7 @@
  * offscreen canvas (at most 960 px wide) and sent over /ws/live as a JPEG (quality 0.7), one at a time: the next frame
  * goes out only after the server's overlay for the previous one comes back (stop-and-wait). The overlay says who is
  * where; the visible canvas then shows THAT SAME frame with every face region pixelated and blurred (the face of each
- * entry in `people` and every rect in the overlay's `faces`), boxes coloured by role (staff blue, customer orange; a
+ * entry in `people` and every rect in the overlay's `faces`, the top of every detected box), boxes coloured by role (staff blue, customer orange; a
  * person with `state: null` is not confirmed yet and gets a thin dashed box), labels, waiting timers and a line between
  * people who are talking.
  *
@@ -509,7 +509,7 @@ function draw(o) {
       const r = faceRect(p.face, p.bbox, sx, sy, cw, ch);
       if (r) obscure(r);
     }
-    for (const f of o.faces || []) {                      // detected people who are not in `people` yet (first sightings)
+    for (const f of o.faces || []) {                      // the top 20% of every detected box, listed people included
       const r = faceRect(f, null, sx, sy, cw, ch);
       if (r) obscure(r);
     }

@@ -4,8 +4,8 @@
 stack on that single frame (detect, track, pose), gives every track a person id (`identity.LiveIdentity`: a new track
 may take over someone who was lost a moment ago), turns positions into floor metres (`geometry`), steps the event
 engine, and returns the overlay the browser draws (api-contract.md, "Live WebSocket"). Nothing here keeps or returns
-pixels: the overlay carries a `face` rectangle per listed person, plus `faces` for every other detection, and the
-client blurs them all on its own canvas.
+pixels: the overlay carries a `face` rectangle per listed person (from keypoints) plus `faces`, the top 20% of every
+detected box (listed people included), and the client blurs them all on its own canvas.
 
 Confirmation. A new track may be detector noise, so a person feeds the event engine (and the replay history) only once
 confirmed: one of their tracks has `MIN_TRACK_OBS` observations spanning `MIN_TRACK_S` seconds, the same bar as the
@@ -247,8 +247,11 @@ class LiveSession:
                 "wait_s": None if wait is None else round(wait, 1), "label": self._label(pid, role, wait),
             })
         people.sort(key=lambda p: p["pid"])
+        # The top 20% of EVERY detected box, listed people included: their people[].face comes from keypoints, which a
+        # pose error can put on the knees, so the box top is covered as well (the same two regions the render blurs).
         listed = {id(det) for _, det in tracked}
         faces = [[int(v) for v in face_region(d.bbox, None)] for d in persons if id(d) not in listed]
+        faces += [[int(v) for v in face_region(det.bbox, None)] for _, det in tracked]
         overlay = {
             "type": "overlay", "t": round(t, 3), "w": w, "h": h, "fps": 0.0, "people": people, "faces": faces,
             "pairs": [list(p) for p in self._engine.active_pairs()], "events": new_events,

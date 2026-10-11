@@ -501,6 +501,35 @@ def test_saved_track_crops_have_the_face_blurred(tmp_path):
     assert head.std() < body.std() * 0.35
 
 
+def test_saved_crops_blur_the_box_top_even_when_the_face_keypoints_are_wrong(tmp_path):
+    """Confident "face" keypoints on the knees (a pose error) move the keypoint blur region down there; the top 20% of
+    the box, where the head really is, must be blurred as well (the same two regions the render blurs)."""
+    rng = np.random.default_rng(4)
+    path = tmp_path / "noise.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 10.0, (320, 240))
+    for _ in range(20):
+        writer.write(rng.integers(0, 255, (240, 320, 3), dtype=np.uint8))
+    writer.release()
+
+    def misplaced_pose(frame, boxes):
+        out = np.zeros((len(boxes), 17, 3), np.float32)
+        for i, (x1, y1, x2, y2) in enumerate(np.asarray(boxes, np.float64).reshape(-1, 4)):
+            for k, dx in enumerate((-6, -3, 0, 3, 6)):              # nose, eyes, ears, all on the knees
+                out[i, k] = ((x1 + x2) / 2 + dx, y1 + 0.75 * (y2 - y1), 0.95)
+        return out
+
+    box = (50.0, 20.0, 150.0, 220.0)
+    assert face_region(box, misplaced_pose(None, [box])[0])[1] > 100       # the keypoint region alone misses the head
+    st = PerceptionStack("misplaced", lambda f: [Det(box, 0.9, 0)], misplaced_pose, None)
+    res = run_perception(path, st, sample_fps=10.0, crops_dir=tmp_path / "crops")
+    (tid,) = res.track_ids()
+    img = cv2.imread(str(tmp_path / "crops" / f"{tid}.jpg"))
+    h, w = img.shape[:2]                                    # the crop is the box plus 5% padding on every side
+    head = img[int(0.07 * h):int(0.20 * h), int(0.15 * w):int(0.85 * w)]
+    body = img[int(0.30 * h):int(0.55 * h), int(0.15 * w):int(0.85 * w)]  # between the two blurred regions
+    assert head.std() < body.std() * 0.35
+
+
 # --------------------------------------------------------------------------- cache
 
 

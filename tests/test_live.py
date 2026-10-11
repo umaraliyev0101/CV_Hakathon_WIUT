@@ -312,14 +312,41 @@ def _detected(frame):
     return len([d for d in fake_stack().detect(frame) if d.cls == 0])
 
 
-def test_every_detected_person_is_in_people_or_faces():
+def _box_top(bbox):
+    """The fallback face rect of a box: its top 20%, full width (render.face_region without keypoints)."""
+    from showroom_coach.render import face_region
+    return [int(v) for v in face_region(bbox, None)]
+
+
+def test_every_detected_person_has_a_box_top_rect_in_faces():
+    """`faces` holds the top 20% of EVERY detected box (listed people too); people[].face adds the keypoint region."""
     s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
     script = _with_flickers(real=((500, 0.0, None), (60, 4.0, None)))
     for t in _times(script.until):
         frame = script(t)
         out = s.process(frame, t)
-        assert len(out["people"]) + len(out["faces"]) == _detected(frame), t
+        assert len(out["faces"]) == _detected(frame), t
+        for p in out["people"]:
+            assert _box_top(p["bbox"]) in out["faces"], t
     json.dumps(out, allow_nan=False)
+
+
+def test_a_tracked_person_with_misplaced_face_keypoints_still_gets_the_box_top_blurred():
+    base = fake_stack()
+
+    def misplaced_pose(frame, boxes):
+        out = np.asarray(base.pose(frame, boxes), np.float32).copy()
+        for i, (x1, y1, x2, y2) in enumerate(np.asarray(boxes, np.float64).reshape(-1, 4)):
+            for k, dx in enumerate((-6, -3, 0, 3, 6)):              # nose, eyes, ears, all on the knees
+                out[i, k] = ((x1 + x2) / 2 + dx, y1 + 0.75 * (y2 - y1), 0.95)
+        return out
+
+    s = LiveSession(dataclasses.replace(base, pose=misplaced_pose), preset="short", suggest_after=1e9)
+    for t in (0.0, 0.2, 0.4):
+        out = s.process(_scene((300, RED)), t)
+    (person,) = out["people"]
+    assert person["face"][1] > 100 + BOX_H // 2                       # the keypoint region sits on the knees
+    assert out["faces"] == [_box_top(person["bbox"])] == [[300, 100, 360, 100 + round(0.2 * BOX_H)]]
 
 
 def test_first_sighting_has_a_face_rect_but_no_person_yet():
@@ -332,7 +359,8 @@ def test_first_sighting_has_a_face_rect_but_no_person_yet():
     assert all(isinstance(v, int) for v in (x1, y1, x2, y2))
     assert (x1, y1, x2) == (300, 100, 360) and y2 == 100 + round(0.2 * BOX_H)     # the top 20 % of the box, full width
     out = s.process(_scene((300, RED)), 0.4)
-    assert len(out["people"]) == 1 and out["faces"] == []        # now tracked: its rect is people[0]["face"]
+    assert len(out["people"]) == 1                                # now tracked: people[0]["face"], plus its box top
+    assert out["faces"] == [[300, 100, 360, 100 + round(0.2 * BOX_H)]]
 
 
 # --------------------------------------------------------------------------- session: alerts follow roles

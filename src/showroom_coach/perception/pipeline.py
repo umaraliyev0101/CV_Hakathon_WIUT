@@ -19,7 +19,7 @@ Cache layout, one directory per `video_key`:
     perception.npz    plain numeric arrays only (never pickled; loaded with allow_pickle=False)
     perception.json   format version, stack name, VideoInfo as a dict, timings, crops dir, and the descriptor
                       dicts as {"<track id>": [floats]} (float32 values survive the JSON round trip exactly)
-    crops/<id>.jpg    face-blurred best crop of each track
+    crops/<id>.jpg    face-blurred best crop of each track (keypoint face region and top 20% of every box)
 """
 
 from __future__ import annotations
@@ -58,7 +58,8 @@ DEFAULT_POSE_EVERY = 2
 PROGRESS_EVERY = 10              # sampled frames between progress callbacks
 FRAMES_PROGRESS = 0.85           # progress share of the frame loop; describing people (embedding) takes the rest
 HSV_WEIGHT = 0.5                 # weight of the secondary half of each descriptor
-FORMAT_VERSION = 3               # 3: the effective parameters are stored (and checked) next to the arrays
+FORMAT_VERSION = 4               # 3: the effective parameters are stored next to the arrays; 4: track crops blur the
+                                 # keypoint face region and the box top, and VideoInfo records an early end
 STALE_TMP_SECONDS = 3600.0       # a `.tmp-*` build dir older than this is a crashed run and gets swept
 TRACKER_KNOBS = ("activation", "lost_seconds", "match_thr")
 NPZ_NAME, JSON_NAME, CROPS_NAME = "perception.npz", "perception.json", "crops"
@@ -355,8 +356,12 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
                         heapq.heapreplace(heap, entry)
                 if out_dir is not None and prio > best.get(tid, (-1.0, None))[0]:
                     if blurred is None:       # blur every person in the frame: others may overlap this crop
+                        # Each box twice, as the render does: the keypoint face region (a pose error can put it on
+                        # the knees) AND the top 20% of the box.
                         by_det = {id(det): kpts[k] for k, (_, det) in enumerate(tracked)}
-                        blurred = blur_faces(frame, [p.bbox for p in persons], [by_det.get(id(p)) for p in persons])
+                        boxes = [p.bbox for p in persons]
+                        blurred = blur_faces(frame, boxes + boxes,
+                                             [by_det.get(id(p)) for p in persons] + [None] * len(boxes))
                     thumb = _shrink(person_crop(blurred, d.bbox))
                     if thumb is not None:
                         best[tid] = (prio, thumb)
