@@ -471,3 +471,38 @@ def test_floor_calibration_api(make_client, video):
     assert c.post(f"/api/jobs/{jid}/score", json={"render_video": False}).status_code == 200
     assert c.get(f"/api/jobs/{jid}/files/heatmap_topdown.png").status_code == 200
     assert "floor" not in c.put(f"/api/jobs/{jid}/zones", json=doc).json()
+
+
+def test_sales_upload_api(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    zs = [rect("car-1", "Car: Hatch", "car", 0.3, 0.3, 0.7, 0.95)]
+    assert c.put(f"/api/jobs/{jid}/zones", json={"zones": zs}).status_code == 200
+    ok = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"car_model,period,sold\nhatch,q1,4\nGhost,q1,1\n", "text/csv")})
+    assert ok.status_code == 200 and ok.json()["rows"] == 2 and ok.json()["rescored"] is False
+    assert c.post(f"/api/jobs/{jid}/score", json={"render_video": False}).status_code == 200
+    res = c.get(f"/api/jobs/{jid}/results").json()
+    assert res["per_car"][0]["sold"] == 4
+    assert any("Ghost" in w for w in res["warnings"])
+    # upload after scoring re-scores without detection
+    n = c.engine.process_calls
+    r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"car_model,period,sold\nHatch,q1,2\n", "text/csv")})
+    assert r.status_code == 200 and r.json()["rescored"] is True
+    assert c.engine.process_calls == n
+    assert c.get(f"/api/jobs/{jid}/results").json()["per_car"][0]["sold"] == 2
+    assert "attention_to_sales" in c.get(f"/api/jobs/{jid}/export.csv").text
+
+
+def test_sales_upload_rejections(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"a,b\n1,2\n", "text/csv")})
+    assert r.status_code == 422 and "header" in r.json()["error"]
+    big = b"car_model,period,sold\n" + b"A,x,1\n" * 300000
+    assert c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", big, "text/csv")}).status_code in (413, 422)
+    r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"car_model,period,sold\nA,x,1\n", "text/csv")},
+               headers={"Origin": "http://evil.example"})
+    assert r.status_code == 403
+    assert c.post("/api/jobs/" + "0" * 32 + "/sales", files={"file": ("s.csv", b"x", "text/csv")}).status_code == 404

@@ -115,7 +115,8 @@ def _per_car(zones, visits, episodes, n_cust, rows, sat_events=(), cust_ids=None
                      "unassisted_share": _share(unserved, deep),
                      "sat_in_car": len({e.person_ids[0] for e in sat_events
                                         if e.data.get("zone_id") == z.zone_id
-                                        and (cust_ids is None or e.person_ids[0] in cust_ids)})})
+                                        and (cust_ids is None or e.person_ids[0] in cust_ids)}),
+                     "sold": None, "attention_to_sales": None})
     for rank, c in enumerate(sorted(cars, key=lambda c: (-c["total_dwell"], -c["stops"])), 1):
         c["rank"] = rank
     return sorted(cars, key=lambda c: c["rank"])

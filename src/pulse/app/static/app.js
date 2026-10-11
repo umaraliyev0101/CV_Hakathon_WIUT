@@ -187,6 +187,12 @@ function showResults(report) {
   state.stopDash = renderDashboard($("dashboard"), report, {
     jobId: state.jobId,
     getStatus: () => req(`/api/jobs/${state.jobId}`),
+    onSales: async (file) => {
+      const fd = new FormData(); fd.append("file", file);
+      notice("Uploading sales…", false);
+      try { await req(`/api/jobs/${state.jobId}/sales`, { method: "POST", body: fd }); notice(""); await openResults(); }
+      catch (err) { notice(err.message); }
+    },
     onEditZones: () => { state.stopDash?.(); state.fromResults = true; openZones(); },
     onEditRoles: () => { state.stopDash?.(); state.fromResults = true; openStaff(); },
   });

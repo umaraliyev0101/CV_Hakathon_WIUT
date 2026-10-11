@@ -29,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pulse import cache as cache_mod
 from pulse import pipeline, render as render_mod, report as report_mod, roles as roles_mod
-from pulse import sources, zones as zones_mod
+from pulse import sales as sales_mod, sources, zones as zones_mod
 from pulse.config import PRESETS as PRESET_DEFS, get_config
 from pulse.datatypes import Zone
 
@@ -41,6 +41,7 @@ STATIC = Path(__file__).parent / "static"
 BANNER = report_mod.BANNER
 MAX_UPLOAD = 1024 ** 3
 CHUNK = 1024 * 1024
+MAX_SALES = 1024 * 1024
 ZONE_KINDS = ("car", "desk", "entrance", "lounge", "other")
 ROLES = ("staff", "customer")
 MIN_ZONE_AREA = 1e-4
@@ -655,13 +656,15 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                 pc = job.get_pc()
                 zones = zones_mod.load_zones(job.zones_path) if job.zones_path.is_file() else None
                 floor = zones_mod.load_floor(job.zones_path) if job.zones_path.is_file() else None
+                sales = (sales_mod.parse_sales_bytes(job.sales_path.read_bytes())
+                         if job.sales_path.is_file() else None)
                 if job.roles_skipped:     # spec 3: skip means everyone is a customer
                     everyone = {p["person_id"]: "customer" for p in read_people(job)}
-                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=everyone, floor=floor)
+                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=everyone, floor=floor, sales=sales)
                     analysis.stats.warnings.append(SKIP_WARNING)
                 else:
                     analysis = pipeline.score(pc, cfg, zones=zones, overrides=job.overrides or None,
-                                              imported_roles=job.imported or None, floor=floor)
+                                              imported_roles=job.imported or None, floor=floor, sales=sales)
                 pipeline.write_outputs(pc, analysis, job.out_dir, cfg, video=job.input_path,
                                        render_video=False)
             except Exception as e:  # noqa: BLE001
@@ -675,6 +678,25 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
             if render_video:
                 executor.submit(render_task, job, analysis, pc, cfg, gen)
             return read_report(job)
+
+    @app.post("/api/jobs/{job_id}/sales")
+    async def upload_sales(job_id: str, file: UploadFile = File(...)):
+        job = job_of(job_id)
+        need_ready(job)
+        data = await file.read(MAX_SALES + 1)
+        if len(data) > MAX_SALES:
+            raise ApiError(413, "Sales CSV is too large (limit 1 MB)")
+        try:
+            rows = sales_mod.parse_sales_bytes(data)
+        except sales_mod.SalesError as e:
+            return JSONResponse({"error": "Invalid sales CSV: " + "; ".join(e.reasons),
+                                 "reasons": e.reasons}, status_code=422)
+        with job.lock:
+            jobs_mod.atomic_write_text(job.sales_path, data.decode("utf-8"))
+            scored = job.state == "scored"
+        if scored:      # re-score from the cache: no detection runs
+            await run_in_threadpool(_score, job, b"{}")
+        return {"rows": len(rows), "rescored": scored}
 
     @app.get("/api/jobs/{job_id}/results")
     def results(job_id: str):

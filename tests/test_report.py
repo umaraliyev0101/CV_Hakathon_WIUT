@@ -88,7 +88,7 @@ def test_every_file_written_and_check_outputs_passes(built, capsys):
 def test_per_car_has_sat_in_car_last(built):
     _, _, a, out = built
     head = (out / "per_car.csv").read_text().splitlines()[0].split(",")
-    assert head[-1] == "sat_in_car" and head[:-1][-1] == "rank"
+    assert head[-3:] == ["sat_in_car", "sold", "attention_to_sales"] and head[-4] == "rank"
     rep = json.loads((out / "report.json").read_text())
     assert all(c["sat_in_car"] == 0 for c in rep["per_car"])
 

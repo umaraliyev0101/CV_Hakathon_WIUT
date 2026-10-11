@@ -27,7 +27,7 @@ BANNER = "Anonymous, aggregated analytics; decision support only."
 VISIT_COLS = ["person_id", "role", "first_t", "last_t", "already_present", "visit_s", "zones",
               "stopped_cars", "assisted", "t_first_assist", "group"]
 CAR_COLS = ["zone_id", "name", "visitors", "stops", "stop_rate", "hold_rate", "median_dwell",
-            "total_dwell", "repeat_visits", "deep_interest", "unserved", "unassisted_share", "rank", "sat_in_car"]
+            "total_dwell", "repeat_visits", "deep_interest", "unserved", "unassisted_share", "rank", "sat_in_car", "sold", "attention_to_sales"]
 OCC_COLS = ["t", "customers", "waiting", "customers_per_staff"]
 
 

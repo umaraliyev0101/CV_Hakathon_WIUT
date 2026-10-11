@@ -11,7 +11,7 @@ import numpy as np
 
 from . import cache as cache_mod
 from . import identity, insights as insights_mod, interest, journey, roles as roles_mod, sat_in_car, sources
-from . import stats as stats_mod, zones as zones_mod
+from . import sales as sales_mod, stats as stats_mod, zones as zones_mod
 from .camera_motion import motion_flags, pick_key_idx, segments, to_gray_small
 from .cache import PerceptionCache
 from .config import Config, get_config
@@ -170,7 +170,8 @@ class Analysis:
 
 def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
           overrides: dict[int, str] | None = None,
-          imported_roles: dict[int, str] | None = None, floor: dict | None = None) -> Analysis:
+          imported_roles: dict[int, str] | None = None, floor: dict | None = None,
+          sales: list | None = None) -> Analysis:
     """Everything after perception. Pure: reads only the cache, never runs a model."""
     size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
     duration = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
@@ -196,6 +197,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
     st = stats_mod.compute(persons, journeys, roles, cfg, timeline=timeline, episodes=episodes,
                            assist=assist, zones=zones, duration=duration, frame_size=size,
                            analysed_share=share, extra_warnings=extra, sat_events=sat)
+    st.warnings.extend(sales_mod.apply_sales(st.per_car, sales))
     ins = insights_mod.recommend(st, episodes, cfg)
     meta = {"video": Path(str(pc.meta.get("video", ""))).name, "preset": cfg.preset.name,
             "duration": float(pc.meta.get("duration") or 0.0), "analysed_duration": duration,
@@ -219,12 +221,13 @@ def write_outputs(pc: PerceptionCache, analysis: Analysis, out_dir, cfg: Config,
 
 def analyze(video, out_dir, preset: str = "short", zones_path=None, roles_path=None,
             cache_root=Path("runs/cache"), render_video: bool = True, cfg: Config | None = None,
-            progress: Callable[[float], None] | None = None) -> Analysis:
+            progress: Callable[[float], None] | None = None, sales_path=None) -> Analysis:
     cfg = cfg or get_config(preset)
     pc = perceive(video, Path(cache_root), cfg, progress)
     zones = zones_mod.load_zones(zones_path) if zones_path else None
     floor = zones_mod.load_floor(zones_path) if zones_path else None
     imported = roles_mod.load_roles_json(roles_path) if roles_path else None
-    analysis = score(pc, cfg, zones=zones, imported_roles=imported, floor=floor)
+    sales = sales_mod.parse_sales_bytes(Path(sales_path).read_bytes()) if sales_path else None
+    analysis = score(pc, cfg, zones=zones, imported_roles=imported, floor=floor, sales=sales)
     write_outputs(pc, analysis, out_dir, cfg, video=video, render_video=render_video)
     return analysis

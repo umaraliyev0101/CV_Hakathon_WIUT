@@ -27,6 +27,7 @@ def main(argv=None) -> int:
     a.add_argument("--preset", choices=["short", "dealership"], default="short")
     a.add_argument("--zones", type=Path, default=None)
     a.add_argument("--roles", type=Path, default=None)
+    a.add_argument("--sales", type=Path, default=None, help="optional sales CSV: car_model,period,sold")
     a.add_argument("--no-video", action="store_true")
     a.add_argument("--cache", type=Path, default=Path("runs/cache"))
     args = p.parse_args(argv)
@@ -50,9 +51,19 @@ def main(argv=None) -> int:
 def _analyze(args) -> int:
     from pulse.sources import VideoError
     from pulse import pipeline
+    from pulse.sales import SalesError, parse_sales_bytes
+    if args.sales:
+        try:
+            parse_sales_bytes(args.sales.read_bytes())
+        except OSError as e:
+            print(f"error: cannot read sales file ({e.strerror})", file=sys.stderr)
+            return 2
+        except SalesError as e:
+            print(f"error: sales file invalid: {'; '.join(e.reasons)}", file=sys.stderr)
+            return 2
     try:
         res = pipeline.analyze(args.video, args.out, args.preset, args.zones, args.roles, args.cache,
-                               render_video=not args.no_video)
+                               render_video=not args.no_video, sales_path=args.sales)
     except VideoError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

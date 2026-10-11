@@ -4,6 +4,7 @@ jobs/<id>/input.<ext>   uploaded video
 jobs/<id>/job.json      persisted status (so a restarted server can still answer)
 jobs/<id>/cache/        perception cache (unless a shared cache_root is configured)
 jobs/<id>/zones.json    the user's current zones
+jobs/<id>/sales.csv    optional sales upload (car_model,period,sold)
 jobs/<id>/roles.json    {"overrides": {...}, "imported": {...}}
 jobs/<id>/out/          every generated result file (the only thing served by /files)
 
@@ -72,6 +73,10 @@ class Job:
     @property
     def out_dir(self) -> Path:
         return self.dir / "out"
+
+    @property
+    def sales_path(self) -> Path:
+        return self.dir / "sales.csv"
 
     @property
     def zones_path(self) -> Path:

@@ -117,13 +117,14 @@ function kpiTiles(st) {
 
 function carTable(rows) {
   if (!rows.length) return h("p", { class: "empty" }, "No car zones defined, so there is no per-car table. Use Edit zones to mark car areas.");
-  const head = ["Rank", "Car", "Stops", "Stop rate", "Median dwell", "Total dwell", "Repeat visits", "Unassisted share", "Sat in car"];
+  const head = ["Rank", "Car", "Stops", "Stop rate", "Median dwell", "Total dwell", "Repeat visits", "Unassisted share", "Sat in car", "Sold", "Stops per sale"];
   return h("div", { class: "table-wrap" }, h("table", {},
     h("thead", {}, h("tr", {}, head.map((t) => h("th", { scope: "col" }, t)))),
     h("tbody", {}, rows.map((c) => h("tr", {},
       h("td", {}, `#${c.rank ?? ""}`), h("td", {}, c.name || c.zone_id), h("td", {}, int(c.stops)), h("td", {}, pct(c.stop_rate)),
       h("td", {}, mmss(c.median_dwell)), h("td", {}, mmss(c.total_dwell)), h("td", {}, int(c.repeat_visits)),
-      h("td", {}, pct(c.unassisted_share)), h("td", {}, int(c.sat_in_car ?? 0)))))));
+      h("td", {}, pct(c.unassisted_share)), h("td", {}, int(c.sat_in_car ?? 0)),
+      h("td", {}, isNum(c.sold) ? int(c.sold) : "n/a"), h("td", {}, isNum(c.attention_to_sales) ? (Math.round(c.attention_to_sales * 100) / 100).toString() : "n/a"))))));
 }
 
 function insightCard(ins, k, files, jobId, seek) {
@@ -168,6 +169,9 @@ export function renderDashboard(root, report, ctx) {
       h("button", { type: "button", onclick: ctx.onEditRoles }, "Edit roles"),
       h("a", { href: `/api/jobs/${jobId}/export.json`, download: "" }, "Export JSON"),
       h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, "Export CSV (per car)"),
+      ctx.onSales && h("label", { class: "muted" }, "Sales CSV (car_model,period,sold) ",
+        h("input", { type: "file", accept: ".csv,text/csv", "aria-label": "Upload sales CSV",
+                     onchange: (ev) => { const f = ev.target.files?.[0]; if (f) ctx.onSales(f); } })),
       files.report_html && h("a", { href: `/api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, "Printable report")));
 
   const insights = report.insights || [];
