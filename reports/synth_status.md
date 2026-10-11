@@ -48,19 +48,42 @@ More scenes are still rendering in the background (§4).
 | Scripted vs rule greet offset | 0.6 s (rule earlier) in every rendered scene. The tests assert ≤ 0.8 s for all 12 scenes. | qa_events, tests |
 | Lowest body vertex vs floor | −0.034 … +0.008 m over all sampled frames (tolerance ±0.05) | qa_scene |
 
-## 3. Dataset statistics (at the time of writing; `python sim/stats.py` regenerates them)
+## 3. Dataset statistics (final, 08:25; `python sim/stats.py` regenerates them)
 
-- Clips with labels and video: **36** from 6 scenes; 20244 labelled frames at 10 fps; 50469 person boxes (staff 28644, customer 21825).
-- Clips by scenario: {'greet_fast': 12, 'greet_slow': 6, 'walkout': 6, 'party': 6, 'handoff': 6}; by lighting: {'day': 12, 'evening_dim': 12, 'glare': 12}.
-- Scripted events (counted once per scene, across those scenes): {'engagement': 7, 'greet': 6, 'walkout': 1, 'party': 1, 'handoff': 1}.
-- COCO (2 fps samples from the final MP4, JPEG q95, split by scene): train 2760 images / 6996 boxes (scenes ['s000', 's001', 's004', 's007']), valid 0 / 0, test 1290 / 3093 (scenes ['s002', 's003']). MOT rows: 50469.
+- **Clips with labels and video: 68**, from 12 scenes:
+  - 44280 labelled frames at 10 fps;
+  - **127641 person boxes** (staff 65836, customer 61805);
+  - 37 scripted people.
+- Clips by scenario: {'greet_fast': 12, 'greet_slow': 12, 'walkout': 12, 'party': 12, 'handoff': 12, 'crowded': 6, 'dealership_long': 2}.
+- Clips by lighting: {'day': 23, 'evening_dim': 23, 'glare': 22}.
+- Scripted events, counted once per scene: {'engagement': 16, 'greet': 14, 'walkout': 4, 'party': 3, 'handoff': 2}.
+- **COCO** (2 fps samples of the final MP4, JPEG q95, split by scene per `sim/configs/splits.json`):
 
-## 4. Still running at the time of writing
+  | Split | Images | Boxes |
+  |---|---|---|
+  | train | 6300 | 19378 |
+  | valid | 612 | 1173 |
+  | test | 1950 | 4962 |
 
-- **Background renders**, writing into `data/synthetic/clips/` (not part of the share pack):
-  - s007–s011 (second seeds of the 5 short scenarios) and s005 (crowded), 2 cameras × 3 lightings each: `/tmp/claude-1000/qr2.sh`, log `/tmp/claude-1000/run_rest.log`;
-  - s006 (dealership_long), camera 1, day and evening_dim: log `/tmp/claude-1000/run_s006.log`.
-- **After they finish:** re-run `python sim/export.py && python sim/stats.py`, then update §3 of this report.
+  `data/synthetic/coco/<split>/_annotations.coco.json`.
+- **MOT:** 127641 rows, `data/synthetic/mot/<clip>/gt/gt.txt`.
+- **A-format labels:** `data/synthetic/labels/<clip>.json`.
+- **Disk:** `data/synthetic` is 48 GB (budget 150 GB); `/mnt/raid1` has 610 GB free.
+- **Render wall time:** about 4 h 20 min on GPU 1 (03:50–08:20) for all 12 scenes. This is inside the 8 h budget.
+
+### Gates on the dataset outside the share pack (measured; reported, not part of `verify --all`)
+
+| Scenes | Result |
+|---|---|
+| s000–s004, s007–s011 (all 60 clips of the 10 short-scenario scenes) | qa_render, qa_events, qa_video and qa_scene **pass** on every clip. Detector recall (day / evening / glare): s000 0.989 / 0.985 / 0.910; s001–s003 0.996 / 0.994 / 0.974; s004 0.999 / 0.998 / 0.998; s006–s010 0.991 / 0.985 / 0.974 (s006 has no glare clip); s011 included in the s005+s011 run below. |
+| s005 crowded (6 clips; gated together with s011's 6 clips, which all pass) | qa_events and qa_video pass. qa_detector recall over s005+s011: day 0.941, evening 0.985, **glare 0.847** (lowest, from heavier occlusion; still ≥ 0.80). **qa_render fails** the per-clip "every person labelled ≥ 80% of the clip": with 7 people, some are out of a given camera's view for long stretches (generator only required lifetime coverage across cameras for this scene). **qa_scene fails**: person 3 measures 1.546 m standing (see §5), and staff 1 is invisible in both cameras for 24.8% of their lifetime. |
+| s006 dealership_long (2 clips; only camera 1 rendered, to save time) | qa_events pass (greet 10.9 s, 150 s engagement, walk-out 163.2 s matched under the dealership preset). **qa_render fails** per-clip in-view: customer 4 is in the shop only 60–163 s of 240 s, and staff 1 is partly out of camera 1. **qa_scene fails**: staff 1 is invisible 36% of lifetime because camera 2 was not rendered. |
+
+Detector false positives: on two share clips I counted detections with IoU < 0.1 to every GT box. There were **0 at conf 0.5** and 5 and 1 at conf 0.25. That is why "unmatched detections" reads `{}` on the share pack. Crowded glare has 12.
+
+## 4. Background work
+
+All renders finished at about 08:20 (+05). Exports and statistics were regenerated after the last scene.
 
 ## 5. Open problems and flags for the human
 
@@ -80,6 +103,12 @@ More scenes are still rendering in the background (§4).
 - **Rule-only events.** `wait_alert` is computed by the rules only; there is no scripted counterpart, by design.
 - **A gate check I corrected (documented, not loosened).** The quick-test-era gap check compared `visible_frac` at the two ends of a gap. It flagged a customer who walked out past the image border at s004 cam1 f37–f43; the in-image silhouette there was 5–246 px, under the 400 px drop rule. The check now uses `visible_frac` measured during the gap, which is the spec's wording. The thresholds are unchanged, and `sim/tests/test_qa_render_gap.py` shows that a real dropout of a visible person still fails.
 - **Perspective lean.** People near the image corners lean visibly (wide HFOV, −25° pitch). This is a camera effect, noted in the visual review.
+- **s005 height gate failure (root cause found, not fixed in the rendered data).**
+  - Cause: `gen_configs.assign_characters` clips sampled female heights to [1.55, 1.80]. The idle pose stands about 0.3% lower than the rest height, so a person drawn at exactly 1.550 m measures 1.546 m.
+  - Fix for the next regeneration: raise the lower clip to 1.58 m.
+  - I did not apply it now: regenerating would change the configs of the already-rendered s005, s006 and s011 (heights 1.55–1.585), and would need another hour of rendering.
+  - s005 is not in the share pack.
+- **The crowded and dealership_long clips are not share-pack quality** under the per-clip in-view rule (table above). Use them for detector training and tracking stress tests, not as event-evaluation clips. They were rendered last (priority A.6).
 - **Not done (out of scope or not allowed):** the detector fine-tune. A synthetic-only fine-tune could only be evaluated on a real, human-labelled held-out set, which does not exist yet. The COCO export is ready for it.
 
 ## 6. Last `python sim/verify.py --all` output (full; onnxruntime's repeated "No registered plugin EP" warning lines removed)
