@@ -1,5 +1,7 @@
 # Showroom Suite: one web page for Coach and Pulse (Jira YAK-45)
 
+> **Superseded (2026-10-11):** for the demo deadline the owner chose separate servers plus the static split-view page in `showroom-suite/index.html` (see `showroom-suite/README.md`). Not implemented.
+
 Date: 2026-10-11. Deadline: pushed and demo-ready today, within hours. Approved in chat by the owner.
 
 ## Goal

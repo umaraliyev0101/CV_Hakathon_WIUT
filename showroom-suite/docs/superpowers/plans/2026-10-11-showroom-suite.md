@@ -1,5 +1,7 @@
 # Showroom Suite Implementation Plan
 
+> **Superseded (2026-10-11):** for the demo deadline the owner chose separate servers plus the static split-view page in `showroom-suite/index.html` (see `showroom-suite/README.md`). Not implemented.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** One branch with Showroom Coach and Showroom Pulse, served by one local web page. One upload feeds both,
