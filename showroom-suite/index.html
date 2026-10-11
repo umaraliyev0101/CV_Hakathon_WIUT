@@ -65,6 +65,7 @@
   <label>Coach <input id="coachUrl" type="url" required placeholder="http://server:8000"></label>
   <label>Pulse <input id="pulseUrl" type="url" required placeholder="http://server:8001"></label>
   <button class="primary" type="submit">Apply</button>
+  <a class="btn" id="studioLink" href="studio/" hidden title="The Showroom Suite studio site (demo data until its sections are connected)">Studio</a>
   <a class="btn" id="demoLink" href="demo/" target="_blank" rel="noopener" hidden title="Sample showroom videos to download and upload">Demo videos</a>
 </form>
 <main>
@@ -153,7 +154,7 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('focus-coach', 'focus-pulse'); });
 
-if (window.SUITE_PROXY) $('demoLink').hidden = false;
+if (window.SUITE_PROXY) { $('demoLink').hidden = false; $('studioLink').hidden = false; }
 for (const app of Object.keys(APPS)) show(app);
 </script>
 </body>

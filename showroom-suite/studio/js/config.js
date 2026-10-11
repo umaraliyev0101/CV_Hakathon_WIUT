@@ -23,6 +23,11 @@ window.SUITE_CONFIG = {
 (function () {
   const q = new URLSearchParams(location.search);
   const c = window.SUITE_CONFIG;
+  // Behind the deploy/ reverse proxy both apps share this page's origin (no CORS needed): /coach and /pulse.
+  if (window.SUITE_PROXY) {
+    c.coachUrl = `${location.origin}/coach`;
+    c.pulseUrl = `${location.origin}/pulse`;
+  }
   if (q.get("coach")) c.coachUrl = q.get("coach");
   if (q.get("pulse")) c.pulseUrl = q.get("pulse");
   if (q.get("live")) {
