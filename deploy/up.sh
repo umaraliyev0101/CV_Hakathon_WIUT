@@ -21,6 +21,16 @@ else
 fi
 mkdir -p demo
 
+# Our fine-tuned person detector (models/showroom_detector_ft.onnx, mounted at /opt/ft): used for people in both
+# apps whenever the file is there and deploy/.env does not choose otherwise. Cars stay on Pulse's COCO detector,
+# because the fine-tuned head knows only "person".
+if [[ -f ../models/showroom_detector_ft.onnx ]]; then
+  : "${SHOWROOM_RFDETR_FT:=/opt/ft/showroom_detector_ft.onnx}" "${PULSE_RFDETR_FT:=/opt/ft/showroom_detector_ft.onnx}"
+  : "${SHOWROOM_DETECTOR:=rfdetr_ft@2}" "${SHOWROOM_LIVE_DETECTOR:=rfdetr_ft}"
+  export SHOWROOM_RFDETR_FT PULSE_RFDETR_FT SHOWROOM_DETECTOR SHOWROOM_LIVE_DETECTOR
+  echo "people: fine-tuned detector (coach ${SHOWROOM_DETECTOR}, pulse ${PULSE_RFDETR_FT:-off})"
+fi
+
 compose=(docker compose -f docker-compose.yml)
 "${compose[@]}" build
 "${compose[@]}" up -d coach pulse web
