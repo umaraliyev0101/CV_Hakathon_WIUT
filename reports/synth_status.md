@@ -48,42 +48,53 @@ All 12 scenes have finished rendering (§3, §4).
 | Scripted vs rule greet offset | 0.6 s (rule earlier) in every rendered scene. The tests assert ≤ 0.8 s for all 12 scenes. | qa_events, tests |
 | Lowest body vertex vs floor | −0.034 … +0.008 m over all sampled frames (tolerance ±0.05) | qa_scene |
 
-## 3. Dataset statistics (final, 08:25; `python sim/stats.py` regenerates them)
+## 3. Dataset statistics (final, 12:05 after the s005/s006 regeneration; `python sim/stats.py` regenerates them)
 
-- **Clips with labels and video: 68**, from 12 scenes:
-  - 44280 labelled frames at 10 fps;
-  - **127641 person boxes** (staff 65836, customer 61805);
-  - 37 scripted people.
-- Clips by scenario: {'greet_fast': 12, 'greet_slow': 12, 'walkout': 12, 'party': 12, 'handoff': 12, 'crowded': 6, 'dealership_long': 2}.
-- Clips by lighting: {'day': 23, 'evening_dim': 23, 'glare': 22}.
-- Scripted events, counted once per scene: {'engagement': 16, 'greet': 14, 'walkout': 4, 'party': 3, 'handoff': 2}.
-- **COCO** (2 fps samples of the final MP4, JPEG q95, split by scene per `sim/configs/splits.json`):
+- **Clips with labels and video: 65**, from 12 scenes:
+  - 41,544 labelled frames at 10 fps;
+  - **127,270 person boxes**.
+- Clips by scenario:
+
+  | Scenario | Clips |
+  |---|---|
+  | greet_fast | 12 |
+  | greet_slow | 12 |
+  | walkout | 12 |
+  | party | 12 |
+  | handoff | 12 |
+  | crowded | 4 (2 cameras × day, glare) |
+  | dealership_long | 1 (camera 1, day) |
+
+- **COCO** (2 fps samples, split by scene):
 
   | Split | Images | Boxes |
   |---|---|---|
-  | train | 6300 | 19378 |
-  | valid | 612 | 1173 |
-  | test | 1950 | 4962 |
+  | train | 5,756 | 19,322 |
+  | valid | 612 | 1,173 |
+  | test | 1,950 | 4,962 |
 
-  `data/synthetic/coco/<split>/_annotations.coco.json`.
-- **MOT:** 127641 rows, `data/synthetic/mot/<clip>/gt/gt.txt`.
-- **A-format labels:** `data/synthetic/labels/<clip>.json`.
-- **Disk:** `data/synthetic` is 48 GB (budget 150 GB); `/mnt/raid1` has 610 GB free.
-- **Render wall time:** about 4 h 20 min on GPU 1 (03:50–08:20) for all 12 scenes. This is inside the 8 h budget.
+- **MOT:** 127,270 rows.
+- **A-format labels:** one file per clip in `data/synthetic/labels/`.
 
 ### Gates on the dataset outside the share pack (measured; reported, not part of `verify --all`)
 
 | Scenes | Result |
 |---|---|
-| s000–s004, s007–s011 (all 60 clips of the 10 short-scenario scenes) | qa_render, qa_events, qa_video and qa_scene **pass** on every clip. Detector recall (day / evening / glare): s000 0.989 / 0.985 / 0.910; s001–s003 0.996 / 0.994 / 0.974; s004 0.999 / 0.998 / 0.998; s006–s010 0.991 / 0.985 / 0.974 (s006 has no glare clip); s011 included in the s005+s011 run below. |
-| s005 crowded (6 clips; gated together with s011's 6 clips, which all pass) | qa_events and qa_video pass. qa_detector recall over s005+s011: day 0.941, evening 0.985, **glare 0.847** (lowest, from heavier occlusion; still ≥ 0.80). **qa_render fails** the per-clip "every person labelled ≥ 80% of the clip": with 7 people, some are out of a given camera's view for long stretches (generator only required lifetime coverage across cameras for this scene). **qa_scene fails**: person 3 measures 1.546 m standing (see §5), and staff 1 is invisible in both cameras for 24.8% of their lifetime. |
-| s006 dealership_long (2 clips; only camera 1 rendered, to save time) | qa_events pass (greet 10.9 s, 150 s engagement, walk-out 163.2 s matched under the dealership preset). **qa_render fails** per-clip in-view: customer 4 is in the shop only 60–163 s of 240 s, and staff 1 is partly out of camera 1. **qa_scene fails**: staff 1 is invisible 36% of lifetime because camera 2 was not rendered. |
+| s000–s004, s007–s011 (60 clips) | qa_render, qa_events, qa_video and qa_scene **pass** on every clip. Detector recall per lighting is 0.91–0.999. |
+| s006 dealership_long, regenerated (seed 6, 251.6 s, 1 camera, day) | **All gates pass:** qa_render, qa_events, qa_video, qa_scene, and qa_detector with recall 0.995. The second customer now stays the whole clip and walks out at 249 s. |
+| s005 crowded, regenerated (seed 705, 101 s, 7 people, 2 cameras × day/glare) | Rendered and encoded. **Not gated:** the user stopped the run at about 11:55 ("rendering videos is enough"). |
 
 Detector false positives: on two share clips I counted detections with IoU < 0.1 to every GT box. There were **0 at conf 0.5** and 5 and 1 at conf 0.25. That is why "unmatched detections" reads `{}` on the share pack. Crowded glare has 12.
 
-## 4. Background work
+## 4. How the run ended (finished-with-status)
 
-All renders finished at about 08:20 (+05). Exports and statistics were regenerated after the last scene.
+- **Regeneration after the 09:05 verify:** crowded and dealership_long were regenerated to fix their per-clip coverage and the height-floor problem:
+  - the people-avoidance option (off for the scenes already rendered; their timeline hashes are unchanged);
+  - staggered arrivals;
+  - a 1.58 m height floor.
+- **Rendering:** s006 was stopped after its day lighting, to save time before 13:00. s005 was rendered with day and glare.
+- **User stop:** the user then stopped further work. s005 is therefore ungated, and neither new scene is in the share pack.
+- **Share pack:** unchanged at 8 clips. Its last `verify --all` run (§6) passed 32/32 with exit 0.
 
 ## 5. Open problems and flags for the human
 
@@ -104,7 +115,7 @@ All renders finished at about 08:20 (+05). Exports and statistics were regenerat
 - **A gate check I corrected (documented, not loosened).** The quick-test-era gap check compared `visible_frac` at the two ends of a gap. It flagged a customer who walked out past the image border at s004 cam1 f37–f43; the in-image silhouette there was 5–246 px, under the 400 px drop rule. The check now uses `visible_frac` measured during the gap, which is the spec's wording. The thresholds are unchanged, and `sim/tests/test_qa_render_gap.py` shows that a real dropout of a visible person still fails.
 - **qa.json is purely additive.** `git diff b33639a -- sim/configs/qa.json` removes 0 lines. Glare clips are held to the same clipped-pixel limit (5%) as day and evening; I did not use the spec's 20% glare allowance (measured glare maximum: 0.105%).
 - **Perspective lean.** People near the image corners lean visibly (wide HFOV, −25° pitch). This is a camera effect, noted in the visual review.
-- **s005 height gate failure (root cause found, not fixed in the rendered data).**
+- **s005 height gate failure (fixed by regeneration: female height floor 1.58 m; the new s005 is rendered but not yet gated).**
   - Cause: `gen_configs.assign_characters` clips sampled female heights to [1.55, 1.80]. The idle pose stands about 0.3% lower than the rest height, so a person drawn at exactly 1.550 m measures 1.546 m.
   - Fix for the next regeneration: raise the lower clip to 1.58 m.
   - I did not apply it now: regenerating would change the configs of the already-rendered s005, s006 and s011 (heights 1.55–1.585), and would need another hour of rendering.
