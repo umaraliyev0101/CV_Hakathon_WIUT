@@ -116,6 +116,7 @@ def perceive(video, cache_root: Path, cfg: Config, progress: Callable[[float], N
         "trimmed": bool(info.duration > cfg.max_duration_s + 1.0 / cfg.sample_fps),
         "frame_w": frame_w, "frame_h": frame_h, "sample_fps": cfg.sample_fps, "n_samples": len(times),
         "detector": cfg.detector, "pose_model": cfg.pose_model,
+        "person_detector": getattr(getattr(engine, "person_detector", engine.detector), "name", cfg.detector),
         "providers": list(engine.detector.session.get_providers()),
         "dino": embedder.uses_dino,
         "perception_seconds": perception_seconds, "embed_seconds": embed_seconds,

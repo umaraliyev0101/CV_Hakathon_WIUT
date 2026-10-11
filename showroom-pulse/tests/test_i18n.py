@@ -112,7 +112,7 @@ def test_pages_have_switcher_and_english_banner():
         html = (STATIC_DIR / name).read_text(encoding="utf-8")
         assert 'id="lang-switch"' in html
         assert "Anonymous, aggregated analytics; decision support only." in html
-        assert '/static/i18n.js' in (STATIC_DIR / ("app.js" if name == "index.html" else "live.js")).read_text()
+        assert '"./i18n.js"' in (STATIC_DIR / ("app.js" if name == "index.html" else "live.js")).read_text()
 
 
 def test_no_innerhtml_in_ui_scripts():

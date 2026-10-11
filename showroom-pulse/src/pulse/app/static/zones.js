@@ -1,7 +1,7 @@
 // Zone editor: a canvas over the keyframe. All geometry is stored normalised to [0,1]; pixels only
 // exist while drawing and hit-testing, so the canvas follows the displayed image size.
 const KIND_COLOURS = { car: "#d9650b", desk: "#1f5f8b", entrance: "#1b6e3c", lounge: "#6b3fa0", other: "#6a645d" };
-import { t } from "/static/i18n.js";
+import { t } from "./i18n.js";
 const kindLabel = (k) => ({ car: t("kind.car"), desk: t("kind.desk"), entrance: t("kind.entrance"), lounge: t("kind.lounge"), other: t("kind.other") }[k] || k);
 const HANDLE = 6, HIT = 11, MIN_RECT = 0.01;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));

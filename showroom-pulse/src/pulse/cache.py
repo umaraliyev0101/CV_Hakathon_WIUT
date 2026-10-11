@@ -18,6 +18,7 @@ import numpy as np
 
 from .config import Config
 from .datatypes import Det, StableSegment, TrackObs
+from .perception import finetuned
 
 PERCEPTION_RUNS = 0
 _FILES = ("meta.json", "tracks.npz", "cars.json", "segments.json", "embeddings.npz", "raw_dets.npz")
@@ -61,6 +62,9 @@ def file_sha1(path) -> str:
 
 def video_key(path, cfg: Config, sha1: str | None = None) -> str:
     params = f"|v{CACHE_VERSION}|{cfg.sample_fps}|{cfg.max_width}|{cfg.max_duration_s}|{cfg.detector}|{cfg.pose_model}"
+    ft = finetuned.tag_from_env()          # PULSE_RFDETR_FT: person detector weights (absent: key unchanged)
+    if ft is not None:
+        params += f"|person={ft}"
     return hashlib.sha1(((sha1 or file_sha1(path)) + params).encode()).hexdigest()
 
 

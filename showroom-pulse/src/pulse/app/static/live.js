@@ -1,5 +1,5 @@
 // Live mode: webcam -> WebSocket -> server overlays. Plain ES module, no dependencies.
-import { t, onLangChange } from "/static/i18n.js";
+import { t, onLangChange } from "./i18n.js";
 const $ = (id) => document.getElementById(id);
 const video = $("video"), overlay = $("overlay"), grab = $("grab");
 const octx = overlay.getContext("2d");
@@ -33,7 +33,10 @@ function notice(msg, ms = 6000) {
 
 // ------------------------------------------------------------------ socket
 function wsUrl() {
-  return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/live";
+  // Relative to the page, so it also works under a reverse-proxy prefix such as /pulse/.
+  const u = new URL("ws/live", location.href);
+  u.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  return u.href;
 }
 
 let connText = () => t("conn.not_connected");      // re-run on a language switch

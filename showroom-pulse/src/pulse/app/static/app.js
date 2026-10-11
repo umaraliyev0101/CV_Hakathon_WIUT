@@ -1,8 +1,8 @@
 // Wizard controller: upload -> zones -> staff -> results. All state lives on the server (job id in
 // the URL hash), so a page reload resumes where the job is.
-import { ZoneEditor } from "/static/zones.js";
-import { renderDashboard, h } from "/static/dashboard.js";
-import { t, onLangChange } from "/static/i18n.js";
+import { ZoneEditor } from "./zones.js";
+import { renderDashboard, h } from "./dashboard.js";
+import { t, onLangChange } from "./i18n.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = ["upload", "zones", "staff", "results"];
@@ -64,7 +64,7 @@ $("upload-form").addEventListener("submit", (e) => {
   $("upload-btn").disabled = true;
   setProgress(0, () => t("upload.uploading"));
   const xhr = new XMLHttpRequest();
-  xhr.open("POST", "/api/jobs");
+  xhr.open("POST", "api/jobs");
   xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setProgress(ev.loaded / ev.total * 0.2, () => t("upload.uploading")); };
   xhr.onerror = () => { notice(() => t("upload.failed_network")); $("upload-btn").disabled = false; };
   xhr.onload = () => {
@@ -81,9 +81,9 @@ async function pollJob() {
   const mine = ++state.polling;
   while (mine === state.polling) {
     let st;
-    try { st = await req(`/api/jobs/${state.jobId}`); }
+    try { st = await req(`api/jobs/${state.jobId}`); }
     catch {
-      try { await new Promise((r) => setTimeout(r, 1000)); st = await req(`/api/jobs/${state.jobId}`); }   // one retry
+      try { await new Promise((r) => setTimeout(r, 1000)); st = await req(`api/jobs/${state.jobId}`); }   // one retry
       catch (err) { notice(err.message); $("upload-btn").disabled = false; return; }
     }
     if (mine !== state.polling) return;
@@ -109,15 +109,15 @@ async function openZones() {
   try {
     notice("");
     showStep("zones");
-    const doc = await req(`/api/jobs/${state.jobId}/zones`);
-    await zoneEditor.load(doc, `/api/jobs/${state.jobId}/keyframe.jpg?t=${Date.now()}`);
+    const doc = await req(`api/jobs/${state.jobId}/zones`);
+    await zoneEditor.load(doc, `api/jobs/${state.jobId}/keyframe.jpg?t=${Date.now()}`);
   } catch (err) { notice(err.message); }
 }
 
 $("zones-ok").addEventListener("click", async () => {
   const btn = $("zones-ok"); btn.disabled = true; zoneEditor.showError("");
   try {
-    await putJson(`/api/jobs/${state.jobId}/zones`, zoneEditor.toDoc());
+    await putJson(`api/jobs/${state.jobId}/zones`, zoneEditor.toDoc());
     if (state.fromResults) await scoreNow(); else await openStaff();
   } catch (err) { zoneEditor.showError(err.message); }
   finally { btn.disabled = false; }
@@ -132,7 +132,7 @@ function personOrder(a, b) {
 async function openStaff() {
   try {
     notice(""); showStep("staff");
-    state.people = (await req(`/api/jobs/${state.jobId}/people`)).sort(personOrder);
+    state.people = (await req(`api/jobs/${state.jobId}/people`)).sort(personOrder);
     state.hidden = Number(req.last.headers.get("X-Short-Fragments-Hidden")) || 0;
     state.changed = {};
     renderPeople();
@@ -149,7 +149,7 @@ function renderPeople() {
     const role = effectiveRole(p);
     const sug = p.suggested_role || "customer";
     const card = h("div", { class: `person${role === "staff" ? " is-staff" : ""}`, role: "listitem" },
-      p.thumb_url ? h("img", { src: p.thumb_url, alt: t("person.alt", { id: p.person_id }), loading: "lazy" })
+      p.thumb_url ? h("img", { src: p.thumb_url.replace(/^\//, ""), alt: t("person.alt", { id: p.person_id }), loading: "lazy" })
                   : h("div", { class: "nothumb" }, t("person.nopreview")),
       h("div", {}, h("strong", {}, t("person.label", { id: p.person_id })), " ",
         h("span", { class: `badge ${sug}` }, sug === "unsure" ? t("badge.unsure") : sug === "staff" ? t("badge.suggested_staff") : t("badge.suggested_customer")),
@@ -171,7 +171,7 @@ async function finishStaff(skip) {
     // PUT replaces all overrides, so send the FULL set: everyone whose chosen role differs from the suggestion
     const overrides = {};
     if (!skip) for (const p of state.people) if (effectiveRole(p) !== baseline(p)) overrides[p.person_id] = effectiveRole(p);
-    await putJson(`/api/jobs/${state.jobId}/roles`, { overrides, skip });
+    await putJson(`api/jobs/${state.jobId}/roles`, { overrides, skip });
     await scoreNow();
   } catch (err) { notice(err.message); }
   finally { ok.disabled = sk.disabled = false; }
@@ -183,13 +183,13 @@ $("staff-skip").addEventListener("click", () => finishStaff(true));
 async function scoreNow() {
   notice(() => t("scoring"), false);
   try {
-    const report = await req(`/api/jobs/${state.jobId}/score`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const report = await req(`api/jobs/${state.jobId}/score`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     notice("");
     showResults(report);
   } catch (err) { notice(err.message); }
 }
 async function openResults() {
-  try { showResults(await req(`/api/jobs/${state.jobId}/results`)); } catch (err) { notice(err.message); }
+  try { showResults(await req(`api/jobs/${state.jobId}/results`)); } catch (err) { notice(err.message); }
 }
 function showResults(report) {
   state.stopDash?.();
@@ -197,11 +197,11 @@ function showResults(report) {
   state.report = report;
   state.stopDash = renderDashboard($("dashboard"), report, {
     jobId: state.jobId,
-    getStatus: () => req(`/api/jobs/${state.jobId}`),
+    getStatus: () => req(`api/jobs/${state.jobId}`),
     onSales: async (file) => {
       const fd = new FormData(); fd.append("file", file);
       notice(() => t("sales.uploading"), false);
-      try { await req(`/api/jobs/${state.jobId}/sales`, { method: "POST", body: fd }); notice(""); await openResults(); }
+      try { await req(`api/jobs/${state.jobId}/sales`, { method: "POST", body: fd }); notice(""); await openResults(); }
       catch (err) { notice(err.message); }
     },
     onEditZones: () => { state.stopDash?.(); state.fromResults = true; openZones(); },

@@ -29,7 +29,7 @@ def test_pages_served(client, path):
 def test_index_has_banner_and_live_link(client):
     html = client.get("/").text
     assert BANNER in html
-    assert 'href="/live"' in html
+    assert 'href="live"' in html   # relative: also works under a proxy prefix
 
 
 def test_no_external_hosts():
@@ -51,8 +51,9 @@ def test_js_api_paths_exist_as_routes(app):
     routes = {_norm(r.path) for r in app.routes if r.path.startswith("/api/")}
     found = set()
     for js in Path(STATIC).glob("*.js"):
-        for m in re.finditer(r"/api/[A-Za-z0-9_/.${}\-]*", js.read_text()):
-            found.add(_norm(m.group(0).rstrip("/")))
+        # page-relative ("api/...", so a proxy prefix works) or root-relative ("/api/...")
+        for m in re.finditer(r"(?<=[\"'`])/?api/[A-Za-z0-9_/.${}\-]*", js.read_text()):
+            found.add(_norm("/" + m.group(0).lstrip("/").rstrip("/")))
     assert found, "no /api paths found in JS"
     missing = found - routes
     assert not missing, f"JS references unknown endpoints: {sorted(missing)}"

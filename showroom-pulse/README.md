@@ -73,6 +73,14 @@ job; longer videos are trimmed with a warning). The web flow is upload, progress
 confirmation, results dashboard; `/live` is the webcam page. `PORT=9000 ./run.sh` changes the port.
 For a LAN demo set `PULSE_ALLOWED_HOSTS=hostname1,hostname2`.
 
+### Using our fine-tuned detector
+
+Set `PULSE_RFDETR_FT` to the path of our fine-tuned RF-DETR Nano `.onnx` (person only, exported with rfdetr's
+`export()`). Person detection then uses that model; cars still come from the configured detector (`yolox_s`),
+because the fine-tuned head knows only "person". Unset or empty leaves everything as before. A set path that does
+not exist is an error. The perception cache key and `meta.json` (`person_detector`) carry
+`rfdetr_ft-<first 12 hex chars of the sha256>`, so retrained weights never reuse old cached results.
+
 ## Docker
 
 A `Dockerfile` is provided (python:3.12-slim, non-root user, health check on `/api/health`). Models are

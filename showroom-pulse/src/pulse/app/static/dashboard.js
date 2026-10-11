@@ -1,5 +1,5 @@
 // Results dashboard: renders report.json (see pulse/report.py) into the #dashboard element.
-import { t } from "/static/i18n.js";
+import { t } from "./i18n.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 export function h(tag, attrs = {}, ...kids) {
@@ -147,7 +147,7 @@ function insightCard(ins, k, files, jobId, seek) {
     ins.moments?.length ? h("div", {}, h("div", { class: "muted" }, t("ins.jump")),
       h("div", { class: "moments" }, ins.moments.slice(0, 8).map((m) =>
         h("button", { type: "button", onclick: () => seek(m.t) }, `${mmss(m.t)}`)))) : null,
-    sheet && h("img", { class: "sheet", loading: "lazy", src: `/api/jobs/${jobId}/files/${sheet}`,
+    sheet && h("img", { class: "sheet", loading: "lazy", src: `api/jobs/${jobId}/files/${sheet}`,
       alt: t("ins.sheet_alt", { title: ins.title }) }));
 }
 
@@ -170,12 +170,12 @@ export function renderDashboard(root, report, ctx) {
     h("div", { class: "actions" },
       h("button", { type: "button", onclick: ctx.onEditZones }, t("dash.edit_zones")),
       h("button", { type: "button", onclick: ctx.onEditRoles }, t("dash.edit_roles")),
-      h("a", { href: `/api/jobs/${jobId}/export.json`, download: "" }, t("dash.export_json")),
-      h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, t("dash.export_csv")),
+      h("a", { href: `api/jobs/${jobId}/export.json`, download: "" }, t("dash.export_json")),
+      h("a", { href: `api/jobs/${jobId}/export.csv`, download: "" }, t("dash.export_csv")),
       ctx.onSales && h("label", { class: "muted" }, t("dash.sales_csv"),
         h("input", { type: "file", accept: ".csv,text/csv", "aria-label": t("dash.sales_aria"),
                      onchange: (ev) => { const f = ev.target.files?.[0]; if (f) ctx.onSales(f); } })),
-      files.report_html && h("a", { href: `/api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, t("dash.printable"))));
+      files.report_html && h("a", { href: `api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, t("dash.printable"))));
 
   const insights = report.insights || [];
   const insightsBody = insights.length
@@ -192,7 +192,7 @@ export function renderDashboard(root, report, ctx) {
 
   const img = (key, alt) => {
     const rel = files[key];
-    return rel ? h("img", { src: `/api/jobs/${jobId}/files/${rel}`, alt }) : h("p", { class: "empty" }, t("chart.na"));
+    return rel ? h("img", { src: `api/jobs/${jobId}/files/${rel}`, alt }) : h("p", { class: "empty" }, t("chart.na"));
   };
 
   root.append(head, warningsBlock(warnings), kpiTiles(st),
@@ -215,7 +215,7 @@ export function renderDashboard(root, report, ctx) {
     try { state = (await ctx.getStatus()).video_state; } catch { /* retry */ }
     if (state === "ready") {
       const rel = files.annotated_video || "annotated.mp4";
-      video.src = `/api/jobs/${jobId}/files/${rel}?v=${Date.now()}`;
+      video.src = `api/jobs/${jobId}/files/${rel}?v=${Date.now()}`;
       videoMsg.textContent = ""; return;
     }
     if (state === "failed") { videoMsg.textContent = t("video.failed"); return; }

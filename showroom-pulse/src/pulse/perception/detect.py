@@ -11,6 +11,7 @@ import onnxruntime as ort
 
 from pulse.config import Config
 from pulse.datatypes import Det
+from pulse.perception import finetuned
 from pulse.perception.models import REGISTRY, ensure_model
 from pulse.perception.vendor_rtmlib.det_post import multiclass_nms
 
@@ -42,23 +43,39 @@ def _sigmoid(x):
 
 class Detector:
     def __init__(self, name: str, cfg: Config, providers=("CPUExecutionProvider",),
-                 models_dir="models"):
-        path = Path(ensure_model(name, models_dir))
-        # the fallback chain may have substituted another model: trust the folder name
-        self.name = path.parent.name if path.parent.name in REGISTRY else name
-        self.kind = REGISTRY[self.name].kind
+                 models_dir="models", *, path: str | Path | None = None):
+        """`name` is a REGISTRY model fetched by ensure_model. With `path`, the ONNX file is loaded as is
+        (an RF-DETR export of our own, e.g. the fine-tuned person detector): kind rfdetr, input size read
+        from the ONNX input shape, `name` kept as given."""
+        if path is not None:
+            path = finetuned.require_file(Path(path))
+            self.name, self.kind, size = name, "rfdetr", None
+        else:
+            path = Path(ensure_model(name, models_dir))
+            # the fallback chain may have substituted another model: trust the folder name
+            self.name = path.parent.name if path.parent.name in REGISTRY else name
+            self.kind = REGISTRY[self.name].kind
+            size = REGISTRY[self.name].input_size
         self.cfg = cfg
         so = ort.SessionOptions()
         so.intra_op_num_threads = os.cpu_count() or 1
         self.session = ort.InferenceSession(str(path), sess_options=so, providers=list(providers))
         inp = self.session.get_inputs()[0]
         shp = inp.shape
-        size = REGISTRY[self.name].input_size
-        self.in_hw = (int(shp[2]), int(shp[3])) if all(isinstance(v, int) for v in shp[2:]) \
-            else (size, size)
+        if all(isinstance(v, int) for v in shp[2:]):
+            self.in_hw = (int(shp[2]), int(shp[3]))
+        elif size is not None:
+            self.in_hw = (size, size)
+        else:
+            raise ValueError(f"{path}: ONNX input shape {shp} has no fixed height/width")
         self.input_name = inp.name
         self._mean = np.array([0.485, 0.456, 0.406], np.float32)
         self._std = np.array([0.229, 0.224, 0.225], np.float32)
+
+    @classmethod
+    def finetuned(cls, cfg: Config, path: str | Path, providers=("CPUExecutionProvider",)) -> "Detector":
+        """The fine-tuned person detector (see pulse.perception.finetuned); name 'rfdetr_ft-<sha12>'."""
+        return cls(finetuned.tag(Path(path)), cfg, providers, path=path)
 
     # ---- public ----
     def detect(self, frame_bgr: np.ndarray, classes=("person",), score_thr: float | None = None) -> list[Det]:

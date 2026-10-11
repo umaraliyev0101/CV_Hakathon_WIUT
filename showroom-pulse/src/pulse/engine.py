@@ -8,6 +8,7 @@ import numpy as np
 
 from .config import Config
 from .datatypes import Det, TrackObs
+from .perception import finetuned
 from .perception.detect import VEHICLE_CLASSES, Detector
 from .perception.pose import PoseEstimator
 from .tracking import Tracker
@@ -19,11 +20,19 @@ class PerceptionEngine:
     def __init__(self, cfg: Config, providers=("CPUExecutionProvider",)):
         self.cfg = cfg
         self.providers = tuple(providers)
-        self.detector = Detector(cfg.detector, cfg, providers=providers)
+        self.detector = Detector(cfg.detector, cfg, providers=providers)     # vehicles (and persons by default)
+        # PULSE_RFDETR_FT: our fine-tuned person-only RF-DETR handles persons; cars stay on cfg.detector
+        ft = finetuned.path_from_env()
+        self._person_detector = Detector.finetuned(cfg, ft, providers) if ft is not None else None
         self.pose_est = PoseEstimator(cfg.pose_model, providers=providers)
         self.tracker = Tracker(cfg.sample_fps, cfg)
         self.last_person_dets: list[Det] = []   # raw person boxes of the last frame (privacy: blur these too)
         self._ms = {k: deque(maxlen=_WINDOW) for k in ("det", "track", "pose")}
+
+    @property
+    def person_detector(self) -> Detector:
+        """The model used for persons: the fine-tuned one when configured, else `detector`."""
+        return getattr(self, "_person_detector", None) or self.detector
 
     @property
     def timings(self) -> dict[str, float]:
@@ -43,7 +52,7 @@ class PerceptionEngine:
     def process(self, t: float, frame: np.ndarray, frame_idx: int) -> list[TrackObs]:
         t0 = time.perf_counter()
         low = min(0.2, self.cfg.det_score_thr)
-        raw = self.detector.detect(frame, ("person",), score_thr=low)
+        raw = self.person_detector.detect(frame, ("person",), score_thr=low)
         self.last_person_dets = raw
         dets = [d for d in raw if d.score > self.cfg.det_score_thr]    # tracker input unchanged
         self._time("det", t0)
