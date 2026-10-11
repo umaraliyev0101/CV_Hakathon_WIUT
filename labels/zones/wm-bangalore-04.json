@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    540
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "car-1",
+      "name": "Car: yellow and black sedan",
+      "kind": "car",
+      "polygon": [
+        [
+          0.08,
+          0.55
+        ],
+        [
+          1.0,
+          0.55
+        ],
+        [
+          1.0,
+          0.98
+        ],
+        [
+          0.08,
+          0.98
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

@@ -172,7 +172,26 @@ Do the GT enter (first frame) and exit (last frame) foot points fall inside one 
 
 ## Stops
 
-Stops precision/recall: no labelled showroom clip yet (no stock or synthetic showroom clip was available, so there are no `labels/<clip>.json` files to score against). MEVA school scenes have no car zones, so stop detection (a car-zone feature) is not evaluated on them either.
+Stop = a person at a car zone with foot-point speed below `stop_speed` for at least `stop_time` (preset `short`: 3 s). Ground truth: `labels/<clip>.json` stops, made by viewing face-blurred frames sampled at 1 s, with hand-drawn car zones in `labels/zones/<clip>.json`; both carry `labeller: ai-agent, unreviewed`. The labels were written before the pipeline's stop output for these clips was looked at, and nothing was tuned on them. Ours = `ZoneVisit.stopped` from the same `journey` code as everywhere else, run on the cached perception output (stable-camera samples only, every person scored as a customer, no role detection). A predicted stop matches a GT stop at the same zone when the intervals overlap within +-2 s. Matching is many-to-many: precision = predicted stops matching any GT stop / predicted stops; recall = GT stops matched by any predicted stop / GT stops. `n/a` = zero denominator.
+
+| clip | length | usable (stable, same view) | GT visits | predicted stops matched | precision | GT stops found | recall | reproduce |
+|---|---|---|---|---|---|---|---|---|
+| wm-bangalore-04 | 61.8 s | 24.2 s | 7 | 2 / 2 | 100.0% | 3 / 6 | 50.0% | `.venv/bin/pulse eval --out docs/EVAL.md` (labels/wm-bangalore-04.json) |
+| wm-bangalore-07 | 25.5 s | 13.4 s | 5 | 0 / 0 | n/a | 0 / 0 | n/a | `.venv/bin/pulse eval --out docs/EVAL.md` (labels/wm-bangalore-07.json) |
+| **pooled** |  |  |  | 2 / 2 | **100.0%** | 3 / 6 | **50.0%** | `.venv/bin/pulse eval --out docs/EVAL.md` |
+
+Stops listed (GT `v<visit id>`, ours `p<predicted person id>`, each with zone and start-end):
+
+- `wm-bangalore-04` GT: v1 at car-1 0-19 s; v1 at car-1 24-29 s; v2 at car-1 0-61 s; v3 at car-1 32-35 s; v5 at car-1 41-61 s; v8 at car-1 0-19 s. Ours: p32 at car-1 36.8-61.6 s; p74 at car-1 41.6-61.6 s.
+- `wm-bangalore-07` GT: none. Ours: none.
+
+Caveats:
+
+- The labeller is an AI agent working from 1 s frames of a hand-held camera, unreviewed; people ids and stop intervals are approximate (a few seconds), and several labels are low confidence (see `notes` in each label file and `PROGRESS.md`).
+- Tiny sample: a few stops on two clips. One stop more or less moves a ratio by tens of points. Read these as an indication of whether stops work on showroom-like footage, not as an accuracy.
+- `wm-bangalore-04` is a crowded car display; roughly 15 spectators stand behind a barrier and are neither labelled nor inside the zone, so any stop the pipeline predicts for them counts against precision. The camera is hand-held and pans during the first 36 s; zones are only valid while the view matches the keyframe, so the pipeline drops those samples (the `usable` column) and every GT stop inside them counts against recall.
+- `wm-bangalore-07` has no GT stop: every predicted stop there is a false positive and its recall is `n/a`; only the pooled recall carries information.
+- Everyone is scored as a customer and no synthetic (teammate C, `data/synthetic/share/`) clips existed when this was run, so no dwell, journey or walk-out errors are reported for showroom clips.
 
 ## Sat in car (stretch)
 
@@ -213,4 +232,4 @@ Reproduce: `.venv/bin/python -m pytest -q tests/test_insights.py` and `.venv/bin
 - The file-mode real-time factor of the Targets table is measured on a quiet 60 s excerpt; on the full 5-minute clips the crowded scenes (G421 lobby, G299 gym, 320+ tracks) run below real time (see Speed). Real-time file mode is not met on crowded footage with this CPU configuration.
 - Only six clips from two cameras-days of one school; the dev set has two clips. Differences of a few points are within noise.
 - File-mode and live speed are measured on one machine (see Speed), CPU; CoreML, if shown, is reported separately and was measured once.
-- No stock showroom or synthetic clip was available, so there is no showroom-domain accuracy number.
+- The only showroom-domain numbers are the stop precision/recall on two stock auto-show clips (Stops section): agent labels, unreviewed, a handful of stops; they are an indication, not an accuracy estimate. Entries, exits, occupancy, dwell and journeys have no showroom ground truth.

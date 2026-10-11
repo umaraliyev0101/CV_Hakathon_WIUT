@@ -19,11 +19,12 @@ from pulse import journey, pipeline, sources
 from pulse import stats as stats_mod
 from pulse import insights as insights_mod
 from pulse.cache import PerceptionCache
-from pulse.config import Config, get_config
+from pulse.config import PRESETS, Config, get_config
 from pulse.datatypes import Person, Sample, Timeline, Zone
 from pulse.eval import metrics as M
 from pulse.eval.meva import MevaClip, load_kpf
 from pulse.eval.scenarios import SCENARIOS
+from pulse.eval import stops as stops_mod
 from pulse.timeline import filter_stable
 from pulse.zones import load_zones, point_in_polygon
 
@@ -36,6 +37,8 @@ CMD_SPEED = "`.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/spe
 CMD_COVER = "`.venv/bin/python scripts/zone_coverage.py`"
 CMD_LIVE = "`.venv/bin/python scripts/smoke_live.py`"
 CMD_DET = "`.venv/bin/pulse bench detectors --clip <dev clip> --kpf <annotations> --showroom <images>`"
+STOPS_PRESET = "short"                 # labelled stock clips are short showroom clips
+CMD_STOPS = "`.venv/bin/pulse eval --out docs/EVAL.md`"
 SPEED_JSON = Path("runs/bench/speed.json")
 DET_JSON = Path("runs/bench/detectors.json")
 
@@ -294,6 +297,143 @@ def _load_json(path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------
+# stops on hand-labelled stock clips
+
+def labelled_clips() -> list[Path]:
+    return sorted(p for p in (ROOT / "labels").glob("*.json") if p.name != "split.json")
+
+
+def _stops_video(clip: str) -> Path:
+    for d in ("data/stock", "data/synthetic/share"):
+        p = ROOT / d / f"{clip}.mp4"
+        if p.is_file():
+            return p
+    raise MissingInput(f"missing video for labelled clip {clip} (looked in data/stock, data/synthetic/share)")
+
+
+def evaluate_stops(label_path: Path, cfg: Config) -> dict:
+    """Predicted stopped ZoneVisits (everyone a customer, hand-drawn zones, stable-camera samples only) vs
+    the hand-labelled stops. Reads the perception cache only; it never runs a model."""
+    lab = json.loads(Path(label_path).read_text())
+    clip = lab["clip"]
+    video = _stops_video(clip)
+    cdir = pipeline_cache_dir(video, cfg)
+    if cdir is None:
+        raise MissingInput(f"no perception cache for {clip}: run `.venv/bin/pulse analyze {video.relative_to(ROOT)} "
+                           f"--preset {cfg.preset.name} --zones {lab['zones_file']} --out runs/tmp/{clip}` first")
+    pc = cache_mod.load(cdir)
+    zones = load_zones(ROOT / lab["zones_file"])
+    _, tl, _ = pipeline.build_people(pc, cfg)
+    stable = filter_stable(tl, pc.segments)
+    journeys = journey.build(stable, zones, cfg.preset)
+    visits = [v for vs in journeys.values() for v in vs]
+    pr = stops_mod.precision_recall(visits, lab["stops"])
+    dur = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
+    usable = sum(max(0.0, min(s.t1, dur) - s.t0) for s in pc.segments if s.stable and s.same_view)
+    return {
+        "clip": clip, "labeller": lab["labeller"], "preset": cfg.preset.name, "duration": dur,
+        "usable_seconds": usable, "n_gt_visits": len(lab["visits"]), "n_pred_persons": len(journeys),
+        "n_pred_zone_visits": len(visits),
+        "pred_stops": [[v.person_id, v.zone_id, round(v.t_in, 1), round(v.t_out, 1)]
+                       for v in sorted(visits, key=lambda v: (v.t_in, v.person_id)) if v.stopped],
+        "gt_stops": [[g["visit_id"], g["zone_id"], g["t_start"], g["t_end"]] for g in lab["stops"]],
+        "pr": pr,
+    }
+
+
+def run_stops(label_path: Path, cfg: Config, use_cache: bool = True) -> dict:
+    """evaluate_stops memoised under runs/eval/ (keyed by code, config, labels, zones, perception cache)."""
+    lab = json.loads(Path(label_path).read_text())
+    cdir = pipeline_cache_dir(_stops_video(lab["clip"]), cfg)
+    key = None
+    if cdir is not None:
+        h = hashlib.sha1(json.dumps([EVAL_VERSION, _code_digest(), cdir.name, repr(cfg)]).encode())
+        h.update(Path(label_path).read_bytes())
+        h.update((ROOT / lab["zones_file"]).read_bytes())
+        key = h.hexdigest()[:20]
+    f = ROOT / "runs" / "eval" / f"stops-{lab['clip']}.{key}.json" if key else None
+    if use_cache and f is not None and f.is_file():
+        return json.loads(f.read_text())
+    r = evaluate_stops(label_path, cfg)
+    if f is not None:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        for old in f.parent.glob(f"stops-{lab['clip']}.*.json"):
+            old.unlink()
+        f.write_text(json.dumps(r, sort_keys=True))
+    return r
+
+
+def _iv(rows: list, tag: str) -> str:
+    return "; ".join(f"{tag}{r[0]} at {r[1]} {r[2]:g}-{r[3]:g} s" for r in rows) or "none"
+
+
+def _stops_section(res: list[dict]) -> list[str]:
+    L: list[str] = []
+    w = L.append
+    if not res:
+        w("Stops precision/recall: no labelled showroom clip found (no `labels/<clip>.json` besides "
+          "`split.json`), so nothing is scored. MEVA school scenes have no car zones, so stop detection (a "
+          "car-zone feature) is not evaluated on them either.")
+        w("")
+        return L
+    n_pred = sum(r["pr"]["n_pred"] for r in res)
+    n_gt = sum(r["pr"]["n_gt"] for r in res)
+    pm = sum(r["pr"]["pred_matched"] for r in res)
+    gm = sum(r["pr"]["gt_matched"] for r in res)
+    tol = res[0]["pr"]["tol_s"]
+    pre = res[0]["preset"]
+    w(f"Stop = a person at a car zone with foot-point speed below `stop_speed` for at least `stop_time` "
+      f"(preset `{pre}`: {PRESETS[pre].stop_time:g} s). Ground truth: `labels/<clip>.json` stops, made by "
+      "viewing face-blurred frames sampled at 1 s, with hand-drawn car zones in `labels/zones/<clip>.json`; "
+      "both carry `labeller: ai-agent, unreviewed`. The labels were written before the pipeline's stop "
+      "output for these clips was looked at, and nothing was tuned on them. Ours = `ZoneVisit.stopped` from "
+      "the same `journey` code as everywhere else, run on the cached perception output (stable-camera "
+      "samples only, every person scored as a customer, no role detection). A predicted stop matches a GT "
+      f"stop at the same zone when the intervals overlap within +-{tol:g} s. Matching is many-to-many: "
+      "precision = predicted stops matching any GT stop / predicted stops; recall = GT stops matched by any "
+      "predicted stop / GT stops. `n/a` = zero denominator.")
+    w("")
+    rows = []
+    for r in res:
+        q = r["pr"]
+        rows.append([r["clip"], f"{r['duration']:.1f} s", f"{r['usable_seconds']:.1f} s", str(r["n_gt_visits"]),
+                     f"{q['pred_matched']} / {q['n_pred']}", pct1(None if q["precision"] is None else q["precision"] * 100),
+                     f"{q['gt_matched']} / {q['n_gt']}", pct1(None if q["recall"] is None else q["recall"] * 100),
+                     f"`.venv/bin/pulse eval --out docs/EVAL.md` (labels/{r['clip']}.json)"])
+    rows.append(["**pooled**", "", "", "", f"{pm} / {n_pred}",
+                 f"**{pct1(pm / n_pred * 100 if n_pred else None)}**", f"{gm} / {n_gt}",
+                 f"**{pct1(gm / n_gt * 100 if n_gt else None)}**", CMD_STOPS])
+    L += _table(["clip", "length", "usable (stable, same view)", "GT visits", "predicted stops matched", "precision",
+                 "GT stops found", "recall", "reproduce"], rows)
+    w("Stops listed (GT `v<visit id>`, ours `p<predicted person id>`, each with zone and start-end):")
+    w("")
+    for r in res:
+        w(f"- `{r['clip']}` GT: {_iv(r['gt_stops'], 'v')}. Ours: {_iv(r['pred_stops'], 'p')}.")
+    w("")
+    w("Caveats:")
+    w("")
+    for s in (
+        "The labeller is an AI agent working from 1 s frames of a hand-held camera, unreviewed; people ids "
+        "and stop intervals are approximate (a few seconds), and several labels are low confidence (see "
+        "`notes` in each label file and `PROGRESS.md`).",
+        "Tiny sample: a few stops on two clips. One stop more or less moves a ratio by tens of points. "
+        "Read these as an indication of whether stops work on showroom-like footage, not as an accuracy.",
+        "`wm-bangalore-04` is a crowded car display; roughly 15 spectators stand behind a barrier and are "
+        "neither labelled nor inside the zone, so any stop the pipeline predicts for them counts against "
+        "precision. The camera is hand-held and pans during the first 36 s; "
+        "zones are only valid while the view matches the keyframe, so the pipeline drops those samples "
+        "(the `usable` column) and every GT stop inside them counts against recall.",
+        "`wm-bangalore-07` has no GT stop: every predicted stop there is a false positive and its recall is "
+        "`n/a`; only the pooled recall carries information.",
+        "Everyone is scored as a customer and no synthetic (teammate C, `data/synthetic/share/`) clips "
+        "existed when this was run, so no dwell, journey or walk-out errors are reported for showroom clips.",
+    ):
+        w(f"- {s}")
+    w("")
+    return L
+
+
+# ---------------------------------------------------------------------------------------------
 # the document
 
 def _mot_rows(m: dict) -> list[str]:
@@ -301,7 +441,8 @@ def _mot_rows(m: dict) -> list[str]:
             share(m["recall"]), str(m["num_objects"])]
 
 
-def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict) -> str:
+def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict,
+           stops: list[dict] | None = None) -> str:
     dev, test = per_clip["dev"], per_clip["test"]
     ad, at = aggregate(dev), aggregate(test)
     L: list[str] = []
@@ -610,14 +751,7 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
     # ---- stops, sat in car
     w("## Stops")
     w("")
-    labelled = sorted(p.name for p in (ROOT / "labels").glob("*.json") if p.name != "split.json")
-    if labelled:
-        w("Labelled clips found (" + ", ".join(labelled) + ") but stop scoring is not implemented yet.")
-    else:
-        w("Stops precision/recall: no labelled showroom clip yet (no stock or synthetic showroom clip was "
-          "available, so there are no `labels/<clip>.json` files to score against). MEVA school scenes have "
-          "no car zones, so stop detection (a car-zone feature) is not evaluated on them either.")
-    w("")
+    L += _stops_section(stops or [])
     w("## Sat in car (stretch)")
     w("")
     w("Not evaluated: the sat-in-car stretch feature is not built, and the six MEVA eval clips are indoor "
@@ -675,7 +809,9 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
         "few points are within noise.",
         "File-mode and live speed are measured on one machine (see Speed), CPU; CoreML, if shown, is "
         "reported separately and was measured once.",
-        "No stock showroom or synthetic clip was available, so there is no showroom-domain accuracy number.",
+        "The only showroom-domain numbers are the stop precision/recall on two stock auto-show clips "
+        "(Stops section): agent labels, unreviewed, a handful of stops; they are an indication, not an "
+        "accuracy estimate. Entries, exits, occupancy, dwell and journeys have no showroom ground truth.",
     ):
         w(f"- {s}")
     w("")
@@ -686,7 +822,7 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
 # entry point
 
 _CODE_FILES = ("eval/metrics.py", "eval/run_eval.py", "eval/meva.py", "stats.py", "journey.py", "identity.py",
-               "timeline.py", "zones.py", "geometry.py", "pipeline.py", "config.py", "datatypes.py")
+               "eval/stops.py", "timeline.py", "zones.py", "geometry.py", "pipeline.py", "config.py", "datatypes.py")
 
 
 def _code_digest() -> str:
@@ -757,10 +893,12 @@ def main(out: Path, clips: list[str] | None = None, cfg: Config | None = None) -
         if "live_smoke" not in speed:
             raise MissingInput("runs/bench/speed.json has no live_smoke snapshot: run scripts/smoke_live.py "
                                "and then `pulse bench speed` again")
+        stops_cfg = get_config(STOPS_PRESET)
+        stops_res = [run_stops(p, stops_cfg) for p in labelled_clips()]
     except (MissingInput, OSError, sources.VideoError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    text = render(per_clip, cfg, speed, det)
+    text = render(per_clip, cfg, speed, det, stops_res)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
     print(f"wrote {out}")
