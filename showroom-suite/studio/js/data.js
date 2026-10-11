@@ -70,6 +70,14 @@
     // }
     getVisitors: async () => todo("getVisitors"),
 
+    // Demand (marketing; mostly Pulse, plus Coach for "talked to a salesperson")
+    // { period,
+    //   funnel:[{ label, sub?, count, fix? }],   // ordered stages; `fix` = what to do if this stage loses the most
+    //   hours:{ days:["Mon",...], hours:[10,...,20], values:[[avg visitors per hour, ...] one row per day] },
+    //   models:[{ label, considered (visits 60 s+ per week), approached (0-1), unserved }],
+    //   campaign:{ model, campaignLabel, weeks:["17 Aug",...], startIndex, series:[{ label, values:[one per week] }] } }
+    getDemand: async () => todo("getDemand"),
+
     // Insights (both)
     // [{ lens:"Customers × Salespeople"|"Salespeople"|"Customers", value, text, act }]
     getInsights: async () => todo("getInsights"),
@@ -80,6 +88,7 @@
     getSessions: "sessions", analyzeVideo: "sessions",
     getTeam: "team", confirmStaff: "team",
     getVisitors: "visitors",
+    getDemand: "demand",
     getInsights: "insights",
   };
   const WRITES = new Set(["confirmStaff", "analyzeVideo"]);

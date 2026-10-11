@@ -12,6 +12,8 @@
   --stage-dim: #7d848a;
   --accent: #e07a1f;      /* salespeople */
   --guest: #b9cbd8;       /* customers on the stage */
+  --data: #1f6aa5;        /* single-series chart marks (validated vs --paper) */
+  --heat-1: #8fb4d3; --heat-2: #5f92bf; --heat-3: #3a72a8; --heat-4: #225686; --heat-5: #113a5c; /* busy-hours ramp */
   --ok: #2e7a4e;
   --bad: #c0392b;
 
@@ -127,7 +129,7 @@ h2 { margin: 0; font: 500 19px/1.2 var(--f-display); font-stretch: 108%; letter-
 .kpi .label { display: flex; justify-content: space-between; gap: var(--s-2); }
 .kpi .value {
   font: 300 clamp(44px, 4.6vw, 64px)/1 var(--f-display); font-stretch: 105%;
-  letter-spacing: -0.035em; margin: var(--s-2) 0 var(--s-2); font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em; margin: var(--s-2) 0 var(--s-2);
 }
 .kpi .value small { font-size: 0.36em; letter-spacing: 0; color: var(--ink-3); margin-left: 6px; font-weight: 400; }
 .kpi .finding { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 34ch; }
@@ -148,7 +150,7 @@ h2 { margin: 0; font: 500 19px/1.2 var(--f-display); font-stretch: 108%; letter-
 .lead { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); border-top: 1px solid var(--ink); }
 .lead > div { padding: var(--s-4) var(--s-4) var(--s-5) 0; }
 .lead > div + div { padding-left: var(--s-4); border-left: 1px solid var(--rule); }
-.lead .value { font: 300 44px/1 var(--f-display); letter-spacing: -0.03em; margin-top: var(--s-2); font-variant-numeric: tabular-nums; }
+.lead .value { font: 300 44px/1 var(--f-display); letter-spacing: -0.03em; margin-top: var(--s-2); }
 .lead p { margin: var(--s-2) 0 0; color: var(--ink-2); font-size: 14px; }
 
 .table-wrap { overflow-x: auto; background: var(--paper); }
@@ -222,12 +224,64 @@ td .sub { display: block; font-size: 12.5px; color: var(--ink-3); }
 .insight:first-child p { max-width: 52ch; }
 @media (max-width: 980px) { .insights { grid-template-columns: minmax(0, 1fr); } .insight:first-child { grid-column: auto; } }
 .insight { padding: var(--s-5) 0 var(--s-6); border-bottom: 1px solid var(--rule); }
-.insight .value { font: 300 clamp(48px, 6vw, 84px)/0.95 var(--f-display); font-stretch: 108%; letter-spacing: -0.04em; margin: var(--s-3) 0; font-variant-numeric: tabular-nums; }
+.insight .value { font: 300 clamp(48px, 6vw, 84px)/0.95 var(--f-display); font-stretch: 108%; letter-spacing: -0.04em; margin: var(--s-3) 0; }
 .insight p { margin: 0; color: var(--ink-2); max-width: 40ch; }
 .insight .act { margin-top: var(--s-3); color: var(--ink); font-size: 14px; }
 .insight .act::before { content: "Next step  "; color: var(--ink-3); }
 
 .note { color: var(--ink-3); font-size: 13px; max-width: 72ch; }
+
+/* ---------- demand (marketing charts) ---------- */
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-7) var(--s-6); }
+@media (max-width: 980px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.chart { display: grid; gap: var(--s-4); align-content: start; min-width: 0; }
+.chart .question { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 60ch; }
+.chart .act { margin: 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); font-size: 14.5px; max-width: 64ch; }
+.chart .act::before { content: "Next step  "; color: var(--ink-3); }
+.chart details { font-size: 13px; color: var(--ink-2); }
+.chart summary { cursor: pointer; color: var(--ink-3); width: max-content; }
+.chart details .table-wrap { margin-top: var(--s-2); }
+.chart details table { min-width: 0; }
+.chart details th, .chart details td { padding: 7px 10px; }
+.plot { position: relative; min-width: 0; }
+.plot svg { display: block; width: 100%; overflow: visible; }
+.plot text { font-family: var(--f-body); font-size: 12px; fill: var(--ink-2); }
+.plot .tick { font-variant-numeric: tabular-nums; fill: var(--ink-3); }
+.plot .grid { stroke: var(--rule); stroke-width: 1; }
+.plot .axis { stroke: var(--ink-3); stroke-width: 1; }
+
+.funnel { display: flex; flex-direction: column; }
+.f-row { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr) 56px; gap: var(--s-3); align-items: center; padding: 6px 0; }
+.f-row .f-label { font-size: 14px; line-height: 1.25; }
+.f-row .f-label small { display: block; color: var(--ink-3); font-size: 12px; }
+.f-track { height: 22px; position: relative; }
+.f-bar { position: absolute; inset: 0 auto 0 0; background: var(--data); }
+.f-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.f-drop { font-size: 12px; color: var(--ink-3); padding-left: calc(34% + var(--s-3)); line-height: 1.2; }
+.f-drop.worst { color: var(--bad); font-weight: 500; }
+.f-row:hover .f-bar, .f-row:focus-visible .f-bar { background: var(--heat-4); }
+
+.hours { display: grid; grid-template-columns: 36px repeat(var(--cols), minmax(0, 1fr)); gap: 2px; }
+.hours .h-col { font-size: 11px; color: var(--ink-3); text-align: center; font-variant-numeric: tabular-nums; }
+.hours .h-day { font-size: 12px; color: var(--ink-2); align-self: center; }
+.hours .cell { aspect-ratio: 1.25; min-height: 18px; position: relative; }
+.hours .cell.peak { outline: 2px solid var(--ink); outline-offset: -2px; }
+.hours .cell:hover { outline: 2px solid var(--bad); outline-offset: -2px; }
+.ramp { display: flex; align-items: center; gap: var(--s-2); font-size: 12px; color: var(--ink-3); }
+.ramp span.sw { display: flex; }
+.ramp span.sw i { width: 22px; height: 10px; display: block; }
+
+.lift { display: flex; gap: var(--s-5); align-items: baseline; flex-wrap: wrap; }
+.lift .big { font: 300 48px/1 var(--f-display); letter-spacing: -0.03em; color: var(--ink); }
+.lift p { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 46ch; }
+
+.chart-tip {
+  position: fixed; z-index: 30; pointer-events: none; max-width: 260px;
+  background: var(--ink); color: var(--studio); padding: 8px 10px; font-size: 12.5px; line-height: 1.4;
+}
+.chart-tip b { font-weight: 500; }
+.chart-tip .tip-row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+.chart-tip .tip-row.on { color: #fff; font-weight: 500; }
 
 /* ---------- toast ---------- */
 .toast {

@@ -343,6 +343,47 @@
       { lens: "Customers", value: "0:22", text: "Median dwell at the Hilux. Most visitors pass it on the way to the lounge without stopping.", act: "Swap the Hilux and the Corolla Cross for a week and compare." },
     ]),
 
+    getDemand: async () => {
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const hours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const weekday = [3, 5, 8, 7, 5, 4, 4, 6, 8, 6, 3]; // lunch and after-work peaks
+      const sat = [5, 9, 12, 13, 12, 10, 8, 7, 6, 4, 2];
+      const sun = [3, 6, 9, 10, 9, 8, 6, 5, 4, 3, 2];
+      const dayFactor = [0.8, 0.75, 0.8, 0.9, 1.0, 1.0, 1.0];
+      const values = days.map((d, i) => (i === 5 ? sat : i === 6 ? sun : weekday).map((v) => Math.round(v * dayFactor[i] * 9) / 10));
+      return {
+        period: "Last 4 weeks, 14 Sep – 11 Oct · 612 visitors",
+        funnel: [
+          { label: "Came in", count: 612 },
+          { label: "Looked at a car", sub: "20 s+ at one car", count: 498, fix: "Most visitors walk through without stopping. Move the most-advertised model into the entrance sightline." },
+          { label: "Considered a car", sub: "60 s+ at one car", count: 331, fix: "Visitors look but do not stay. Put prices and spec cards on every car so a glance turns into a minute." },
+          { label: "Talked to a salesperson", sub: "within 2 m for 2 min+", count: 214, fix: "These visitors were already interested. Cover the cars with the longest dwell first, and set a 1:00 greet target for anyone who stays over a minute." },
+          { label: "Reached reception", sub: "test drive or quote", count: 97, fix: "Conversations are not closing. Offer a same-day test drive at the 2-minute mark and review the longest engagements with the team." },
+        ],
+        hours: { days, hours, values },
+        models: [
+          { label: "RAV4", considered: 34, approached: 0.79, unserved: 7 },
+          { label: "Land Cruiser 300", considered: 29, approached: 0.58, unserved: 12 },
+          { label: "Camry", considered: 21, approached: 0.84, unserved: 3 },
+          { label: "Corolla Cross", considered: 15, approached: 0.69, unserved: 5 },
+          { label: "Hilux", considered: 7, approached: 0.66, unserved: 2 },
+        ],
+        campaign: {
+          model: "RAV4",
+          campaignLabel: "RAV4 Instagram + Telegram ads",
+          weeks: ["17 Aug", "24 Aug", "31 Aug", "7 Sep", "14 Sep", "21 Sep", "28 Sep", "5 Oct"],
+          startIndex: 5,
+          series: [
+            { label: "RAV4", values: [24, 26, 23, 25, 25, 31, 35, 36] },
+            { label: "Land Cruiser 300", values: [27, 28, 30, 28, 29, 30, 29, 31] },
+            { label: "Camry", values: [20, 22, 21, 19, 21, 22, 20, 21] },
+            { label: "Corolla Cross", values: [14, 15, 13, 16, 15, 14, 16, 15] },
+            { label: "Hilux", values: [8, 7, 7, 8, 6, 7, 7, 8] },
+          ],
+        },
+      };
+    },
+
     getSessions: async () => sessions.slice(),
     analyzeVideo: async (file, onStep) => {
       const steps = ["Finding people", "Following each person across frames", "Suggesting who is staff", "Scoring visits and routes"];
