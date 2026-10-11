@@ -235,7 +235,7 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 ## Morning summary (2026-10-11, written 07:50 Tashkent by the orchestrating agent)
 
 ### State in one paragraph
-Every milestone M0–M8 is built and committed locally (no remote). Each of the 28 plan tasks went through an implementer, a task review (spec + quality) and, where needed, fix rounds with scoped re-reviews; a final whole-branch review (Opus) found no Critical issue and its fix wave was re-reviewed as ready. The full verification chain `bash scripts/verify.sh` ran end to end at commit d74e3aa and printed `VERIFY OK` with every step exiting 0, including the real webcam grab (once the room was lit). `./run.sh` serves the app and `curl -sf -o /dev/null -w "%{http_code}" http://localhost:8000/` prints `200`. Tests: 435 default + 12 slow, all passing.
+Every milestone M0–M8 is built and committed locally (no remote). Each of the 28 plan tasks went through an implementer, a task review (spec + quality) and, where needed, fix rounds with scoped re-reviews; a final whole-branch review (Opus) found no Critical issue and its fix wave was re-reviewed as ready. The full verification chain `bash scripts/verify.sh` ran end to end (last at commit 17cb96e, output below) and exited 0 with every step exiting 0, including the real webcam grab (once the room was lit). `./run.sh` serves the app and `curl -sf -o /dev/null -w "%{http_code}" http://localhost:8000/` prints `200`. Tests: 435 default + 12 slow, all passing.
 
 ### What works
 - Upload flow (web): upload → progress → auto car zones (editable polygons, desk/entrance/lounge, optional 4-point floor calibration) → staff gallery (suggested roles with reasons, one-click flip, skip = everyone customer) → dashboard (KPIs, per-car table, heatmap, journey flow, occupancy/waiting charts, recommendations R1–R7 with evidence/confidence/clip moments/contact sheets, annotated H.264 video, JSON/CSV export, printable one-page report, sales-CSV join). Editing zones or roles re-scores from the cache with no re-detection (asserted in tests and smoke_api).
@@ -298,8 +298,8 @@ bash scripts/verify.sh                     # full chain (needs a lit room for th
 .venv/bin/pulse eval --out docs/EVAL.md    # regenerates EVAL.md from cached runs (deterministic)
 ```
 
-### Last full verify.sh output (commit d74e3aa, 2026-10-11 07:45 Tashkent)
-After this summary is committed, the chain is run once more; that run's output is shown in the session transcript.
+### Last full verify.sh output (commit 17cb96e, 2026-10-11 08:01 Tashkent)
+This is the last full run of the chain. It ran on commit 17cb96e; the only change after it is the commit that records this output in PROGRESS.md (documentation only, no code, tests or data). Earlier full runs at d74e3aa (07:45) and f245d1c (07:49) also printed VERIFY OK.
 ```
 
 === [verify] pytest (default) ===
@@ -311,17 +311,17 @@ $ .venv/bin/python -m pytest -q
 ........................................................................ [ 82%]
 ........................................................................ [ 99%]
 ...                                                                      [100%]
-435 passed, 12 deselected in 12.75s
+435 passed, 12 deselected in 13.12s
 === [verify] pytest (default) -> exit 0 ===
 
 === [verify] pytest (slow) ===
 $ .venv/bin/python -m pytest -q -m slow
 ....
-TIMINGS ms {'det': 80.1, 'track': 0.6, 'pose': 35.7} persons-obs 97 frames 50
+TIMINGS ms {'det': 80.3, 'track': 0.8, 'pose': 34.5} persons-obs 97 frames 50
 .....
-META {'rtf': 1.5050853730517084, 'perception_seconds': 6.64414137499989, 'embed_seconds': 0.4209544159966754, 'n_samples': 50}
+META {'rtf': 1.490810995018927, 'perception_seconds': 6.707758417003788, 'embed_seconds': 0.4192002500058152, 'n_samples': 50}
 ...                                                             [100%]
-12 passed, 435 deselected in 77.21s (0:01:17)
+12 passed, 435 deselected in 78.18s (0:01:18)
 === [verify] pytest (slow) -> exit 0 ===
 
 === [verify] analyze MEVA dev clip ===
@@ -548,10 +548,9 @@ OK annotated.mp4
 $ .venv/bin/python scripts/smoke_api.py
 [smoke_api] health
 [smoke_api] upload meva_20s.mp4
-[smoke_api]   job be398c01d08f42aebfbcfe91979d4ba7
+[smoke_api]   job dadec217e3884ef8a51382119217ee4d
 [smoke_api] poll until ready_for_zones
 [smoke_api]   state=perceiving progress=0.00 Detecting and tracking people
-[smoke_api]   state=perceiving progress=0.05 Detecting and tracking people
 [smoke_api]   state=perceiving progress=0.10 Detecting and tracking people
 [smoke_api]   state=perceiving progress=0.14 Detecting and tracking people
 [smoke_api]   state=perceiving progress=0.19 Detecting and tracking people
@@ -590,17 +589,17 @@ $ .venv/bin/python scripts/smoke_live.py
 /Users/diyorbekumaraliyev/Projects/showroom-pulse/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
   from starlette.testclient import TestClient as TestClient  # noqa
 [smoke_live] 150 JPEG frames ready; streaming 30 s at 5 fps (real time)
-[smoke_live] people_max=3 dwell_max=11.2s alert_overlays=21 dropped=0; first alert: Customer at Car: Demo for 8 s, no staff nearby
+[smoke_live] people_max=3 dwell_max=11.2s alert_overlays=20 dropped=0; first alert: Customer at Car: Demo for 8 s, no staff nearby
 [smoke_live] engine step mean 101 ms
 [smoke_live] measuring maximum sustainable fps for 10 s
 processed fps: 5.01
-max sustainable fps: 9.79
+max sustainable fps: 9.63
 SMOKE LIVE OK
 === [verify] smoke live -> exit 0 ===
 
 === [verify] webcam grab ===
 $ .venv/bin/python scripts/webcam_grab.py
-frame 1920x1080 mean=79.6 std=46.3
+frame 1920x1080 mean=128.7 std=49.8
 saved pixelated (24px) copy to runs/verify/webcam.jpg; the raw frame was not stored
 WEBCAM OK
 === [verify] webcam grab -> exit 0 ===
@@ -627,5 +626,5 @@ $ bash -c out=$(git remote -v); echo "$out"; test -z "$out"
 === [verify] no git remote -> exit 0 ===
 
 VERIFY OK
-EXIT=0
+verify.sh exit code: 0
 ```
