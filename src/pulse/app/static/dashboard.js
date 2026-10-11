@@ -167,7 +167,8 @@ export function renderDashboard(root, report, ctx) {
       h("button", { type: "button", onclick: ctx.onEditZones }, "Edit zones"),
       h("button", { type: "button", onclick: ctx.onEditRoles }, "Edit roles"),
       h("a", { href: `/api/jobs/${jobId}/export.json`, download: "" }, "Export JSON"),
-      h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, "Export CSV (per car)")));
+      h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, "Export CSV (per car)"),
+      files.report_html && h("a", { href: `/api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, "Printable report")));
 
   const insights = report.insights || [];
   const insightsBody = insights.length

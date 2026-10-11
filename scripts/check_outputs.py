@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
 
 import cv2
@@ -89,6 +91,42 @@ def check_svg(path: Path, rel: str) -> None:
     _need(root.tag.endswith("svg") and "<svg" in path.read_text(), "no <svg> element")
 
 
+BANNER = "Anonymous, aggregated analytics; decision support only."
+
+
+class _HtmlScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.bad: list[str] = []
+        self.tags: set[str] = set()
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag)
+        if tag in ("script", "link", "iframe", "object", "embed", "form"):
+            self.bad.append(f"<{tag}> not allowed")
+        for k, v in attrs:
+            v = (v or "").strip().lower()
+            if k in ("src", "href", "action", "poster", "srcset", "data") and not v.startswith(("data:", "#")):
+                self.bad.append(f"external reference {k}={v[:40]!r}")
+            if k == "style" and "url(" in v and "url(data:" not in v.replace(" ", ""):
+                self.bad.append("external url() in style")
+
+
+def check_html(path: Path, rel: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    scan = _HtmlScan()
+    try:
+        scan.feed(text)
+        scan.close()
+    except Exception as e:  # noqa: BLE001
+        raise CheckError(f"does not parse as HTML ({e})")
+    _need({"html", "body", "table"} <= scan.tags, "not a complete HTML page")
+    _need(BANNER in text, "banner missing")
+    _need(not scan.bad, "; ".join(scan.bad))
+    _need("@import" not in text and not re.search(r"url\(\s*[\"']?(?!data:)", text),
+          "CSS references an external resource")
+
+
 def check_video(path: Path, meta: dict) -> None:
     cap = cv2.VideoCapture(str(path))
     n = 0
@@ -119,7 +157,7 @@ def check_dir(d: Path, video: bool = True, say=print) -> None:
     names = list(FIXED[1:])
     names += sorted(set(report["files"].values()) - set(FIXED) - {"annotated.mp4"})
     handlers = {".json": check_json, ".csv": check_csv, ".png": check_image, ".jpg": check_image,
-                ".svg": check_svg}
+                ".svg": check_svg, ".html": check_html}
     for rel in report["files"].values():
         pr = Path(str(rel))
         if pr.is_absolute() or ".." in pr.parts:

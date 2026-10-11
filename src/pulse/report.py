@@ -239,7 +239,7 @@ def _thumbnails(analysis, pc, video, cfg, obs_t, out_dir: Path) -> dict[int, str
 
 _OWNED = ["report.json", "stats.json", "insights.json", "zones.json", "roles.json", "people.json",
           "visits.csv", "per_car.csv", "occupancy.csv", "heatmap.png", "heatmap_topdown.png", "occupancy.svg", "waiting.svg",
-          "journey_flow.json", "keyframe.jpg", "annotated.mp4", "annotated.part.mp4"]
+          "journey_flow.json", "keyframe.jpg", "report.html", "annotated.mp4", "annotated.part.mp4"]
 
 
 def _clean(out_dir: Path) -> None:
@@ -338,6 +338,9 @@ def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: b
               "charts": {"occupancy": st.occupancy, "waiting": st.waiting, "crowding": st.crowding,
                          "time_buckets": st.time_buckets},
               "files": files, "warnings": warnings}
+    from .report_html import render_html
+    put("report_html", "report.html").write_text(
+        render_html(report, (out_dir / "heatmap.png").read_bytes()), encoding="utf-8")
     files["report"] = "report.json"
     _dump(out_dir / "report.json", report)
     return report

@@ -141,6 +141,11 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - Fix round 1: in floor mode speed = smoothed successive floor positions (metres) / dt (was floor Y misused as depth); `to_floor` returns NaN for w <= 0 (invalid, excluded); `validate_floor` requires both quads convex (no bow-ties; windings may differ because image y points down) with all w of the same sign; live mode does not use floor calibration (README, live page).
 - Not verified: the UI was syntax-checked (`node --check`) but not clicked through in a browser; the homography is only as good as the clicked points (floor points only, no lens-distortion correction).
 
+### M8 / Task 24: printable one-page HTML report (stretch)
+
+- Done: `src/pulse/report_html.py` (`render_html`) and `report.html` written by `build_report` (listed in `report.json` "files" as `report_html`): inline CSS with `@page A4` and `@media print`, banner, KPIs, warnings, per-car table, top 3 insights (title, evidence, action, confidence), the already-blurred `heatmap.png` as a base64 data URI, generated-from line with the clip name. Every dynamic string is HTML-escaped (zone names are user input). `check_outputs.py` validates it (parses, banner present, no script/link/iframe/form, no external src/href/url()). Dashboard "Printable report" link. Tests: `tests/test_report_html.py`.
+- Not verified: A4 single-page fit was not checked by printing to PDF in a browser; the layout targets it by size limits only.
+
 ## Decisions
 
 - 2026-10-11: Pre-flight was not run by the owner; the agent created the repo, copied the spec/CLAUDE.md/prompt; `data/stock/` and `data/synthetic/share/` are empty.
