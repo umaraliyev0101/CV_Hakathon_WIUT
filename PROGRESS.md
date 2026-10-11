@@ -31,6 +31,7 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 | yolox_tiny@2 | 91 | 27.7% | 70.9% |
 | yolox_s@2 | 361 | 30.9% | 69.9% |
 
+  - **Retained log** `runs/bench/detectors.json`, re-run after the tile-merge seam fix, supersedes the medians above: yolox_nano 10.1% recall / 16.7 ms, yolox_tiny 12.6% / 36.3 ms, yolox_s 18.0% / 138 ms, rfdetr_nano 22.0% / 205 ms, **yolox_nano@2 26.9% / 31.6 ms**, yolox_tiny@2 27.8% / 75.7 ms, yolox_s@2 31.0% / 322 ms (median ms per frame). The choice is unchanged: cut-off 26.0%, so yolox_nano@2.
   - **File mode:** spec rule "fastest within 5 points of the best recall": best is 30.9%, so the cut-off is 25.9%, and the pick is **yolox_nano@2** (`config.DEFAULT_DETECTOR`).
   - **Live mode:** the same rule over people >= 80 px also picks **yolox_nano@2** (`config.LIVE_DETECTOR`).
 
@@ -112,5 +113,5 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 
 ## Open problems
 
-- README licence table (CLAUDE.md rule) does not exist yet: rows for yolox_nano/tiny/s, rtmpose_s, dinov2_small and rfdetr_nano are owed in M7. The data is in `models/MANIFEST.json`.
+- (resolved in M7) The README licence table lists every model and dataset; `models/MANIFEST.json` keeps the hashes.
 - (fixed in 746394c) `write_manifest()` now keeps a row for every registry entry, so a partial fetch can no longer shrink the licence record.
