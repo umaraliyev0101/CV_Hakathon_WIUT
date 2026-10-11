@@ -2,7 +2,7 @@
 
 ## Status
 
-All milestones M0-M8 are built (core, perception, report/CLI, web app, live mode, eval, docs, sat-in-car, floor calibration, printable report, sales join, UZ/RU UI, deploy files). The final whole-branch review fixes are applied (see Decisions, 2026-10-11 fix wave). The Morning summary is written by the controller after the final `bash scripts/verify.sh`.
+All milestones M0-M8 are built (core, perception, report/CLI, web app, live mode, eval, docs, sat-in-car, floor calibration, printable report, sales join, UZ/RU UI, deploy files). The final whole-branch review fixes are applied (see Decisions, 2026-10-11 fix wave). The Morning summary at the end of this file was written after the final `bash scripts/verify.sh`.
 
 ## Milestones
 
@@ -231,3 +231,400 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 ## M8 stretch: Tasks 27-28
 - 2026-10-11 (Task 27): `Dockerfile` + `.dockerignore` written (python:3.12-slim, libglib2.0-0 only, non-root uid 10001, volumes /app/models and /app/jobs, HEALTHCHECK /api/health, uvicorn on 0.0.0.0 with `--ws-max-size 4194304`, `PULSE_ALLOWED_HOSTS` default localhost,127.0.0.1). NOT BUILT: the Docker CLI is installed but the daemon is unavailable (docker.sock missing), so the image was never built or run; treat it as untested. It uses an editable install (`pip install --no-cache-dir -e .`) instead of plain `pip install .` because `REPO_ROOT` and `embed.MODELS_DIR` resolve models/ and labels/ via `parents[3]` of the source file, which a site-packages install would point outside /app. Models stay out of the image (size + licence records). README "Docker" section added.
 - 2026-10-11 (Task 28): `scripts/deploy.sh` written, NOT RUN (header "NOT RUN — local-only hackathon rule"). Refuses without `--i-know-this-deploys`, on non-Linux, and when not root. Only `bash -n` and static string checks (tests/test_deploy_files.py) were run; the script itself was never executed. nginx config is printed as notes, not installed.
+
+## Morning summary (2026-10-11, written 07:50 Tashkent by the orchestrating agent)
+
+### State in one paragraph
+Every milestone M0–M8 is built and committed locally (no remote). Each of the 28 plan tasks went through an implementer, a task review (spec + quality) and, where needed, fix rounds with scoped re-reviews; a final whole-branch review (Opus) found no Critical issue and its fix wave was re-reviewed as ready. The full verification chain `bash scripts/verify.sh` ran end to end at commit d74e3aa and printed `VERIFY OK` with every step exiting 0, including the real webcam grab (once the room was lit). `./run.sh` serves the app and `curl -sf -o /dev/null -w "%{http_code}" http://localhost:8000/` prints `200`. Tests: 435 default + 12 slow, all passing.
+
+### What works
+- Upload flow (web): upload → progress → auto car zones (editable polygons, desk/entrance/lounge, optional 4-point floor calibration) → staff gallery (suggested roles with reasons, one-click flip, skip = everyone customer) → dashboard (KPIs, per-car table, heatmap, journey flow, occupancy/waiting charts, recommendations R1–R7 with evidence/confidence/clip moments/contact sheets, annotated H.264 video, JSON/CSV export, printable one-page report, sales-CSV join). Editing zones or roles re-scores from the cache with no re-detection (asserted in tests and smoke_api).
+- CLI: `pulse analyze`, `pulse eval`, `pulse bench`.
+- Live mode: webcam → WebSocket → same engine; overlays, dwell timers, occupancy, unserved-interest alert, click-to-toggle role; Host/Origin-guarded; the page shows only the processed frame with detected heads pixelated.
+- Privacy: every written image (keyframe, heatmap, thumbnails, contact sheets, annotated video, report.html) blurs every detected person (raw detections ≥ 0.2 plus tracked boxes ± one frame); no face recognition / demographics / cross-visit re-ID; webcam check stores only a 24-px pixelated frame; jobs deleted after 24 h at app start.
+- Evaluation on MEVA (CC BY 4.0) with agent-drawn zones, deterministic `docs/EVAL.md`.
+- Stretch: sat-in-car rules, floor calibration + top-down heatmap, printable report, sales CSV join, UZ/RU UI toggle, Dockerfile, deploy script (written, NOT run).
+
+### What does not work / caveats (honest)
+- Accuracy targets are MISSED on the MEVA test clips (school hallways, not showrooms; sparse GT): entry/exit count error 50.0%, occupancy MAE 4.02, zone dwell median error 42.0% (1.80 s), journey accuracy 52.5%. Dev numbers: 3.6% / 1.00 / 40.7% / 60.0%. Test numbers were visible during tuning (disclosed in EVAL.md); the tuner itself only used dev clips.
+- File-mode speed: 1.55× real time on a 60 s 720p excerpt, but 0.88× and 0.92× on the two crowded 5-min test clips (partly met). Live: engine 8.27 fps with 1–4 people, smoke 5.02 fps paced / 10.94 max (met).
+- Stops on agent-labelled stock clips: precision 2/2 (95% CI 34–100%), recall 3/6 all GT stops / 2/2 in usable time — tiny, unreviewed sample.
+- Sat-in-car: only synthetic tests; the outdoor MEVA proxy (G436) is unusable (0/11) — not a measure of the rules.
+- Hand-held/cut stock footage loses zone statistics on moving segments (e.g. 39–52% of a clip analysed).
+- `merge_sim_thr` was tuned to 0.9 on 2 dev clips (counts objective) → little identity merging; visit KPIs therefore count only customers seen ≥ 1 s (`min_visit_s`, fixed by definition; EVAL unchanged).
+- Webcam step needs a lit room with the lid open (black frames overnight).
+- Docker image never built (no daemon); deploy script never run (by rule).
+- UZ/RU UI strings machine-written; calibration UI and printable A4 not clicked through by a human.
+
+### Measured numbers (source: docs/EVAL.md; reproduce with the commands listed there)
+| metric | target | test | dev | met |
+|---|---|---|---|---|
+| entry/exit count error | ≤ 10% | 50.0% | 3.6% | NO |
+| occupancy MAE | ≤ 0.5 | 4.02 | 1.00 | NO |
+| zone dwell median error (dealership) | ≤ 10% | 42.0% (1.80 s) | 40.7% (1.60 s) | NO |
+| journey accuracy | ≥ 80% | 52.5% | 60.0% | NO |
+| file-mode RTF (CPU, 5 fps) | ≥ 1× | 1.55× excerpt; full clips 0.88–1.86× | – | partly |
+| live fps (CPU) | ≥ 5 | 8.27 engine; 5.02 paced / 10.94 max | – | yes |
+Other: MOTA negative on every clip (MEVA annotates only activity participants); test IDF1 19.7% raw / 19.5% merged. Detector benchmark (M0): yolox_s chosen (person recall 0.629, 82 ms/frame CPU). CoreML engine step ≈ 34 fps (optional, separate).
+
+### Decisions taken alone (full list under "## Decisions" above; the most consequential)
+- Pre-flight was not run, so the agent created the repo and fetched open data itself; demo clips from Wikimedia Commons (CC BY-SA 4.0 / CC BY 3.0) because data/stock/ was empty and Pexels blocks scripts.
+- rtmlib vendored (opencv conflict + dropped scores); supervision pinned < 0.31; detector yolox_s by the spec §5 benchmark rule; pose rtmpose_s.
+- ByteTrack `frame_rate=30` quirk; full HSV+DINOv2 embeddings for every track with a crop.
+- Privacy hardening beyond the plan: blur from raw detections + neighbouring tracked boxes (after an automated security scan), fail-closed `observations_by_t`, live page never shows the raw camera, Host/Origin guard, decode-bomb and WebSocket limits.
+- "Skip" in the staff step = everyone counted as customer (spec §3), with a warning.
+- Dev/test split fixed at plan time; dev-only tuning restricted to the two post-cache merge knobs; merge_sim_thr 0.75 → 0.9.
+- Visit KPIs count customers seen ≥ 1 s (`min_visit_s = 1.0`), applied after the final review; EVAL byte-identical (gate).
+- verify.sh was not run by implementers while the camera was dark (to avoid looping on an environmental failure); this let two slow-test regressions through until the 07:05 run — fixed in 3a9c0a3.
+
+### Where Showroom Pulse's shared interfaces may differ from Showroom Coach
+See the full table in `docs/INTEGRATION.md`. Highlights: dataclasses live in `pulse/datatypes.py`; Coach's `render(video, timeline, events, out)` is `render_timeline(..., cfg)` here and `render(...)` requires `observations_by_t`; `roles.suggest(persons, interactions, cfg)` uses the reduced feature set and a reason threshold; `identity.merge` uses `max_gap_s = leave_after` and `merge_sim_thr = 0.9`; `geometry.position_m` returns `PosEstimate` with an "invalid" method; perception cache v2 layout (incl. raw_dets.npz); rtmlib vendored rather than pip-installed; detector yolox_s; ByteTrack frame_rate quirk; zone polygons normalised to [0,1]; `/ws/live` message schema and Host/Origin guard; roles.json import format.
+
+### Team to-do
+1. Review the agent-made labels and zones (`labels/`, all marked "ai-agent, unreviewed").
+2. Film staged showroom scenes (staff + customers; one fixed camera + one phone), label a dev and a test clip, re-run `pulse eval`; replace or add Pexels clips (e.g. pexels.com/video/7154222) in `data/stock/`.
+3. Merge with Showroom Coach following `docs/INTEGRATION.md` (one engine + cache, shared roles.json, two tabs).
+4. Put real Royal Motors numbers into the ROI model in `docs/PITCH_NOTES.md` (every input is marked ASSUMPTION).
+5. Deploy: `scripts/deploy.sh` (written, NOT run) or the Dockerfile (not built yet).
+6. Before the jury: native-speaker check of UZ/RU; click through "Calibrate floor" and the printable report once; demo with the Short preset; name zones in Latin script.
+
+### Resume commands
+```bash
+cd ~/Projects/showroom-pulse
+./run.sh                                   # web app at http://localhost:8000
+bash scripts/verify.sh                     # full chain (needs a lit room for the webcam step)
+.venv/bin/pulse analyze data/stock/wm-bangalore-07.mp4 --out runs/demo --preset short --zones labels/zones/wm-bangalore-07.json
+.venv/bin/pulse eval --out docs/EVAL.md    # regenerates EVAL.md from cached runs (deterministic)
+```
+
+### Last full verify.sh output (commit d74e3aa, 2026-10-11 07:45 Tashkent)
+After this summary is committed, the chain is run once more; that run's output is shown in the session transcript.
+```
+
+=== [verify] pytest (default) ===
+$ .venv/bin/python -m pytest -q
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 49%]
+........................................................................ [ 66%]
+........................................................................ [ 82%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+435 passed, 12 deselected in 12.75s
+=== [verify] pytest (default) -> exit 0 ===
+
+=== [verify] pytest (slow) ===
+$ .venv/bin/python -m pytest -q -m slow
+....
+TIMINGS ms {'det': 80.1, 'track': 0.6, 'pose': 35.7} persons-obs 97 frames 50
+.....
+META {'rtf': 1.5050853730517084, 'perception_seconds': 6.64414137499989, 'embed_seconds': 0.4209544159966754, 'n_samples': 50}
+...                                                             [100%]
+12 passed, 435 deselected in 77.21s (0:01:17)
+=== [verify] pytest (slow) -> exit 0 ===
+
+=== [verify] analyze MEVA dev clip ===
+$ .venv/bin/pulse analyze data/meva/videos/2018-03-11.16-35-01.16-40-00.school.G423.r13.avi --out runs/verify/meva --preset dealership
+visitors: 55  staff: 0  insights: 0  RTF: 1.7x
+  warning: No zones: draw zones to get per-car statistics
+  warning: 10 track fragments shorter than 1 s were not counted as visitors
+  warning: 1 people with an uncertain role were counted as customers
+outputs: runs/verify/meva
+=== [verify] analyze MEVA dev clip -> exit 0 ===
+
+=== [verify] analyze showroom clip ===
+$ .venv/bin/pulse analyze data/stock/wm-bangalore-04.mp4 --out runs/verify/stock --preset short
+visitors: 75  staff: 3  insights: 0  RTF: 0.8x
+  warning: Only 39% of the clip analysed (camera moving or cut)
+  warning: 23 track fragments shorter than 1 s were not counted as visitors
+  warning: 14 people with an uncertain role were counted as customers
+outputs: runs/verify/stock
+=== [verify] analyze showroom clip -> exit 0 ===
+
+=== [verify] check outputs ===
+$ .venv/bin/python scripts/check_outputs.py runs/verify/meva runs/verify/stock
+OK report.json
+OK stats.json
+OK insights.json
+OK zones.json
+OK roles.json
+OK people.json
+OK visits.csv
+OK per_car.csv
+OK occupancy.csv
+OK heatmap.png
+OK occupancy.svg
+OK waiting.svg
+OK journey_flow.json
+OK keyframe.jpg
+OK report.html
+OK thumbs/person_1.jpg
+OK thumbs/person_10.jpg
+OK thumbs/person_11.jpg
+OK thumbs/person_12.jpg
+OK thumbs/person_13.jpg
+OK thumbs/person_14.jpg
+OK thumbs/person_15.jpg
+OK thumbs/person_16.jpg
+OK thumbs/person_17.jpg
+OK thumbs/person_18.jpg
+OK thumbs/person_19.jpg
+OK thumbs/person_2.jpg
+OK thumbs/person_20.jpg
+OK thumbs/person_21.jpg
+OK thumbs/person_22.jpg
+OK thumbs/person_23.jpg
+OK thumbs/person_24.jpg
+OK thumbs/person_25.jpg
+OK thumbs/person_26.jpg
+OK thumbs/person_27.jpg
+OK thumbs/person_28.jpg
+OK thumbs/person_29.jpg
+OK thumbs/person_3.jpg
+OK thumbs/person_30.jpg
+OK thumbs/person_31.jpg
+OK thumbs/person_32.jpg
+OK thumbs/person_33.jpg
+OK thumbs/person_34.jpg
+OK thumbs/person_35.jpg
+OK thumbs/person_36.jpg
+OK thumbs/person_37.jpg
+OK thumbs/person_38.jpg
+OK thumbs/person_39.jpg
+OK thumbs/person_4.jpg
+OK thumbs/person_40.jpg
+OK thumbs/person_41.jpg
+OK thumbs/person_42.jpg
+OK thumbs/person_43.jpg
+OK thumbs/person_44.jpg
+OK thumbs/person_45.jpg
+OK thumbs/person_46.jpg
+OK thumbs/person_47.jpg
+OK thumbs/person_48.jpg
+OK thumbs/person_49.jpg
+OK thumbs/person_5.jpg
+OK thumbs/person_50.jpg
+OK thumbs/person_51.jpg
+OK thumbs/person_52.jpg
+OK thumbs/person_53.jpg
+OK thumbs/person_54.jpg
+OK thumbs/person_55.jpg
+OK thumbs/person_56.jpg
+OK thumbs/person_57.jpg
+OK thumbs/person_58.jpg
+OK thumbs/person_59.jpg
+OK thumbs/person_6.jpg
+OK thumbs/person_60.jpg
+OK thumbs/person_61.jpg
+OK thumbs/person_62.jpg
+OK thumbs/person_63.jpg
+OK thumbs/person_64.jpg
+OK thumbs/person_65.jpg
+OK thumbs/person_7.jpg
+OK thumbs/person_8.jpg
+OK thumbs/person_9.jpg
+OK annotated.mp4
+OK report.json
+OK stats.json
+OK insights.json
+OK zones.json
+OK roles.json
+OK people.json
+OK visits.csv
+OK per_car.csv
+OK occupancy.csv
+OK heatmap.png
+OK occupancy.svg
+OK waiting.svg
+OK journey_flow.json
+OK keyframe.jpg
+OK report.html
+OK thumbs/person_1.jpg
+OK thumbs/person_10.jpg
+OK thumbs/person_100.jpg
+OK thumbs/person_101.jpg
+OK thumbs/person_11.jpg
+OK thumbs/person_12.jpg
+OK thumbs/person_13.jpg
+OK thumbs/person_14.jpg
+OK thumbs/person_15.jpg
+OK thumbs/person_16.jpg
+OK thumbs/person_17.jpg
+OK thumbs/person_18.jpg
+OK thumbs/person_19.jpg
+OK thumbs/person_2.jpg
+OK thumbs/person_20.jpg
+OK thumbs/person_21.jpg
+OK thumbs/person_22.jpg
+OK thumbs/person_23.jpg
+OK thumbs/person_24.jpg
+OK thumbs/person_25.jpg
+OK thumbs/person_26.jpg
+OK thumbs/person_27.jpg
+OK thumbs/person_28.jpg
+OK thumbs/person_29.jpg
+OK thumbs/person_3.jpg
+OK thumbs/person_30.jpg
+OK thumbs/person_31.jpg
+OK thumbs/person_32.jpg
+OK thumbs/person_33.jpg
+OK thumbs/person_34.jpg
+OK thumbs/person_35.jpg
+OK thumbs/person_36.jpg
+OK thumbs/person_37.jpg
+OK thumbs/person_38.jpg
+OK thumbs/person_39.jpg
+OK thumbs/person_4.jpg
+OK thumbs/person_40.jpg
+OK thumbs/person_41.jpg
+OK thumbs/person_42.jpg
+OK thumbs/person_43.jpg
+OK thumbs/person_44.jpg
+OK thumbs/person_45.jpg
+OK thumbs/person_46.jpg
+OK thumbs/person_47.jpg
+OK thumbs/person_48.jpg
+OK thumbs/person_49.jpg
+OK thumbs/person_5.jpg
+OK thumbs/person_50.jpg
+OK thumbs/person_51.jpg
+OK thumbs/person_52.jpg
+OK thumbs/person_53.jpg
+OK thumbs/person_54.jpg
+OK thumbs/person_55.jpg
+OK thumbs/person_56.jpg
+OK thumbs/person_57.jpg
+OK thumbs/person_58.jpg
+OK thumbs/person_59.jpg
+OK thumbs/person_6.jpg
+OK thumbs/person_60.jpg
+OK thumbs/person_61.jpg
+OK thumbs/person_62.jpg
+OK thumbs/person_63.jpg
+OK thumbs/person_64.jpg
+OK thumbs/person_65.jpg
+OK thumbs/person_66.jpg
+OK thumbs/person_67.jpg
+OK thumbs/person_68.jpg
+OK thumbs/person_69.jpg
+OK thumbs/person_7.jpg
+OK thumbs/person_70.jpg
+OK thumbs/person_71.jpg
+OK thumbs/person_72.jpg
+OK thumbs/person_73.jpg
+OK thumbs/person_74.jpg
+OK thumbs/person_75.jpg
+OK thumbs/person_76.jpg
+OK thumbs/person_77.jpg
+OK thumbs/person_78.jpg
+OK thumbs/person_79.jpg
+OK thumbs/person_8.jpg
+OK thumbs/person_80.jpg
+OK thumbs/person_81.jpg
+OK thumbs/person_82.jpg
+OK thumbs/person_83.jpg
+OK thumbs/person_84.jpg
+OK thumbs/person_85.jpg
+OK thumbs/person_86.jpg
+OK thumbs/person_87.jpg
+OK thumbs/person_88.jpg
+OK thumbs/person_89.jpg
+OK thumbs/person_9.jpg
+OK thumbs/person_90.jpg
+OK thumbs/person_91.jpg
+OK thumbs/person_92.jpg
+OK thumbs/person_93.jpg
+OK thumbs/person_94.jpg
+OK thumbs/person_95.jpg
+OK thumbs/person_96.jpg
+OK thumbs/person_97.jpg
+OK thumbs/person_98.jpg
+OK thumbs/person_99.jpg
+OK annotated.mp4
+=== [verify] check outputs -> exit 0 ===
+
+=== [verify] smoke API ===
+$ .venv/bin/python scripts/smoke_api.py
+[smoke_api] health
+[smoke_api] upload meva_20s.mp4
+[smoke_api]   job be398c01d08f42aebfbcfe91979d4ba7
+[smoke_api] poll until ready_for_zones
+[smoke_api]   state=perceiving progress=0.00 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.05 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.10 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.14 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.19 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.24 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.28 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.33 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.38 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.43 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.47 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.52 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.57 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.62 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.67 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.71 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.76 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.81 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.85 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.90 Detecting and tracking people
+[smoke_api] GET zones (auto)
+[smoke_api]   0 auto zone(s)
+[smoke_api] PUT zones: Car: Demo + Desk
+[smoke_api] GET people
+[smoke_api]   4 people, first: 1 suggested=customer
+[smoke_api] PUT roles: first person -> staff
+[smoke_api] POST score (with background video render)
+[smoke_api]   visitors=3 staff=1 per_car=[('Car: Demo', 3)]
+[smoke_api] wait for annotated video
+[smoke_api] PUT zones: move the car rectangle, POST score again
+[smoke_api]   per_car=[('Car: Demo', 0)]
+[smoke_api] assert no re-detection
+SMOKE API OK
+=== [verify] smoke API -> exit 0 ===
+
+=== [verify] smoke live ===
+$ .venv/bin/python scripts/smoke_live.py
+/Users/diyorbekumaraliyev/Projects/showroom-pulse/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[smoke_live] 150 JPEG frames ready; streaming 30 s at 5 fps (real time)
+[smoke_live] people_max=3 dwell_max=11.2s alert_overlays=21 dropped=0; first alert: Customer at Car: Demo for 8 s, no staff nearby
+[smoke_live] engine step mean 101 ms
+[smoke_live] measuring maximum sustainable fps for 10 s
+processed fps: 5.01
+max sustainable fps: 9.79
+SMOKE LIVE OK
+=== [verify] smoke live -> exit 0 ===
+
+=== [verify] webcam grab ===
+$ .venv/bin/python scripts/webcam_grab.py
+frame 1920x1080 mean=79.6 std=46.3
+saved pixelated (24px) copy to runs/verify/webcam.jpg; the raw frame was not stored
+WEBCAM OK
+=== [verify] webcam grab -> exit 0 ===
+
+=== [verify] eval ===
+$ .venv/bin/pulse eval --out docs/EVAL.md
+[eval] dev 2018-03-11.16-35-01.16-40-00.school.G423
+[eval] dev 2018-03-11.12-00-00.12-05-00.school.G420
+[eval] test 2018-03-12.11-05-01.11-10-01.school.G423
+[eval] test 2018-03-13.17-10-00.17-15-00.school.G421
+[eval] test 2018-03-09.10-40-00.10-45-00.school.G419
+[eval] test 2018-03-09.10-15-00.10-20-00.school.G299
+wrote docs/EVAL.md
+=== [verify] eval -> exit 0 ===
+
+=== [verify] git status clean ===
+$ bash -c out=$(git status --short); echo "$out"; test -z "$out"
+
+=== [verify] git status clean -> exit 0 ===
+
+=== [verify] no git remote ===
+$ bash -c out=$(git remote -v); echo "$out"; test -z "$out"
+
+=== [verify] no git remote -> exit 0 ===
+
+VERIFY OK
+EXIT=0
+```
