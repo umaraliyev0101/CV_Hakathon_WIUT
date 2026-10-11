@@ -118,3 +118,16 @@ def test_pages_have_switcher_and_english_banner():
 def test_no_innerhtml_in_ui_scripts():
     for p in STATIC_DIR.glob("*.js"):
         assert "innerHTML" not in p.read_text(encoding="utf-8"), p.name
+
+
+def test_median_is_translated_as_median(dicts):
+    hits = [k for k, v in dicts["en"].items() if "median" in v.lower()]
+    assert hits
+    for k in hits:
+        assert "median" in dicts["uz"][k].lower(), f"uz.{k} must say Mediana, not average"
+        assert "медиан" in dicts["ru"][k].lower(), f"ru.{k} must say медиан-"
+
+
+def test_unknown_stored_language_is_ignored():
+    src = (STATIC_DIR / "i18n.js").read_text(encoding="utf-8")
+    assert "Object.hasOwn(DICTS, saved)" in src

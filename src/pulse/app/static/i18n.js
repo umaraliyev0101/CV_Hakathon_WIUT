@@ -10,7 +10,7 @@ const en = {
   "nav.upload": "Upload mode",
   "nav.progress": "Progress",
   "lang.aria": "Language",
-  "note.english": "Recommendations, warnings and zone names come from the analysis and are shown in English.",
+  "note.english": "Recommendations, evidence labels, warnings and zone names come from the analysis and are shown in English.",
   "common.looks_right": "Looks right",
   "common.na": "n/a",
   "step.upload": "Upload",
@@ -203,7 +203,7 @@ const uz = {
   "nav.upload": "Yuklash rejimi",
   "nav.progress": "Jarayon",
   "lang.aria": "Til",
-  "note.english": "Tavsiyalar, ogohlantirishlar va zona nomlari tahlildan olinadi va inglizcha ko'rsatiladi.",
+  "note.english": "Tavsiyalar, dalil yorliqlari, ogohlantirishlar va zona nomlari tahlildan olinadi va inglizcha ko'rsatiladi.",
   "common.looks_right": "To'g'ri",
   "common.na": "yo'q",
   "step.upload": "Yuklash",
@@ -295,7 +295,7 @@ const uz = {
   "kpi.visitors": "Tashrif buyuruvchilar (xodimlarsiz)",
   "kpi.visitors.unit": "kishi",
   "kpi.groups": "Guruhlar",
-  "kpi.median_visit": "O'rtacha tashrif davomiyligi",
+  "kpi.median_visit": "Mediana tashrif davomiyligi",
   "kpi.median_visit.unit": "d:ss",
   "kpi.browse": "Qiziqish ulushi",
   "kpi.browse.unit": "avtomobil oldida to'xtagan",
@@ -310,7 +310,7 @@ const uz = {
   "cars.car": "Avtomobil",
   "cars.stops": "To'xtashlar",
   "cars.stop_rate": "To'xtash ulushi",
-  "cars.median_dwell": "O'rtacha turish vaqti",
+  "cars.median_dwell": "Mediana turish vaqti",
   "cars.total_dwell": "Umumiy turish vaqti",
   "cars.repeat": "Takroriy tashriflar",
   "cars.unassisted": "Xizmatsiz qolgan ulush",
@@ -396,7 +396,7 @@ const ru = {
   "nav.upload": "Режим загрузки",
   "nav.progress": "Ход работы",
   "lang.aria": "Язык",
-  "note.english": "Рекомендации, предупреждения и названия зон формируются при анализе и показываются на английском.",
+  "note.english": "Рекомендации, подписи показателей, предупреждения и названия зон формируются при анализе и показываются на английском.",
   "common.looks_right": "Всё верно",
   "common.na": "н/д",
   "step.upload": "Загрузка",
@@ -627,7 +627,7 @@ function mountSwitcher() {
 }
 
 export function setLang(code, persist = true) {
-  if (!DICTS[code]) code = "en";
+  if (!Object.hasOwn(DICTS, code)) code = "en";
   lang = code;
   document.documentElement.setAttribute("lang", HTML_LANG[code]);
   if (persist) { try { localStorage.setItem(KEY, code); } catch { /* storage unavailable */ } }
@@ -639,6 +639,6 @@ export function setLang(code, persist = true) {
 function init() {
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
-  setLang(DICTS[saved] ? saved : "en", false);
+  setLang(Object.hasOwn(DICTS, saved) ? saved : "en", false);
 }
 init();

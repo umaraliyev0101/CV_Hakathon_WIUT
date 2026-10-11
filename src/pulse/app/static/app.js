@@ -18,7 +18,10 @@ async function req(url, opts) {
 }
 const putJson = (url, data) => req(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 
+let lastNotice = null;   // [thunk, isError] when the notice is our own text, so a language switch can retranslate it
 function notice(msg, isError = true) {
+  lastNotice = typeof msg === "function" ? [msg, isError] : null;
+  if (typeof msg === "function") msg = msg();
   const n = $("notice"); n.textContent = msg || ""; n.hidden = !msg; n.classList.toggle("error", !!msg && isError);
 }
 function showStep(name) {
@@ -37,7 +40,10 @@ function setJob(id) {
 }
 
 // ------------------------------------------------------------------ 1. upload + progress
+let progressMsg = null;
 function setProgress(frac, msg) {
+  progressMsg = typeof msg === "function" ? msg : null;
+  if (typeof msg === "function") msg = msg();
   $("progress").hidden = false;
   const pct = Math.round(frac * 100);
   $("bar-fill").style.width = `${pct}%`;
@@ -49,17 +55,17 @@ function setProgress(frac, msg) {
 $("upload-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const file = $("file").files[0];
-  if (!file) { notice(t("upload.choose")); return; }
+  if (!file) { notice(() => t("upload.choose")); return; }
   notice("");
   const fd = new FormData();
   fd.append("file", file);
   fd.append("preset", document.querySelector("input[name=preset]:checked").value);
   $("upload-btn").disabled = true;
-  setProgress(0, t("upload.uploading"));
+  setProgress(0, () => t("upload.uploading"));
   const xhr = new XMLHttpRequest();
   xhr.open("POST", "/api/jobs");
-  xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setProgress(ev.loaded / ev.total * 0.2, t("upload.uploading")); };
-  xhr.onerror = () => { notice(t("upload.failed_network")); $("upload-btn").disabled = false; };
+  xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setProgress(ev.loaded / ev.total * 0.2, () => t("upload.uploading")); };
+  xhr.onerror = () => { notice(() => t("upload.failed_network")); $("upload-btn").disabled = false; };
   xhr.onload = () => {
     let body = null; try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
     if (xhr.status !== 200 || !body?.job_id) {
@@ -172,7 +178,7 @@ $("staff-skip").addEventListener("click", () => finishStaff(true));
 
 // ------------------------------------------------------------------ 4. results
 async function scoreNow() {
-  notice(t("scoring"), false);
+  notice(() => t("scoring"), false);
   try {
     const report = await req(`/api/jobs/${state.jobId}/score`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     notice("");
@@ -191,7 +197,7 @@ function showResults(report) {
     getStatus: () => req(`/api/jobs/${state.jobId}`),
     onSales: async (file) => {
       const fd = new FormData(); fd.append("file", file);
-      notice(t("sales.uploading"), false);
+      notice(() => t("sales.uploading"), false);
       try { await req(`/api/jobs/${state.jobId}/sales`, { method: "POST", body: fd }); notice(""); await openResults(); }
       catch (err) { notice(err.message); }
     },
@@ -203,6 +209,8 @@ function showResults(report) {
 // ------------------------------------------------------------------ language switch
 // Re-render what is already on screen; server-delivered text (insights, warnings, zone names) is unchanged.
 onLangChange(() => {
+  if (lastNotice && !$("notice").hidden) notice(...lastNotice);
+  if (progressMsg && !$("progress").hidden) $("progress-msg").textContent = progressMsg();
   zoneEditor.refreshLang();
   if (!$("step-staff").hidden) renderPeople();
   if (!$("step-results").hidden && state.report) showResults(state.report);
