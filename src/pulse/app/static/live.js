@@ -1,4 +1,5 @@
 // Live mode: webcam -> WebSocket -> server overlays. Plain ES module, no dependencies.
+import { t, onLangChange } from "/static/i18n.js";
 const $ = (id) => document.getElementById(id);
 const video = $("video"), overlay = $("overlay"), grab = $("grab");
 const octx = overlay.getContext("2d");
@@ -25,16 +26,17 @@ function wsUrl() {
   return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/live";
 }
 
-function setConn(text) { $("conn").textContent = text; }
+let connText = () => t("conn.not_connected");      // re-run on a language switch
+function setConn(fn) { connText = fn; $("conn").textContent = fn(); }
 
 function connect() {
   clearTimeout(S.retryTimer);
-  setConn(S.attempt ? "Reconnecting" : "Connecting");
+  setConn(S.attempt ? () => t("conn.reconnecting") : () => t("conn.connecting"));
   const ws = new WebSocket(wsUrl());
   S.ws = ws;
   ws.onopen = () => {
     S.open = true; S.attempt = 0; S.inFlight = false;
-    setConn("Connected");
+    setConn(() => t("conn.connected"));
     ws.send(JSON.stringify({ type: "preset", name: $("preset").value }));
     if (S.zones.length) ws.send(JSON.stringify({ type: "zones", zones: S.zones }));
   };
@@ -50,7 +52,7 @@ function connect() {
     S.open = false; S.inFlight = false;
     const wait = Math.min(8000, 500 * 2 ** S.attempt);
     S.attempt += 1;
-    setConn(`Disconnected, retrying in ${Math.round(wait / 100) / 10} s`);
+    setConn(() => t("conn.disconnected", { s: Math.round(wait / 100) / 10 }));
     S.retryTimer = setTimeout(connect, wait);
   };
   ws.onerror = () => { try { ws.close(); } catch { /* already closing */ } };
@@ -63,13 +65,13 @@ function sendControl(obj) {
 // ------------------------------------------------------------------ camera and frames
 async function startCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    notice("This browser cannot open the camera here. Use localhost or HTTPS in a current browser.", 0);
+    notice(t("live.err_no_camera_api"), 0);
     return;
   }
   try {
     S.stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960 }, audio: false });
   } catch (e) {
-    notice("Camera unavailable: " + (e && e.name === "NotAllowedError" ? "permission was denied." : "no camera found or it is busy."), 0);
+    notice(e && e.name === "NotAllowedError" ? t("live.err_denied") : t("live.err_busy"), 0);
     return;
   }
   video.srcObject = S.stream;
@@ -115,14 +117,14 @@ function renderZoneStats() {
   ul.textContent = "";
   if (!S.zones.length) {
     const li = document.createElement("li");
-    li.className = "muted"; li.textContent = "No zones yet. Draw one or load a zone file.";
+    li.className = "muted"; li.textContent = t("live.no_zones");
     ul.append(li); return;
   }
   const byId = new Map(((S.last && S.last.zones) || []).map((z) => [z.zone_id, z]));
   for (const z of S.zones) {
     const c = byId.get(z.zone_id) || { now: 0, total: 0 };
     const li = document.createElement("li");
-    li.textContent = `${z.name}: ${c.now} now, ${c.total} total`;
+    li.textContent = t("live.zone_stat", { name: z.name, now: c.now, total: c.total });
     ul.append(li);
   }
 }
@@ -134,11 +136,11 @@ function pixelateHead(x1, y1, x2, y2, sx, sy) {
   const w = x2 - x1, h = y2 - y1;
   const hx = (x1 + w * 0.2) * sx, hy = y1 * sy, hw = w * 0.6 * sx, hh = h * 0.2 * sy;
   if (hw < 2 || hh < 2) return;
-  const t = pixelateHead.tmp || (pixelateHead.tmp = document.createElement("canvas"));
-  t.width = 6; t.height = 6;
-  t.getContext("2d").drawImage(video, hx, hy, hw, hh, 0, 0, 6, 6);
+  const tmp = pixelateHead.tmp || (pixelateHead.tmp = document.createElement("canvas"));
+  tmp.width = 6; tmp.height = 6;
+  tmp.getContext("2d").drawImage(video, hx, hy, hw, hh, 0, 0, 6, 6);
   octx.imageSmoothingEnabled = false;
-  octx.drawImage(t, 0, 0, 6, 6, hx, hy, hw, hh);
+  octx.drawImage(tmp, 0, 0, 6, 6, hx, hy, hw, hh);
   octx.imageSmoothingEnabled = true;
 }
 
@@ -161,7 +163,7 @@ function drawAll() {
     z.polygon.forEach(([x, y], i) => (i ? octx.lineTo(x * W, y * H) : octx.moveTo(x * W, y * H)));
     octx.closePath(); octx.fill(); octx.stroke();
     const c = byId.get(z.zone_id) || { now: 0, total: 0 };
-    label(`${z.name}: ${c.now} now / ${c.total} total`, z.polygon[0][0] * W + 2, z.polygon[0][1] * H + 20, "#1b9e77");
+    label(t("live.zone_label", { name: z.name, now: c.now, total: c.total }), z.polygon[0][0] * W + 2, z.polygon[0][1] * H + 20, "#1b9e77");
   }
   const m = S.last;
   if (m && !S.drawing) {
@@ -172,8 +174,8 @@ function drawAll() {
       const color = p.alert ? COLORS.alert : COLORS[p.role] || COLORS.customer;
       octx.strokeStyle = color; octx.lineWidth = p.alert ? 4 : 2;
       octx.strokeRect(x1 * sx, y1 * sy, (x2 - x1) * sx, (y2 - y1) * sy);
-      let text = `#${p.person_id} ${p.role}`;
-      if (p.zone_name) text += ` | ${p.zone_name} ${Math.round(p.dwell)} s`;
+      let text = `#${p.person_id} ${p.role === "staff" ? t("role.staff") : t("role.customer")}`;
+      if (p.zone_name) text += ` | ${t("live.person_zone", { zone: p.zone_name, s: Math.round(p.dwell) })}`;
       label(text, x1 * sx, y1 * sy, color);
     }
   }
@@ -205,7 +207,7 @@ overlay.addEventListener("pointerup", () => {
   if (!d) return;
   const [x0, x1] = [Math.min(d.x0, d.x1), Math.max(d.x0, d.x1)];
   const [y0, y1] = [Math.min(d.y0, d.y1), Math.max(d.y0, d.y1)];
-  if ((x1 - x0) * (y1 - y0) < 0.002) { notice("Zone too small: drag a larger rectangle."); return; }
+  if ((x1 - x0) * (y1 - y0) < 0.002) { notice(t("live.err_small")); return; }
   const name = $("zone-name").value.trim() || `Zone ${S.zones.length + 1}`;
   let id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "zone";
   while (S.zones.some((z) => z.zone_id === id)) id += "-2";
@@ -218,10 +220,10 @@ overlay.addEventListener("pointerup", () => {
 function setDrawing(on) {
   S.drawing = on;
   $("draw").setAttribute("aria-pressed", String(on));
-  $("draw").textContent = on ? "Done drawing" : "Draw zone";
+  $("draw").textContent = on ? t("live.done_drawing") : t("live.draw");
   overlay.style.cursor = on ? "crosshair" : "pointer";
   if (on) video.pause(); else video.play();      // draw on a still frame, then resume
-  if (on) notice("Drag a rectangle on the still frame. Press \"Done drawing\" to resume.", 8000);
+  if (on) notice(t("live.drawing_hint"), 8000);
 }
 
 function updateButtons() {
@@ -237,11 +239,17 @@ $("clear-zones").addEventListener("click", () => {
 });
 $("load-zones").addEventListener("click", () => {
   const path = $("zone-path").value.trim();
-  if (!path) { notice("Enter the path of a zone file."); return; }
-  if (!S.open) { notice("Not connected yet."); return; }
+  if (!path) { notice(t("live.err_path")); return; }
+  if (!S.open) { notice(t("live.err_not_connected")); return; }
   sendControl({ type: "load_zones", path });
 });
 $("preset").addEventListener("change", () => sendControl({ type: "preset", name: $("preset").value }));
+
+onLangChange(() => {
+  setConn(connText);
+  $("draw").textContent = S.drawing ? t("live.done_drawing") : t("live.draw");
+  renderZoneStats();
+});
 
 connect();
 updateButtons();

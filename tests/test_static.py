@@ -21,7 +21,7 @@ def client(app):
 
 
 @pytest.mark.parametrize("path", ["/", "/live", "/static/app.js", "/static/zones.js",
-                                  "/static/dashboard.js", "/static/style.css"])
+                                  "/static/dashboard.js", "/static/i18n.js", "/static/style.css"])
 def test_pages_served(client, path):
     assert client.get(path).status_code == 200
 

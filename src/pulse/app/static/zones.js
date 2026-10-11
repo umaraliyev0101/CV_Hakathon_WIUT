@@ -1,7 +1,8 @@
 // Zone editor: a canvas over the keyframe. All geometry is stored normalised to [0,1]; pixels only
 // exist while drawing and hit-testing, so the canvas follows the displayed image size.
 const KIND_COLOURS = { car: "#d9650b", desk: "#1f5f8b", entrance: "#1b6e3c", lounge: "#6b3fa0", other: "#6a645d" };
-const KIND_LABELS = { car: "Car", desk: "Desk", entrance: "Entrance", lounge: "Lounge", other: "Other" };
+import { t } from "/static/i18n.js";
+const kindLabel = (k) => ({ car: t("kind.car"), desk: t("kind.desk"), entrance: t("kind.entrance"), lounge: t("kind.lounge"), other: t("kind.other") }[k] || k);
 const HANDLE = 6, HIT = 11, MIN_RECT = 0.01;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
@@ -26,7 +27,11 @@ export class ZoneEditor {
     this.frameSize = null;
     this.floor = { img: [], world: [] };   // optional floor calibration: 4 clicked points + their metres
     this._bind();
+    this.updateHint();
   }
+
+  // language switch: redraw the parts built from translated text
+  refreshLang() { this.updateHint(); this.renderList(); this.renderFloor(); }
 
   async load(zonesDoc, imgUrl) {
     this.frameSize = zonesDoc.frame_size;
@@ -48,9 +53,9 @@ export class ZoneEditor {
     const n = this.floor.img.length;
     if (n) {
       const world = this.floor.world.map((p) => [parseFloat(p[0]), parseFloat(p[1])]);
-      if (world.some((p) => p.some((v) => Math.abs(v) > 1000))) throw new Error("Floor coordinates must be within +-1000 m.");
+      if (world.some((p) => p.some((v) => Math.abs(v) > 1000))) throw new Error(t("floor.err_range"));
       if (n !== 4 || world.slice(0, 4).some((p) => !p.every(Number.isFinite)))
-        throw new Error("Floor calibration needs 4 clicked points, each with X and Y in metres. Finish it or press Clear floor points.");
+        throw new Error(t("floor.err_incomplete"));
       doc.floor = { img: this.floor.img, world };
     }
     return doc;
@@ -63,17 +68,17 @@ export class ZoneEditor {
     rows.textContent = "";
     this.floor.img.forEach((p, i) => {
       const li = document.createElement("li");
-      li.append(`Point ${i + 1}: X `);
+      li.append(t("floor.point", { n: i + 1 }));
       [0, 1].forEach((k) => {
         const inp = document.createElement("input");
         inp.type = "number"; inp.step = "any"; inp.size = 5; inp.value = this.floor.world[i][k];
-        inp.setAttribute("aria-label", `Point ${i + 1} ${k ? "Y" : "X"} in metres`);
+        inp.setAttribute("aria-label", k ? t("floor.point_y_aria", { n: i + 1 }) : t("floor.point_x_aria", { n: i + 1 }));
         inp.addEventListener("input", () => {
           this.floor.world[i][k] = inp.value;
           const v = parseFloat(inp.value);
-          this.showError(Number.isFinite(v) && Math.abs(v) > 1000 ? "Floor coordinates must be within +-1000 m." : "");
+          this.showError(Number.isFinite(v) && Math.abs(v) > 1000 ? t("floor.err_range") : "");
         });
-        li.append(inp, k ? " m" : " m, Y ");
+        li.append(inp, k ? t("floor.m") : t("floor.m_y"));
       });
       rows.append(li);
     });
@@ -157,14 +162,13 @@ export class ZoneEditor {
     b.poly.setAttribute("aria-pressed", String(mode === "poly"));
     b.calib?.setAttribute("aria-pressed", String(mode === "calib"));
     b.finish.hidden = mode !== "poly";
-    this.els.hint.textContent = {
-      select: "Click a zone to select it. Drag its corners to reshape.",
-      rect: "Press on the picture and drag to draw a rectangle.",
-      calib: "Click 4 points on the floor in order around a four-sided area (corners of a known rectangle), then enter each point's X and Y in metres.",
-      poly: "Click to place corners. Double-click or press Finish polygon to close it (Esc cancels).",
-    }[mode];
+    this.updateHint();
     this.els.canvas.style.cursor = mode === "select" ? "default" : "crosshair";
     this.draw();
+  }
+
+  updateHint() {
+    this.els.hint.textContent = { select: t("hint.select"), rect: t("hint.rect"), calib: t("hint.calib"), poly: t("hint.poly") }[this.mode];
   }
 
   onDown(e) {
@@ -173,7 +177,7 @@ export class ZoneEditor {
     if (this.mode === "calib") {
       if (this.floor.img.length < 4) {
         this.floor.img.push(n); this.floor.world.push(["", ""]); this.renderFloor(); this.draw();
-      } else this.showError("4 points are placed. Press Clear floor points to start again.");
+      } else this.showError(t("floor.err_full"));
       return;
     }
     if (this.mode === "rect") { this.draft = { type: "rect", a: n, b: n }; return; }
@@ -210,7 +214,7 @@ export class ZoneEditor {
 
   finishPoly() {
     const pts = this.draft?.pts || [];
-    if (pts.length < 3) { this.showError("A polygon needs at least 3 corners."); return; }
+    if (pts.length < 3) { this.showError(t("zone.err_polygon")); return; }
     this.showError("");
     this.draft = null; this.addZone(pts); this.setMode("select");
   }
@@ -239,14 +243,14 @@ export class ZoneEditor {
   renderList() {
     const ul = this.els.list; ul.textContent = "";
     if (!this.zones.length) {
-      const li = document.createElement("li"); li.className = "muted"; li.textContent = "No zones yet. Add a rectangle or polygon.";
+      const li = document.createElement("li"); li.className = "muted"; li.textContent = t("zones.none");
       ul.append(li);
     }
     this.zones.forEach((z, i) => {
       const li = document.createElement("li"), b = document.createElement("button");
       b.type = "button"; if (i === this.selected) b.setAttribute("aria-current", "true");
       const sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = KIND_COLOURS[z.kind] || "#888";
-      b.append(sw, `${z.name || "(unnamed)"} (${KIND_LABELS[z.kind] || z.kind})`);
+      b.append(sw, `${z.name || t("zone.unnamed")} (${kindLabel(z.kind)})`);
       b.addEventListener("click", () => this.select(i));
       li.append(b); ul.append(li);
     });

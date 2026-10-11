@@ -3,16 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Showroom Pulse live</title>
+<title data-i18n="live.title">Showroom Pulse live</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header class="top">
   <div class="top-inner">
-    <h1>Showroom Pulse: live</h1>
-    <p class="banner" role="note">Anonymous, aggregated analytics; decision support only.</p>
-    <a class="top-link" href="/">Upload mode</a>
+    <h1 data-i18n="live.h1">Showroom Pulse: live</h1>
+    <div class="banner-box">
+      <p class="banner" role="note">Anonymous, aggregated analytics; decision support only.</p>
+      <p class="banner-sub" data-i18n="banner.sub">Faces are blurred and the video stays on this machine.</p>
+    </div>
+    <a class="top-link" href="/" data-i18n="nav.upload">Upload mode</a>
+    <div id="lang-switch" class="lang-switch"></div>
   </div>
 </header>
 
@@ -20,52 +24,54 @@
   <div id="alert-banner" class="alert-banner" role="alert" aria-live="assertive" hidden></div>
   <div id="notice" class="notice" role="status" hidden></div>
 
-  <section class="panel live-bar" aria-label="Controls">
-    <button id="start" class="primary" type="button">Start camera</button>
-    <label class="inline">Preset
+  <section class="panel live-bar" aria-label="Controls" data-i18n-attr="aria-label:live.controls">
+    <button id="start" class="primary" type="button" data-i18n="live.start">Start camera</button>
+    <label class="inline"><span data-i18n="live.preset">Preset</span>
       <select id="preset">
-        <option value="short">Short clip (alert after 8 s)</option>
-        <option value="dealership">Dealership (alert after 45 s)</option>
+        <option value="short" data-i18n="live.preset.short">Short clip (alert after 8 s)</option>
+        <option value="dealership" data-i18n="live.preset.dealership">Dealership (alert after 45 s)</option>
       </select>
     </label>
-    <button id="draw" type="button" aria-pressed="false" disabled>Draw zone</button>
-    <label class="inline">Zone name <input type="text" id="zone-name" value="Car A" maxlength="80"></label>
-    <label class="inline">Kind
+    <button id="draw" type="button" aria-pressed="false" disabled data-i18n="live.draw">Draw zone</button>
+    <label class="inline"><span data-i18n="live.zone_name">Zone name</span> <input type="text" id="zone-name" value="Car A" maxlength="80"></label>
+    <label class="inline"><span data-i18n="zone.kind">Kind</span>
       <select id="zone-kind">
-        <option value="car">Car</option><option value="desk">Desk</option>
-        <option value="entrance">Entrance</option><option value="lounge">Lounge</option>
-        <option value="other">Other</option>
+        <option value="car" data-i18n="kind.car">Car</option><option value="desk" data-i18n="kind.desk">Desk</option>
+        <option value="entrance" data-i18n="kind.entrance">Entrance</option><option value="lounge" data-i18n="kind.lounge">Lounge</option>
+        <option value="other" data-i18n="kind.other">Other</option>
       </select>
     </label>
-    <button id="clear-zones" type="button" disabled>Clear zones</button>
-    <label class="inline">Zone file
+    <button id="clear-zones" type="button" disabled data-i18n="live.clear">Clear zones</button>
+    <label class="inline"><span data-i18n="live.zone_file">Zone file</span>
       <input type="text" id="zone-path" value="labels/zones/" aria-describedby="zone-path-help">
     </label>
-    <button id="load-zones" type="button">Load zone file</button>
-    <small id="zone-path-help" class="muted">Path under labels/zones/ (or jobs/) on the server.</small>
+    <button id="load-zones" type="button" data-i18n="live.load">Load zone file</button>
+    <small id="zone-path-help" class="muted" data-i18n="live.path_help">Path under labels/zones/ (or jobs/) on the server.</small>
   </section>
 
   <section class="live-grid">
     <div class="stage" id="stage">
       <video id="video" playsinline muted></video>
-      <canvas id="overlay" aria-label="Live view with detections. Click a person to switch between customer and staff."></canvas>
-      <p id="stage-hint" class="stage-hint">Press "Start camera". Frames are analysed on this machine and never stored.</p>
+      <canvas id="overlay" aria-label="Live view with detections. Click a person to switch between customer and staff." data-i18n-attr="aria-label:live.canvas.aria"></canvas>
+      <p id="stage-hint" class="stage-hint" data-i18n="live.stage_hint">Press "Start camera". Frames are analysed on this machine and never stored.</p>
     </div>
-    <aside class="panel live-side" aria-label="Live statistics">
+    <aside class="panel live-side" aria-label="Live statistics" data-i18n-attr="aria-label:live.stats.aria">
       <dl class="stats">
-        <div><dt>Connection</dt><dd id="conn">Not connected</dd></div>
-        <div><dt>Processed fps</dt><dd id="fps">0.0</dd></div>
-        <div><dt>Dropped frames</dt><dd id="dropped">0</dd></div>
-        <div><dt>Customers now</dt><dd id="occupancy">0</dd></div>
+        <div><dt data-i18n="live.connection">Connection</dt><dd id="conn">Not connected</dd></div>
+        <div><dt data-i18n="live.fps">Processed fps</dt><dd id="fps">0.0</dd></div>
+        <div><dt data-i18n="live.dropped">Dropped frames</dt><dd id="dropped">0</dd></div>
+        <div><dt data-i18n="live.customers_now">Customers now</dt><dd id="occupancy">0</dd></div>
       </dl>
-      <h3>Zones</h3>
-      <ul id="zone-stats" class="zone-stats"><li class="muted">No zones yet. Draw one or load a zone file.</li></ul>
-      <p class="muted"><small>Live mode does not use floor calibration (distances use the pinhole estimate).</small></p>
-      <p class="muted"><small>Click a person to switch between customer (orange) and staff (blue).</small></p>
+      <h3 data-i18n="zones.side">Zones</h3>
+      <ul id="zone-stats" class="zone-stats"><li class="muted" data-i18n="live.no_zones">No zones yet. Draw one or load a zone file.</li></ul>
+      <p class="muted"><small data-i18n="live.note.floor">Live mode does not use floor calibration (distances use the pinhole estimate).</small></p>
+      <p class="muted"><small data-i18n="live.note.click">Click a person to switch between customer (orange) and staff (blue).</small></p>
     </aside>
   </section>
   <canvas id="grab" hidden></canvas>
 </main>
+
+<footer class="foot"><p class="muted" data-i18n="note.english">Recommendations, warnings and zone names come from the analysis and are shown in English.</p></footer>
 <script type="module" src="/static/live.js"></script>
 </body>
 </html>

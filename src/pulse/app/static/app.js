@@ -2,6 +2,7 @@
 // the URL hash), so a page reload resumes where the job is.
 import { ZoneEditor } from "/static/zones.js";
 import { renderDashboard, h } from "/static/dashboard.js";
+import { t, onLangChange } from "/static/i18n.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = ["upload", "zones", "staff", "results"];
@@ -9,10 +10,10 @@ const state = { jobId: null, fromResults: false, changed: {}, people: [], stopDa
 
 async function req(url, opts) {
   let res;
-  try { res = await fetch(url, opts); } catch { throw new Error("Cannot reach the server. Is it still running?"); }
+  try { res = await fetch(url, opts); } catch { throw new Error(t("err.network")); }
   let body = null;
   try { body = await res.json(); } catch { /* not JSON */ }
-  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(body?.error || t("err.request", { status: res.status }));
   return body;
 }
 const putJson = (url, data) => req(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -48,21 +49,21 @@ function setProgress(frac, msg) {
 $("upload-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const file = $("file").files[0];
-  if (!file) { notice("Choose a video file first."); return; }
+  if (!file) { notice(t("upload.choose")); return; }
   notice("");
   const fd = new FormData();
   fd.append("file", file);
   fd.append("preset", document.querySelector("input[name=preset]:checked").value);
   $("upload-btn").disabled = true;
-  setProgress(0, "Uploading…");
+  setProgress(0, t("upload.uploading"));
   const xhr = new XMLHttpRequest();
   xhr.open("POST", "/api/jobs");
-  xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setProgress(ev.loaded / ev.total * 0.2, "Uploading…"); };
-  xhr.onerror = () => { notice("Upload failed: cannot reach the server."); $("upload-btn").disabled = false; };
+  xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setProgress(ev.loaded / ev.total * 0.2, t("upload.uploading")); };
+  xhr.onerror = () => { notice(t("upload.failed_network")); $("upload-btn").disabled = false; };
   xhr.onload = () => {
     let body = null; try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
     if (xhr.status !== 200 || !body?.job_id) {
-      notice(body?.error || `Upload failed (${xhr.status})`); $("upload-btn").disabled = false; return;
+      notice(body?.error || t("upload.failed_status", { status: xhr.status })); $("upload-btn").disabled = false; return;
     }
     setJob(body.job_id); state.fromResults = false; pollJob();
   };
@@ -80,12 +81,12 @@ async function pollJob() {
     }
     if (mine !== state.polling) return;
     if (st.state === "failed") {
-      notice(st.message || "Analysis failed."); $("upload-btn").disabled = false; showStep("upload"); return;
+      notice(st.message || t("analysis.failed")); $("upload-btn").disabled = false; showStep("upload"); return;
     }
     if (st.state === "ready_for_zones") { $("upload-btn").disabled = false; await openZones(); return; }
     if (st.state === "scored") { await openResults(); return; }
     showStep("upload");
-    setProgress(0.2 + 0.8 * (st.progress || 0), st.message || "Analysing…");
+    setProgress(0.2 + 0.8 * (st.progress || 0), st.message || t("progress.analysing"));
     await new Promise((r) => setTimeout(r, 1000));
   }
 }
@@ -135,24 +136,24 @@ function effectiveRole(p) { return state.changed[p.person_id] || (p.role === "st
 
 function renderPeople() {
   const box = $("people"); box.textContent = "";
-  if (!state.people.length) box.append(h("p", { class: "empty" }, "No people were detected in this video."));
+  if (!state.people.length) box.append(h("p", { class: "empty" }, t("people.none")));
   for (const p of state.people) {
     const role = effectiveRole(p);
     const sug = p.suggested_role || "customer";
     const card = h("div", { class: `person${role === "staff" ? " is-staff" : ""}`, role: "listitem" },
-      p.thumb_url ? h("img", { src: p.thumb_url, alt: `Person ${p.person_id} (face blurred)`, loading: "lazy" })
-                  : h("div", { class: "nothumb" }, "No preview"),
-      h("div", {}, h("strong", {}, `Person ${p.person_id}`), " ",
-        h("span", { class: `badge ${sug}` }, sug === "unsure" ? "unsure" : `suggested ${sug}`),
+      p.thumb_url ? h("img", { src: p.thumb_url, alt: t("person.alt", { id: p.person_id }), loading: "lazy" })
+                  : h("div", { class: "nothumb" }, t("person.nopreview")),
+      h("div", {}, h("strong", {}, t("person.label", { id: p.person_id })), " ",
+        h("span", { class: `badge ${sug}` }, sug === "unsure" ? t("badge.unsure") : sug === "staff" ? t("badge.suggested_staff") : t("badge.suggested_customer")),
         p.confidence != null && h("small", {}, ` ${Math.round(p.confidence * 100)}%`)),
       (p.reasons || []).length ? h("ul", {}, p.reasons.slice(0, 3).map((r) => h("li", {}, r))) : null,
       h("button", { type: "button", "aria-pressed": String(role === "staff"), onclick: () => {
         state.changed[p.person_id] = role === "staff" ? "customer" : "staff"; renderPeople(); } },
-      role === "staff" ? "Staff (click to change)" : "Customer (click to mark staff)"));
+      role === "staff" ? t("person.btn_staff") : t("person.btn_customer")));
     box.append(card);
   }
   const n = state.people.filter((p) => effectiveRole(p) === "staff").length;
-  $("staff-count").textContent = `${state.people.length} people found, ${n} marked as staff. Most likely staff are listed first.`;
+  $("staff-count").textContent = t("staff.count", { total: state.people.length, staff: n });
 }
 
 async function finishStaff(skip) {
@@ -171,7 +172,7 @@ $("staff-skip").addEventListener("click", () => finishStaff(true));
 
 // ------------------------------------------------------------------ 4. results
 async function scoreNow() {
-  notice("Scoring…", false);
+  notice(t("scoring"), false);
   try {
     const report = await req(`/api/jobs/${state.jobId}/score`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     notice("");
@@ -184,12 +185,13 @@ async function openResults() {
 function showResults(report) {
   state.stopDash?.();
   showStep("results");
+  state.report = report;
   state.stopDash = renderDashboard($("dashboard"), report, {
     jobId: state.jobId,
     getStatus: () => req(`/api/jobs/${state.jobId}`),
     onSales: async (file) => {
       const fd = new FormData(); fd.append("file", file);
-      notice("Uploading sales…", false);
+      notice(t("sales.uploading"), false);
       try { await req(`/api/jobs/${state.jobId}/sales`, { method: "POST", body: fd }); notice(""); await openResults(); }
       catch (err) { notice(err.message); }
     },
@@ -197,6 +199,14 @@ function showResults(report) {
     onEditRoles: () => { state.stopDash?.(); state.fromResults = true; openStaff(); },
   });
 }
+
+// ------------------------------------------------------------------ language switch
+// Re-render what is already on screen; server-delivered text (insights, warnings, zone names) is unchanged.
+onLangChange(() => {
+  zoneEditor.refreshLang();
+  if (!$("step-staff").hidden) renderPeople();
+  if (!$("step-results").hidden && state.report) showResults(state.report);
+});
 
 // ------------------------------------------------------------------ boot
 showStep("upload");

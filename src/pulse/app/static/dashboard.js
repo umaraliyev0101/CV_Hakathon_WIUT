@@ -1,4 +1,5 @@
 // Results dashboard: renders report.json (see pulse/report.py) into the #dashboard element.
+import { t } from "/static/i18n.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 export function h(tag, attrs = {}, ...kids) {
@@ -20,20 +21,20 @@ const s = (tag, attrs = {}, ...kids) => {
 };
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
-export const pct = (v) => (isNum(v) ? `${Math.round(v * 100)}%` : "n/a");
+export const pct = (v) => (isNum(v) ? `${Math.round(v * 100)}%` : t("common.na"));
 export const mmss = (v) => {
-  if (!isNum(v)) return "n/a";
-  const t = Math.round(v);
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  if (!isNum(v)) return t("common.na");
+  const sec = Math.round(v);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 };
-const int = (v) => (isNum(v) ? String(Math.round(v)) : "n/a");
+const int = (v) => (isNum(v) ? String(Math.round(v)) : t("common.na"));
 
 function kpi(label, value, unit = "") {
   return h("div", { class: "kpi" }, h("div", { class: "v" }, value, unit && h("span", { class: "u" }, unit)), h("div", { class: "l" }, label));
 }
 
 function evidenceValue(key, v) {
-  if (!isNum(v)) return v === null || v === undefined ? "n/a" : String(v);
+  if (!isNum(v)) return v === null || v === undefined ? t("common.na") : String(v);
   if (/share|rate/.test(key) && v >= 0 && v <= 1) return pct(v);
   if (/dwell|_s$|time/.test(key)) return mmss(v);
   return Number.isInteger(v) ? String(v) : v.toFixed(2);
@@ -76,7 +77,7 @@ export function journeyFlowSvg(flow) {
       y += hgt + GAP;
     }
   });
-  const svg = s("svg", { class: "flow", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Visitor journey flow between zones" });
+  const svg = s("svg", { class: "flow", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": t("flow.aria") });
   const sorted = [...fwd].sort((a, b) => depth[a.source] - depth[b.source] || b.count - a.count);
   for (const l of sorted) {
     const a = pos[l.source], b = pos[l.target]; if (!a || !b) continue;
@@ -84,7 +85,7 @@ export function journeyFlowSvg(flow) {
     const y0 = a.y + a.out + w / 2, y1 = b.y + b.inn + w / 2; a.out += w; b.inn += w;
     const x0 = a.x + boxW, x1 = b.x, mx = (x0 + x1) / 2;
     const path = s("path", { class: "link", d: `M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1}`, "stroke-width": w });
-    path.append(s("title", {}, document.createTextNode(`${l.source} to ${l.target}: ${l.count}`)));
+    path.append(s("title", {}, document.createTextNode(t("flow.link", { source: l.source, target: l.target, count: l.count }))));
     svg.append(path);
   }
   for (const n of nodes) {
@@ -99,33 +100,35 @@ export function journeyFlowSvg(flow) {
 // ------------------------------------------------------------------ pieces
 function warningsBlock(warnings) {
   if (!warnings.length) return null;
-  return h("div", { class: "warnings", role: "region", "aria-label": "Warnings" },
-    h("h3", {}, "Warnings"), h("ul", {}, warnings.map((w) => h("li", {}, w))));
+  return h("div", { class: "warnings", role: "region", "aria-label": t("warnings.h") },
+    h("h3", {}, t("warnings.h")), h("ul", {}, warnings.map((w) => h("li", {}, w))));
 }
 
 function kpiTiles(st) {
-  const peak = isNum(st.peak_occupancy) ? int(st.peak_occupancy) : "n/a";
+  const peak = isNum(st.peak_occupancy) ? int(st.peak_occupancy) : t("common.na");
   return h("div", { class: "kpis" },
-    kpi("Visitors (excl. staff)", int(st.visitors), "people"),
-    kpi("Groups", int(st.groups)),
-    kpi("Median visit length", mmss(st.median_visit_s), "m:ss"),
-    kpi("Browse rate", pct(st.browse_rate), "stopped at a car"),
-    kpi("Assisted share", pct(st.assisted_share), "got staff contact"),
-    kpi("Unserved-interest episodes", int(st.unserved_episodes)),
-    kpi(isNum(st.peak_t) ? `Peak occupancy (at ${mmss(st.peak_t)})` : "Peak occupancy", peak, "people"));
+    kpi(t("kpi.visitors"), int(st.visitors), t("kpi.visitors.unit")),
+    kpi(t("kpi.groups"), int(st.groups)),
+    kpi(t("kpi.median_visit"), mmss(st.median_visit_s), t("kpi.median_visit.unit")),
+    kpi(t("kpi.browse"), pct(st.browse_rate), t("kpi.browse.unit")),
+    kpi(t("kpi.assisted"), pct(st.assisted_share), t("kpi.assisted.unit")),
+    kpi(t("kpi.unserved"), int(st.unserved_episodes)),
+    kpi(isNum(st.peak_t) ? t("kpi.peak_at", { time: mmss(st.peak_t) }) : t("kpi.peak"), peak, t("kpi.visitors.unit")));
 }
 
 function carTable(rows) {
-  if (!rows.length) return h("p", { class: "empty" }, "No car zones defined, so there is no per-car table. Use Edit zones to mark car areas.");
-  const head = ["Rank", "Car", "Stops", "Stop rate", "Median dwell", "Total dwell", "Repeat visits", "Unassisted share", "Sat in car", "Sold", "Stops per sale"];
+  if (!rows.length) return h("p", { class: "empty" }, t("cars.none"));
+  const head = [t("cars.rank"), t("cars.car"), t("cars.stops"), t("cars.stop_rate"), t("cars.median_dwell"), t("cars.total_dwell"), t("cars.repeat"), t("cars.unassisted"), t("cars.sat"), t("cars.sold"), t("cars.per_sale")];
   return h("div", { class: "table-wrap" }, h("table", {},
-    h("thead", {}, h("tr", {}, head.map((t) => h("th", { scope: "col" }, t)))),
+    h("thead", {}, h("tr", {}, head.map((label) => h("th", { scope: "col" }, label)))),
     h("tbody", {}, rows.map((c) => h("tr", {},
       h("td", {}, `#${c.rank ?? ""}`), h("td", {}, c.name || c.zone_id), h("td", {}, int(c.stops)), h("td", {}, pct(c.stop_rate)),
       h("td", {}, mmss(c.median_dwell)), h("td", {}, mmss(c.total_dwell)), h("td", {}, int(c.repeat_visits)),
       h("td", {}, pct(c.unassisted_share)), h("td", {}, int(c.sat_in_car ?? 0)),
-      h("td", {}, isNum(c.sold) ? int(c.sold) : "n/a"), h("td", {}, isNum(c.attention_to_sales) ? (Math.round(c.attention_to_sales * 100) / 100).toString() : "n/a"))))));
+      h("td", {}, isNum(c.sold) ? int(c.sold) : t("common.na")), h("td", {}, isNum(c.attention_to_sales) ? (Math.round(c.attention_to_sales * 100) / 100).toString() : t("common.na")))))));
 }
+
+const confLabel = (c) => (c === "high" ? t("ins.conf_high") : c === "medium" ? t("ins.conf_medium") : c === "low" ? t("ins.conf_low") : `${c}`);
 
 function insightCard(ins, k, files, jobId, seek) {
   const insufficient = ins.confidence === "insufficient";
@@ -134,18 +137,18 @@ function insightCard(ins, k, files, jobId, seek) {
   return h("article", { class: "insight" },
     h("div", { class: "tags" },
       h("span", { class: `badge ${insufficient ? "insufficient" : ins.confidence}` },
-        insufficient ? "insufficient data" : `${ins.confidence} confidence`),
-      ins.demo_only && h("span", { class: "badge demo" }, "demo only"),
-      h("span", { class: "badge insufficient" }, `n = ${ins.sample}`)),
+        insufficient ? t("ins.insufficient") : confLabel(ins.confidence)),
+      ins.demo_only && h("span", { class: "badge demo" }, t("ins.demo_only")),
+      h("span", { class: "badge insufficient" }, t("ins.sample", { n: ins.sample }))),
     h("h4", {}, ins.title),
     ev.length && h("dl", { class: "evidence" }, ev.map(([key, v]) =>
       h("div", {}, h("dt", {}, prettyKey(key) + ":"), h("dd", {}, evidenceValue(key, v))))),
-    h("p", { class: "action" }, h("strong", {}, "Suggested action: "), ins.action),
-    ins.moments?.length ? h("div", {}, h("div", { class: "muted" }, "Jump to moment in video:"),
+    h("p", { class: "action" }, h("strong", {}, t("ins.action")), ins.action),
+    ins.moments?.length ? h("div", {}, h("div", { class: "muted" }, t("ins.jump")),
       h("div", { class: "moments" }, ins.moments.slice(0, 8).map((m) =>
         h("button", { type: "button", onclick: () => seek(m.t) }, `${mmss(m.t)}`)))) : null,
     sheet && h("img", { class: "sheet", loading: "lazy", src: `/api/jobs/${jobId}/files/${sheet}`,
-      alt: `Contact sheet of moments for: ${ins.title}` }));
+      alt: t("ins.sheet_alt", { title: ins.title }) }));
 }
 
 // ------------------------------------------------------------------ main
@@ -155,54 +158,54 @@ export function renderDashboard(root, report, ctx) {
   const warnings = [...(report.warnings || [])];
   root.textContent = "";
 
-  const video = h("video", { controls: true, preload: "metadata", "aria-label": "Annotated showroom video" });
+  const video = h("video", { controls: true, preload: "metadata", "aria-label": t("dash.video_aria") });
   const videoMsg = h("p", { class: "muted", "aria-live": "polite" });
-  const seek = (t) => {
-    if (!video.getAttribute("src")) { videoMsg.textContent = "The annotated video is still rendering; the moment link will work once it is ready."; return; }
-    video.currentTime = t; video.scrollIntoView({ behavior: "smooth", block: "center" }); video.play?.().catch(() => {});
+  const seek = (sec) => {
+    if (!video.getAttribute("src")) { videoMsg.textContent = t("video.pending"); return; }
+    video.currentTime = sec; video.scrollIntoView({ behavior: "smooth", block: "center" }); video.play?.().catch(() => {});
   };
 
   const head = h("div", { class: "dash-head" },
-    h("h2", {}, "Results"),
+    h("h2", {}, t("dash.results")),
     h("div", { class: "actions" },
-      h("button", { type: "button", onclick: ctx.onEditZones }, "Edit zones"),
-      h("button", { type: "button", onclick: ctx.onEditRoles }, "Edit roles"),
-      h("a", { href: `/api/jobs/${jobId}/export.json`, download: "" }, "Export JSON"),
-      h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, "Export CSV (per car)"),
-      ctx.onSales && h("label", { class: "muted" }, "Sales CSV (car_model,period,sold) ",
-        h("input", { type: "file", accept: ".csv,text/csv", "aria-label": "Upload sales CSV",
+      h("button", { type: "button", onclick: ctx.onEditZones }, t("dash.edit_zones")),
+      h("button", { type: "button", onclick: ctx.onEditRoles }, t("dash.edit_roles")),
+      h("a", { href: `/api/jobs/${jobId}/export.json`, download: "" }, t("dash.export_json")),
+      h("a", { href: `/api/jobs/${jobId}/export.csv`, download: "" }, t("dash.export_csv")),
+      ctx.onSales && h("label", { class: "muted" }, t("dash.sales_csv"),
+        h("input", { type: "file", accept: ".csv,text/csv", "aria-label": t("dash.sales_aria"),
                      onchange: (ev) => { const f = ev.target.files?.[0]; if (f) ctx.onSales(f); } })),
-      files.report_html && h("a", { href: `/api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, "Printable report")));
+      files.report_html && h("a", { href: `/api/jobs/${jobId}/files/${files.report_html}`, target: "_blank", rel: "noopener" }, t("dash.printable"))));
 
   const insights = report.insights || [];
   const insightsBody = insights.length
     ? h("div", { class: "insights" }, insights.map((ins, k) => insightCard(ins, k, files, jobId, seek)))
-    : h("p", { class: "empty" }, "No recommendations yet — not enough visits for confident insights.");
+    : h("p", { class: "empty" }, t("ins.none"));
 
   const flow = journeyFlowSvg(report.journey_flow || {});
   const top = (report.journey_flow?.top_paths || []).slice(0, 5);
-  const flowCard = h("section", { class: "card" }, h("h3", {}, "Visitor journey"),
-    flow ? [flow.svg, flow.skipped ? h("p", { class: "legend" }, `Columns are steps from entry. Link width is the number of visitors. ${flow.skipped} return link(s) not drawn.`)
-                                   : h("p", { class: "legend" }, "Columns are steps from entry. Link width is the number of visitors.")]
-         : h("p", { class: "empty" }, "No customer journeys to draw yet."),
-    top.length ? [h("h4", {}, "Top paths"), h("ol", { class: "paths" }, top.map((p) => h("li", {}, `${p.path.join(" → ")} (${p.count} ${p.count === 1 ? "visitor" : "visitors"})`)))] : null);
+  const flowCard = h("section", { class: "card" }, h("h3", {}, t("flow.h")),
+    flow ? [flow.svg, flow.skipped ? h("p", { class: "legend" }, t("flow.legend_skipped", { skipped: flow.skipped }))
+                                   : h("p", { class: "legend" }, t("flow.legend"))]
+         : h("p", { class: "empty" }, t("flow.none")),
+    top.length ? [h("h4", {}, t("flow.top")), h("ol", { class: "paths" }, top.map((p) => h("li", {}, t("flow.path", { path: p.path.join(" → "), count: p.count }))))] : null);
 
   const img = (key, alt) => {
     const rel = files[key];
-    return rel ? h("img", { src: `/api/jobs/${jobId}/files/${rel}`, alt }) : h("p", { class: "empty" }, "Not available.");
+    return rel ? h("img", { src: `/api/jobs/${jobId}/files/${rel}`, alt }) : h("p", { class: "empty" }, t("chart.na"));
   };
 
   root.append(head, warningsBlock(warnings), kpiTiles(st),
-    h("section", { class: "card" }, h("h3", {}, "Per-car engagement"), carTable(report.per_car || [])),
-    h("section", { class: "card" }, h("h3", {}, "Recommendations"), insightsBody),
+    h("section", { class: "card" }, h("h3", {}, t("cars.h")), carTable(report.per_car || [])),
+    h("section", { class: "card" }, h("h3", {}, t("ins.h")), h("p", { class: "muted" }, h("small", {}, t("note.english"))), insightsBody),
     h("div", { class: "grid2" },
-      h("section", { class: "card" }, h("h3", {}, "Where people walk and linger"), img("heatmap", "Heatmap of visitor positions over the showroom keyframe; warm colours mean more time spent"),
-        h("p", { class: "legend" }, "Warm areas are where visitors spent the most time; white lines are typical walking paths.")),
+      h("section", { class: "card" }, h("h3", {}, t("heat.h")), img("heatmap", t("heat.alt")),
+        h("p", { class: "legend" }, t("heat.legend"))),
       flowCard),
     h("div", { class: "grid2" },
-      h("section", { class: "card" }, h("h3", {}, "Customers present over time"), img("occupancy_chart", "Line chart of customers present over time")),
-      h("section", { class: "card" }, h("h3", {}, "Customers waiting unattended"), img("waiting_chart", "Line chart of customers waiting without staff contact"))),
-    h("section", { class: "card" }, h("h3", {}, "Annotated video"), video, videoMsg));
+      h("section", { class: "card" }, h("h3", {}, t("chart.occupancy_h")), img("occupancy_chart", t("chart.occupancy_alt"))),
+      h("section", { class: "card" }, h("h3", {}, t("chart.waiting_h")), img("waiting_chart", t("chart.waiting_alt")))),
+    h("section", { class: "card" }, h("h3", {}, t("dash.video")), video, videoMsg));
 
   // annotated video: poll while rendering, stop when the dashboard is replaced
   let stopped = false;
@@ -215,9 +218,9 @@ export function renderDashboard(root, report, ctx) {
       video.src = `/api/jobs/${jobId}/files/${rel}?v=${Date.now()}`;
       videoMsg.textContent = ""; return;
     }
-    if (state === "failed") { videoMsg.textContent = "The annotated video could not be rendered. The numbers above are unaffected."; return; }
-    if (state === "none") { videoMsg.textContent = "Video rendering was not requested for this run."; return; }
-    videoMsg.textContent = "Rendering annotated video…";
+    if (state === "failed") { videoMsg.textContent = t("video.failed"); return; }
+    if (state === "none") { videoMsg.textContent = t("video.none"); return; }
+    videoMsg.textContent = t("video.rendering");
     setTimeout(tick, 2000);
   };
   tick();
