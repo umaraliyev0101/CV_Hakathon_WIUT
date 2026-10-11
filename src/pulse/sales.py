@@ -11,6 +11,7 @@ import io
 HEADER = ["car_model", "period", "sold"]
 MAX_ROWS = 20000
 MAX_REASONS = 10
+MAX_SOLD = 1_000_000
 
 
 class SalesError(ValueError):
@@ -45,6 +46,8 @@ def parse_sales(text: str) -> list[tuple[str, str, int]]:
             errs.append(f"row {n}: car_model is empty")
         elif not sold.isascii() or not sold.isdigit():
             errs.append(f"row {n}: sold must be a whole number >= 0, got {sold!r}")
+        elif len(sold) > 7 or int(sold) > MAX_SOLD:
+            errs.append(f"row {n}: sold is too large (max {MAX_SOLD})")
         else:
             out.append((model, period, int(sold)))
         if len(out) > MAX_ROWS:

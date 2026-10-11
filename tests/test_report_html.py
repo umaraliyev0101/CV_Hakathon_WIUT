@@ -80,3 +80,11 @@ def test_insights_rendered_escaped(tmp_path):
     assert html.count("T&lt;1&gt;") == 3                      # top three only
     assert "&lt;b&gt;x&lt;/b&gt;.mp4" in html and "&lt;i&gt;warn&lt;/i&gt;" in html
     assert "&lt;e&gt;" in html and "do &lt;it&gt;" in html
+
+
+def test_check_html_rejects_event_handlers(tmp_path):
+    chk = _check_module()
+    p = tmp_path / "r.html"
+    p.write_text('<html><body onload="x()"><table></table>' + BANNER_TEXT + "</body></html>")
+    with pytest.raises(chk.CheckError):
+        chk.check_html(p, "r.html")

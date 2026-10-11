@@ -106,6 +106,8 @@ class _HtmlScan(HTMLParser):
             self.bad.append(f"<{tag}> not allowed")
         for k, v in attrs:
             v = (v or "").strip().lower()
+            if k.startswith("on"):
+                self.bad.append(f"event handler attribute {k}")
             if k in ("src", "href", "action", "poster", "srcset", "data") and not v.startswith(("data:", "#")):
                 self.bad.append(f"external reference {k}={v[:40]!r}")
             if k == "style" and "url(" in v and "url(data:" not in v.replace(" ", ""):

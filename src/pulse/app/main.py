@@ -695,7 +695,9 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
             jobs_mod.atomic_write_text(job.sales_path, data.decode("utf-8"))
             scored = job.state == "scored"
         if scored:      # re-score from the cache: no detection runs
-            await run_in_threadpool(_score, job, b"{}")
+            res = await run_in_threadpool(_score, job, b"{}")     # ApiError propagates as its status
+            if isinstance(res, JSONResponse):
+                return res
         return {"rows": len(rows), "rescored": scored}
 
     @app.get("/api/jobs/{job_id}/results")

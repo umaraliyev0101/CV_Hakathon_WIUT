@@ -506,3 +506,17 @@ def test_sales_upload_rejections(make_client, video):
                headers={"Origin": "http://evil.example"})
     assert r.status_code == 403
     assert c.post("/api/jobs/" + "0" * 32 + "/sales", files={"file": ("s.csv", b"x", "text/csv")}).status_code == 404
+
+
+def test_sales_rescore_failure_is_reported(make_client, video, monkeypatch):
+    from pulse.app import main as app_main
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    assert c.post(f"/api/jobs/{jid}/score", json={"render_video": False}).status_code == 200
+
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(app_main.pipeline, "score", boom)
+    r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"car_model,period,sold\nA,x,1\n", "text/csv")})
+    assert r.status_code == 500 and "Scoring failed" in r.json()["error"]

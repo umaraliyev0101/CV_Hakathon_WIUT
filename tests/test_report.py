@@ -85,7 +85,7 @@ def test_every_file_written_and_check_outputs_passes(built, capsys):
     assert "OK report.json" in capsys.readouterr().out
 
 
-def test_per_car_has_sat_in_car_last(built):
+def test_per_car_ends_with_sat_in_car_and_sales_columns(built):
     _, _, a, out = built
     head = (out / "per_car.csv").read_text().splitlines()[0].split(",")
     assert head[-3:] == ["sat_in_car", "sold", "attention_to_sales"] and head[-4] == "rank"

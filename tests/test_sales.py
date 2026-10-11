@@ -103,3 +103,21 @@ def test_cli_sales_flag_rejects_bad_file(tmp_path, capsys):
     video.write_bytes(b"")
     assert cli.main(["analyze", str(video), "--out", str(tmp_path / "o"), "--sales", str(bad)]) == 2
     assert "header" in capsys.readouterr().err
+
+
+def test_parse_huge_sold_rejected_not_crash():
+    for v in ("1" * 5000, "1000001", "99999999"):
+        with pytest.raises(sales.SalesError) as e:
+            sales.parse_sales(HEAD + f"A,x,{v}\n")
+        assert any("sold is too large" in r for r in e.value.reasons)
+    assert sales.parse_sales(HEAD + "A,x,1000000\n") == [("A", "x", 1000000)]
+
+
+def test_parse_edge_formats():
+    assert sales.parse_sales('﻿car_model,period,sold\r\n"A, B",Q1,1\r\n') == [("A, B", "Q1", 1)]
+    with pytest.raises(sales.SalesError) as e:
+        sales.parse_sales(HEAD + "A,x,1,extra\n")
+    assert any("row 2" in r for r in e.value.reasons)
+    cars = [{"zone_id": "c", "name": "Car: A", "stops": 6}]
+    sales.apply_sales(cars, sales.parse_sales(HEAD + "A,Q1,1\na,Q2,2\n"))
+    assert cars[0]["sold"] == 3 and cars[0]["attention_to_sales"] == 2.0
