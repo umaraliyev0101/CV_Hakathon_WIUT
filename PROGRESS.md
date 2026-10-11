@@ -34,6 +34,27 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
   - **File mode:** spec rule "fastest within 5 points of the best recall": best is 30.9%, so the cut-off is 25.9%, and the pick is **yolox_nano@2** (`config.DEFAULT_DETECTOR`).
   - **Live mode:** the same rule over people >= 80 px also picks **yolox_nano@2** (`config.LIVE_DETECTOR`).
 
+### M1 summary (2026-10-11, ~04:00): pure core, test-first on synthetic data
+
+- Units: geometry (pinhole, full → torso → box fallback, facing), events (greet, engagement, wait, walk-out, party, handoff, already-present, browsing), metrics (staff and store scorecards), roles (outfit_peers, contacts, presence, initiator, with plain reasons), identity (constrained merge plus live re-attach).
+- Each unit had an independent review, and the fix rounds caught real bugs:
+  - A wait alert could fire for customers who had already left, or contradict a greet that was backdated.
+  - Parties of 3 or more emitted duplicate party events.
+  - A customer later marked as staff left a phantom visit in the store metrics.
+  - A same-frame tracker ID switch was never re-attached in live mode.
+  - The canonical seated pose was misread as standing.
+- Geometry accuracy on synthetic pinhole people: pair distances within 0.1% (target 15%) at 1–4 m. Synthetic data only proves the maths; real accuracy is unmeasured.
+
+### M2 summary (~05:00): perception on real video, with a per-video cache
+
+- Chain: sampled frame source (5 fps, ≤ 960 px, ≤ 300 s, fails cleanly on damaged files) → yolox_nano@2 → supervision ByteTrack → RTMPose-s (batched, every 2nd frame per track, keypoints carried in between) → DINOv2-small + HSV descriptors on real tracks only. The cache (`runs/cache/<key>/perception.npz/json`) is keyed by file hash plus every content-changing parameter, and loads without pickle.
+- **File-mode speed** (wall clock, i5-10210U, honest; other agents were loading the CPU during some runs): `meva_a_60s` (960 px, about 11 people per frame) gives **RTF 0.976** (61.5 s for 60 s). The full G421 clip (1920×1072, 5 min, about 12 people per frame) gives **RTF 0.713** (421 s for 300 s). Before batching and the pose stride the figures were 0.706 and 0.506. **The ≥ 1× target is met only on uncrowded clips.** Pose and DINOv2 dominate the time.
+
+### M3 summary (~05:30): analysis, rendering, export
+
+- Offline pass: noise-track filter → constrained identity merge (112 tracks become 31 persons on `meva_a_60s`) → geometry → role features and suggestions → events (all sampled frames, t0 = 0) → scorecards. Re-scoring takes 0.07–0.1 s and never re-detects.
+- Rendering: face-blurred H.264 at 10 fps. `meva_a_60s` renders in 8.1 s (7.4× real time). The privacy guard test measures face-region std ≤ 9.2 with blur against about 45 without it. Exports are timeline PNG, contact sheets, results.json and events/scorecard CSV.
+
 ## Decisions
 
 - Python 3.12 venv, because the machine default (3.14) is outside the `requires-python` range `>=3.11,<3.14`.
@@ -46,6 +67,18 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 - **Pose is skipped for boxes under 40 px tall:** keypoints there are noise and cost about 11 ms each. Geometry falls back to box height for those people.
 - **Branch:** work happens on `yak-44/showroom-coach` and `main` is fast-forwarded at the end (local only).
 - **`data/stock/` is empty:** I continued with MEVA alone, as the spec allows.
+
+- **Wait alerts:** a `wait_alert` is held while a greet streak for that customer is still open, so file-mode metrics never contradict the backdated greet timestamps.
+- **Standing test:** standing vs seated is decided by (ankle_y − hip_y) / torso_px ≥ 1.35, replacing the plan's nose-ankle ≥ 2.4 rule, which misread seated people at about 4–5 m.
+- **Live identity call order:** `end_step(ids_now)` runs first, then `resolve`, so a same-frame ID switch re-attaches.
+- **Store metrics:** they skip visits by people whose final role is staff.
+- **Tiled detection edge rule:** in the 2-tile overlap a box is dropped only if it touches its own tile's inner cut. This keeps nested people (a child in front of a parent).
+- **Tracker floor:** the ByteTrack new-track floor equals the detector threshold (0.35). supervision is pinned to `>=0.28,<0.31`, because ByteTrack is removed in 0.31.
+- **DINOv2 batch size:** DINOv2 runs at batch 1, because the int8 dynamic quantisation makes embeddings depend on what else is in the batch.
+- **Pose:** RTMPose is batched per frame and runs every 2nd sampled frame per track, with keypoints carried along with the box in between. Only real tracks (≥ 3 observations spanning ≥ 1 s) are embedded.
+- **Damaged files:** a damaged video (frames stop before 90% of the expected count) or a container reporting more than 240 fps fails cleanly with a `VideoError`.
+- **Re-rendered videos:** each re-render is written to `annotated-<rev>.mp4`, because Windows browsers lock the mp4 that is playing.
+- **Default test run:** it excludes `@pytest.mark.slow`; run those with `pytest -m slow`.
 
 ## Open problems
 
