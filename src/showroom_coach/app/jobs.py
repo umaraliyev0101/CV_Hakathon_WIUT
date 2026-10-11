@@ -7,11 +7,12 @@ A job lives in `<root>/<id>/`: `upload<ext>` (the video, stored under an ASCII n
 `annotated-<rev>.mp4` and `contact_sheets/`. Everything a job writes stays in its directory, and `cleanup` (run when the
 app starts) deletes directories older than `max_age_h` hours, so uploads never outlive a day on this computer.
 
-The worker thread of a job probes the file (an unreadable one fails fast), runs the cached perception pass (progress
-0-0.9), analyses it with suggested roles (0.9-1.0), saves thumbnails and the first exports and stops at `needs_confirm`.
-Only one perception pass runs at a time in the whole process (`PERCEPTION_SLOT`), so two uploads never fight over the
-CPU; the second waits as `queued`. Any exception fails the job with a message for the user and is logged with its
-traceback; the server keeps running, and a job never keeps partial results.
+The worker thread of a job probes the file first (so an unreadable one fails at once, even while another job is
+running), then runs the cached perception pass (progress 0-0.9: finding people over the frames, then describing them),
+analyses it with suggested roles (0.9-1.0), saves thumbnails and the first exports and stops at `needs_confirm`. Only
+one perception pass runs at a time in the whole process (`PERCEPTION_SLOT`), so two uploads never fight over the CPU;
+the second waits as `queued`. Any exception fails the job (message "failed", `error` for the user) and is logged with
+its traceback; the server keeps running, and a job never keeps partial results.
 
 After that, `set_roles` re-scores in place (`analysis.rescore`: events and metrics only, never detection), rewrites the
 exports and the timeline at once and draws the annotated video in a background thread. Each call bumps the job's
@@ -68,6 +69,7 @@ M_THUMBS = "saving blurred thumbnails…"
 M_CONFIRM = "ready to confirm who is staff"
 M_RENDERING = "drawing the annotated video…"
 M_DONE = "done"
+M_FAILED = "failed"
 
 
 class JobConflict(Exception):
@@ -343,15 +345,21 @@ class JobManager:
     @staticmethod
     def _fail(job: Job, message: str) -> None:
         with job.lock:
-            job.status, job.error = "failed", message
+            job.status, job.message, job.error = "failed", M_FAILED, message
 
     def _work(self, job: Job) -> None:
         try:
-            self._set(job, status="queued", message=M_QUEUED)
+            self._set(job, status="queued", message=M_READING)
+            # Probed before queueing: a garbage upload fails now instead of after the job ahead of it.
+            info = probe(job.upload, config.MAX_WIDTH, config.SAMPLE_FPS, float(config.MAX_SECONDS))
+            if info.trimmed:
+                with job.lock:
+                    job.warnings.append(f"video trimmed to the first {info.max_seconds:g} s")
+            self._set(job, message=M_QUEUED)
             while not PERCEPTION_SLOT.acquire(timeout=0.25):
                 self._check_open()
             try:
-                self._perceive_and_analyze(job)
+                self._perceive_and_analyze(job, info)
             finally:
                 PERCEPTION_SLOT.release()
         except _Cancelled:
@@ -364,25 +372,22 @@ class JobManager:
             log.exception("job %s failed", job.id)
             self._fail(job, f"analysis failed: {type(exc).__name__}: {exc}")
 
-    def _perceive_and_analyze(self, job: Job) -> None:
+    def _perceive_and_analyze(self, job: Job, info) -> None:
         self._check_open()
-        max_seconds = float(config.MAX_SECONDS)
-        self._set(job, status="perceiving", progress=0.0, message=M_READING)
-        info = probe(job.upload, config.MAX_WIDTH, config.SAMPLE_FPS, max_seconds)       # fails fast on garbage
-        if info.trimmed:
-            with job.lock:
-                job.warnings.append(f"video trimmed to the first {info.max_seconds:g} s")
         duration = float(info.duration)
+        self._set(job, status="perceiving", progress=0.0, message=f"detecting people… 0 s of {duration:.0f} s")
 
-        def progress(fraction: float, _message: str) -> None:
+        def progress(fraction: float, message: str) -> None:
             self._check_open()
             frac = min(max(float(fraction), 0.0), 1.0)
-            self._set(job, progress=PERCEPTION_SHARE * frac,
-                      message=f"detecting people… {frac * duration:.0f} s of {duration:.0f} s")
+            if not message.startswith("describing people"):         # the frame loop fills 0..FRAMES_PROGRESS
+                seen = min(frac / pipeline.FRAMES_PROGRESS, 1.0) * duration
+                message = f"detecting people… {seen:.0f} s of {duration:.0f} s"
+            self._set(job, progress=PERCEPTION_SHARE * frac, message=message)
 
         stack = self.stack_factory()
         res, _cached = pipeline.cached_perception(job.upload, stack, job.dir / "cache", progress=progress,
-                                                  max_seconds=max_seconds)
+                                                  max_seconds=info.max_seconds)
         self._check_open()
         self._set(job, status="analyzing", progress=PERCEPTION_SHARE, message=M_ANALYZING)
         an = analyze(res, preset=job.preset)

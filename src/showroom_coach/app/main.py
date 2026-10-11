@@ -4,7 +4,7 @@
     GET  /live                           static/live.html (the live camera page)
     GET  /static/...                     the frontend's files
     GET  /api/presets                    {name: {label, thresholds}}
-    POST /api/jobs                       multipart `file` + form `preset` -> {"job_id"}; 415 / 400 / 413
+    POST /api/jobs                       multipart `file` + form `preset` -> {"job_id"}; 411 / 413 / 415 / 400
     GET  /api/jobs/{id}                  job status; 404 unknown
     GET  /api/jobs/{id}/people           confirm-view people; 409 before needs_confirm
     POST /api/jobs/{id}/roles            {"roles", "names", "preset"} -> results (instant re-score, video re-rendered)
@@ -12,9 +12,14 @@
     GET  /api/jobs/{id}/files/{name}     whitelisted outputs (HTTP Range supported, so the video can seek)
     WS   /ws/live?preset=short           live camera protocol (live_ws.serve_live)
 
-Everything runs on this computer. Uploads are saved under an ASCII name in their job directory, never under the
-client's file name, and the type, preset and the 1 GB cap are checked before anything is kept. Job directories older
-than 24 h are deleted when the app starts.
+Everything runs on this computer. Uploads are bounded before a byte of the body is read: a request without a declared
+Content-Length, or sent with chunked Transfer-Encoding, is refused with 411 (browsers always declare the length, and
+h11 never delivers more body than declared), and a declared length over 1 GB (plus 1 MiB of multipart framing) with
+413. Starlette then parses the multipart body, spooling the file part to a temporary file (bounded by that length), so
+the file type (415) and the preset (400) are checked only after the body has arrived, but before anything is kept in
+the jobs directory. The file is copied there in 1 MB chunks with the 1 GB cap counted again, under an ASCII name
+(`<id>/upload<ext>`), never under the client's file name. Job directories older than 24 h are deleted when the app
+starts.
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -52,19 +57,6 @@ NO_STORE = {"Cache-Control": "no-store"}
 NO_CACHE = {"Cache-Control": "no-cache"}
 MEDIA_TYPES = {".mp4": "video/mp4", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json",
                ".csv": "text/csv; charset=utf-8"}
-BANNER = ("Coaching support only — not an automatic judgement of staff (Uzbekistan AI law ZRU-1115). Faces are "
-          "blurred; processing stays on this computer. Staff must be informed that analytics is in use.")
-LIVE_PLACEHOLDER = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Showroom Coach live</title></head>
-<body style="font-family: system-ui, sans-serif; margin: 2rem; max-width: 40rem">
-<p role="note"><strong>{BANNER}</strong></p>
-<h1>Live camera</h1>
-<p>The live camera page (live.html with live.js) is not installed in this build. <a href="/">Back to video upload</a></p>
-</body></html>
-"""
-
-
 class RolesBody(BaseModel):
     roles: dict[str, str] = {}
     names: dict[str, str | None] = {}
@@ -151,9 +143,9 @@ def create_app(stack_factory: Callable[[], PerceptionStack] | None = None, jobs_
     @app.get("/live", include_in_schema=False)
     def live_page():
         page = STATIC_DIR / "live.html"
-        if page.is_file():
-            return FileResponse(page, media_type="text/html", headers=NO_STORE)
-        return HTMLResponse(LIVE_PLACEHOLDER, headers=NO_STORE)
+        if not page.is_file():
+            raise HTTPException(404, "The live camera page is not installed.")
+        return FileResponse(page, media_type="text/html", headers=NO_STORE)
 
     app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
 
@@ -167,8 +159,12 @@ def create_app(stack_factory: Callable[[], PerceptionStack] | None = None, jobs_
     @app.post("/api/jobs")
     async def create_job(request: Request):
         limit = MAX_UPLOAD_BYTES
-        length = request.headers.get("content-length", "")
-        if length.isdigit() and int(length) > limit + MULTIPART_SLACK:
+        length = request.headers.get("content-length", "").strip()
+        chunked = "chunked" in request.headers.get("transfer-encoding", "").lower()
+        if chunked or not length.isdigit():
+            # Without a declared length nothing bounds what Starlette would spool to disk while parsing the form.
+            raise HTTPException(411, "The upload must declare its size (Content-Length); chunked uploads are refused.")
+        if int(length) > limit + MULTIPART_SLACK:
             raise HTTPException(413, "The file is larger than 1 GB.")
         async with request.form(max_files=1, max_fields=10) as form:
             upload = form.get("file")

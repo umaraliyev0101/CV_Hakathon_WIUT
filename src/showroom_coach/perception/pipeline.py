@@ -56,6 +56,7 @@ CROP_MAX_H = 160                 # stored crops are downscaled to at most this m
 DEFAULT_CROPS_PER_TRACK = 4
 DEFAULT_POSE_EVERY = 2
 PROGRESS_EVERY = 10              # sampled frames between progress callbacks
+FRAMES_PROGRESS = 0.85           # progress share of the frame loop; describing people (embedding) takes the rest
 HSV_WEIGHT = 0.5                 # weight of the secondary half of each descriptor
 FORMAT_VERSION = 3               # 3: the effective parameters are stored (and checked) next to the arrays
 STALE_TMP_SECONDS = 3600.0       # a `.tmp-*` build dir older than this is a crashed run and gets swept
@@ -183,18 +184,28 @@ def _mean_nonzero(rows: list[np.ndarray], dim: int) -> np.ndarray:
     return np.mean(kept, axis=0, dtype=np.float64) if kept else np.zeros(dim, np.float64)
 
 
-def _describe(stack: PerceptionStack, heaps: dict[int, list]) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
-    """Identity and outfit descriptors per track from its kept crops (see the module docstring)."""
+def _describe(stack: PerceptionStack, heaps: dict[int, list],
+              progress: Callable[[int, int], None] | None = None) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
+    """Identity and outfit descriptors per track from its kept crops (see the module docstring).
+
+    The embedder gets one call per track (its usable crops), so `progress(i, n)` can report after each of the `n`
+    tracks that have usable crops (and once with i = 0 before the first). Production embeds one crop per model run
+    (`stack.EMBED_BATCH`), so how the crops are grouped into calls does not change a single value."""
     dino: dict[tuple[int, int], np.ndarray] = {}
     dino_dim = 0
     if stack.embed is not None:
-        keys = [(tid, k) for tid, h in heaps.items() for k, item in enumerate(h) if usable_crop(item[2])]
-        if keys:
-            out = np.asarray(stack.embed([heaps[tid][k][2] for tid, k in keys]), np.float32)
-            if out.ndim != 2 or len(out) != len(keys):
-                raise ValueError(f"embedder returned {out.shape} for {len(keys)} crops")
-            dino = {key: out[n] for n, key in enumerate(keys)}
+        groups = [(tid, [k for k, item in enumerate(h) if usable_crop(item[2])]) for tid, h in heaps.items()]
+        groups = [(tid, ks) for tid, ks in groups if ks]
+        if groups and progress is not None:
+            progress(0, len(groups))
+        for i, (tid, ks) in enumerate(groups, start=1):
+            out = np.asarray(stack.embed([heaps[tid][k][2] for k in ks]), np.float32)
+            if out.ndim != 2 or len(out) != len(ks) or (dino_dim and out.shape[1] != dino_dim):
+                raise ValueError(f"embedder returned {out.shape} for {len(ks)} crops")
+            dino.update({(tid, k): out[n] for n, k in enumerate(ks)})
             dino_dim = out.shape[1]
+            if progress is not None:
+                progress(i, len(groups))
     hsv_dim = len(hsv_hist(None))
     emb: dict[int, np.ndarray] = {}
     outfit: dict[int, np.ndarray] = {}
@@ -222,7 +233,8 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
                    crops_dir: str | Path | None = None, crops_per_track: int = DEFAULT_CROPS_PER_TRACK,
                    pose_every: int = DEFAULT_POSE_EVERY) -> PerceptionResult:
     """Run the whole perception stack over `path` (sampled at `sample_fps`, resized to `max_width`, cut at
-    `max_seconds`). `progress(fraction, message)` is called about every 10 sampled frames and finally with 1.0.
+    `max_seconds`). `progress(fraction, message)` is called about every 10 sampled frames (fractions up to
+    `FRAMES_PROGRESS`), then while describing people ("describing people… i of n", up to 1.0) and finally with 1.0.
     With `crops_dir`, each real track's face-blurred best crop is written there as `<track_id>.jpg`.
     `pose_every` is the pose stride: a track gets fresh keypoints on its first frame and then whenever
     `pose_every` sampled frames have passed since its last fresh ones (1 = every frame); in between they are
@@ -345,6 +357,7 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
 
             if progress is not None and fi % PROGRESS_EVERY == 0:
                 frac = min(1.0, max(0.0, float(t) / info.duration)) if info.duration > 0 else 0.0
+                frac *= FRAMES_PROGRESS
                 progress(frac, f"Finding and tracking people: {t:.0f} of {info.duration:.0f} s")
     finally:
         frames.close()
@@ -353,7 +366,11 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
     real = {tid for tid, (first, last) in t_span.items()
             if n_obs[tid] >= MIN_TRACK_OBS and last - first >= MIN_TRACK_S - 1e-6}
     heaps = {tid: h for tid, h in heaps.items() if tid in real}
-    track_emb, track_outfit = _describe(stack, heaps)
+    described = None
+    if progress is not None:
+        def described(i: int, n: int) -> None:
+            progress(FRAMES_PROGRESS + (1.0 - FRAMES_PROGRESS) * i / n, f"describing people… {i} of {n}")
+    track_emb, track_outfit = _describe(stack, heaps, described)
     if out_dir is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
         for tid, (_, thumb) in best.items():

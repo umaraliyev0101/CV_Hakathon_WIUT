@@ -183,6 +183,12 @@ def test_progress_conflicts_and_one_perception_at_a_time(tmp_path, small_meet):
             second = upload(c, small_meet)
             time.sleep(0.5)
             assert c.get(f"/api/jobs/{second}").json()["status"] == "queued"      # waits for the only perception slot
+            bad = tmp_path / "bad.mp4"
+            bad.write_text("not a video")
+            garbage = upload(c, bad)                       # probed before queueing: fails while job 1 still runs
+            s = wait_status(c, garbage, {"failed"}, timeout=10)
+            assert "cannot read video: bad.mp4" == s["error"] and s["message"] == "failed"
+            assert c.get(f"/api/jobs/{first}").json()["status"] == "perceiving"
             for path in ("people", "results"):
                 assert c.get(f"/api/jobs/{first}/{path}").status_code == 409
             assert c.post(f"/api/jobs/{first}/roles", json={"roles": {"1": "staff"}}).status_code == 409
@@ -311,6 +317,7 @@ def test_damaged_video_fails_mid_run_without_partial_results(shared, small_meet,
     jid = upload(c, bad)
     s = wait_status(c, jid, {"failed", "needs_confirm"})
     assert s["status"] == "failed" and s["error"].startswith("cannot read video") and "damaged" in s["error"]
+    assert s["message"] == "failed"
     assert c.get(f"/api/jobs/{jid}/people").status_code == 409
     assert c.get(f"/api/jobs/{jid}/results").status_code == 409
 
@@ -323,6 +330,24 @@ def test_trimmed_video_warns(client, small_meet, monkeypatch):
     assert s["status"] == "needs_confirm" and s["warnings"] == ["video trimmed to the first 5 s"]
     res = client.get(f"/api/jobs/{jid}/results").json()
     assert res["duration"] == pytest.approx(5.0) and res["warnings"].count("video trimmed to the first 5 s") == 1
+
+
+def test_upload_without_content_length_is_411(client, small_meet, tmp_path):
+    """No declared length means no bound on what Starlette would spool to disk: refused before the body is read."""
+    req = client.build_request("POST", "/api/jobs", files={"file": ("a.avi", small_meet.read_bytes())},
+                               data={"preset": "short"})
+    del req.headers["Content-Length"]
+    assert client.send(req).status_code == 411
+
+    def body():                                                   # a generator body is sent chunked
+        yield b'--zz\r\nContent-Disposition: form-data; name="preset"\r\n\r\nshort\r\n--zz--\r\n'
+    r = client.post("/api/jobs", content=body(), headers={"Content-Type": "multipart/form-data; boundary=zz"})
+    assert r.status_code == 411
+    r = client.post("/api/jobs", content=b"--zz--\r\n", headers={"Content-Type": "multipart/form-data; boundary=zz",
+                                                                 "Transfer-Encoding": "chunked"})
+    assert r.status_code == 411
+    jobs_root = tmp_path / "jobs"
+    assert not jobs_root.exists() or not any(jobs_root.iterdir())
 
 
 def test_upload_over_the_cap_is_413_and_leaves_nothing(client, small_meet, tmp_path, monkeypatch):

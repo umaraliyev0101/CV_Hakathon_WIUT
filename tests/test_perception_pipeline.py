@@ -122,6 +122,33 @@ def test_progress_is_monotonic_and_ends_at_one(synth_video):
     assert all(isinstance(m, str) and m for _, m in seen)
 
 
+def test_progress_is_reported_while_describing_people(synth_video):
+    """Embedding every real track happens after the frame loop and can take a while (one DINOv2 run per crop), so it
+    reports progress too: one embedder call per track, a report before the first and after each, in the top
+    1 - FRAMES_PROGRESS of the range; the frame loop stays below that."""
+    events = []
+    base = fake_stack()
+
+    def embed(crops):
+        events.append(("embed", len(crops)))
+        return base.embed(crops)
+
+    stack = PerceptionStack("fake", base.detect, base.pose, embed)
+    plain = run_perception(synth_video, fake_stack())
+    res = run_perception(synth_video, stack, progress=lambda f, m: events.append(("progress", f, m)))
+    calls = [i for i, e in enumerate(events) if e[0] == "embed"]
+    describing = [(i, e[1], e[2]) for i, e in enumerate(events) if e[0] == "progress" and e[2].startswith("describing")]
+    assert len(calls) == 2                                              # synth_video: two real tracks
+    assert [m for _, _, m in describing] == [f"describing people… {i} of 2" for i in range(3)]
+    assert describing[0][0] < calls[0] < describing[1][0] < calls[1] < describing[2][0]     # during embedding
+    fracs = [f for _, f, _ in describing]
+    assert fracs[0] == pytest.approx(pipeline.FRAMES_PROGRESS) and fracs == sorted(fracs) and fracs[-1] == 1.0
+    loop = [e[1] for e in events[:calls[0]] if e[0] == "progress" and not e[2].startswith("describing")]
+    assert loop and max(loop) <= pipeline.FRAMES_PROGRESS
+    for tid in plain.track_emb:                                         # per-track calls change no descriptor
+        assert np.array_equal(res.track_emb[tid], plain.track_emb[tid])
+
+
 def test_result_arrays_are_consistent(synth_video):
     res = run_perception(synth_video, fake_stack())
     m = len(res.obs_track)
