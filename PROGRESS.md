@@ -118,7 +118,7 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 
 ## Morning summary (2026-10-11, written at the end of the overnight run)
 
-Branch `yak-44/showroom-coach`, fast-forwarded into `main` (local only; no remote exists). Reverse with `git branch -f main 07a01f6`. Every number below comes from a command whose output is in `runs/verify/` or `docs/EVAL.md`.
+All work is on branch `yak-44/showroom-coach`, committed locally (no remote exists, nothing pushed). `main` is still at `07a01f6`: merging is the owner's decision. `git checkout main && git merge --ff-only yak-44/showroom-coach` fast-forwards it. Every number below comes from a command whose output is in `runs/verify/` or `docs/EVAL.md`.
 
 ### What works (verified tonight)
 - **Upload flow:** `run.bat` starts the app at http://localhost:8000. You can upload a clip, confirm staff in a gallery (face-blurred thumbnails, suggested role with confidence and up to 3 plain-language reasons, one-click toggle, names), and get results:
@@ -178,7 +178,7 @@ Branch `yak-44/showroom-coach`, fast-forwarded into `main` (local only; no remot
 - **Stretch goals not done:** auto car zones and the Uzbek/Russian UI. The Dockerfile is written but not built (Docker wasn't running). The deploy script is an example only and was never run.
 
 ### Every decision taken alone (rulings; full list with costs is under "Decisions" above)
-1. **Branch, no worktree:** worked on branch `yak-44/showroom-coach` in the main checkout, not a worktree, then fast-forwarded `main`. Reverse with `git branch -f main 07a01f6`.
+1. **Branch, no worktree:** worked on branch `yak-44/showroom-coach` in the main checkout, not a worktree. `main` is left untouched for the owner to merge.
 2. **No `Co-Authored-By` trailers:** CLAUDE.md overrides the tool's default.
 3. **Detector:** chosen by the spec rule after adding a **2-tile mode**. yolox_nano@2 beat yolox_s (26.8% vs 18.0% recall, 4–5× faster).
 4. **Tile-merge seam rule:** in the overlap, a box is dropped only if it touches its own tile's cut (keeps nested people).
