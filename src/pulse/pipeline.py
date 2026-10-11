@@ -148,7 +148,7 @@ def sat_in_car_events(pc: PerceptionCache, stable: Timeline, track_to_person: di
         pid = track_to_person.get(o.track_id)
         if pid is not None and o.t in stable_t.get(pid, ()):
             obs_by_person.setdefault(pid, []).append(o)
-    return sat_in_car.assign_zones(sat_in_car.detect(stable, obs_by_person, pc.cars, cfg),
+    return sat_in_car.assign_zones(sat_in_car.detect(stable, obs_by_person, pc.cars, cfg, frame_size=size),
                                    pc.cars, zones, size)
 
 

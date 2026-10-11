@@ -572,6 +572,11 @@ def _sat_section(r: dict | None) -> list[str]:
              "car) is broken. Numbers describe the proxy and say little about showroom accuracy. "
              f"Reproduce: {CMD_EVAL}.")
     L.append("")
+    L.append("**Known limits:** the rules were validated on synthetic boxes only (unit tests), never on real "
+             "showroom footage; and \"inside a car\" is an image-plane box overlap, so a person standing in "
+             "front of or behind a car can still overlap it (guards: legs hidden, slow, head inside the car "
+             "outline, not cut by the frame edge).")
+    L.append("")
     L.append("A GT activity is *found* when a detected sat-in-car event (rule a or b) overlaps "
              f"[start - {SAT_WINDOW_S:.0f} s, end + {SAT_WINDOW_S:.0f} s] and its keyframe car box overlaps "
              "the GT vehicle box (at the activity's last frame) by at least half of the smaller box. "

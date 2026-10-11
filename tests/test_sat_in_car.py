@@ -75,8 +75,8 @@ def test_no_keypoints_does_not_fire():
 
 
 def test_rule_b_disappear_and_reappear_in_car_zone():
-    a = person(1, 0, 3, INSIDE, kps(legs=0.9), speed=1.0)       # walks to car, track ends inside it
-    b = person(2, 20, 3, INSIDE, kps(legs=0.9), speed=1.0)      # a track starts inside the car later
+    a = person(1, 0, 3, INSIDE, kps())       # walks to car, track ends inside it
+    b = person(2, 20, 3, INSIDE, kps())      # a track starts inside the car later
     ev = run(a, b)
     assert len(ev) == 1
     e = ev[0]
@@ -85,22 +85,72 @@ def test_rule_b_disappear_and_reappear_in_car_zone():
 
 
 def test_rule_b_same_person_gap_counts():
-    a = person(1, 0, 3, INSIDE, kps(legs=0.9), speed=1.0)
-    b = person(1, 15, 3, INSIDE, kps(legs=0.9), speed=1.0)
+    a = person(1, 0, 3, INSIDE, kps())
+    b = person(1, 15, 3, INSIDE, kps())
     ev = run(a, b)
     assert [e.data["rule"] for e in ev] == ["b"] and ev[0].person_ids == [1]
 
 
 def test_rule_b_reappear_too_late_or_elsewhere_does_not_fire():
-    a = person(1, 0, 3, INSIDE, kps(legs=0.9), speed=1.0)
-    assert run(a, person(2, 90, 3, INSIDE, kps(legs=0.9), speed=1.0)) == []      # > 60 s
-    assert run(a, person(2, 20, 3, BESIDE, kps(legs=0.9), speed=1.0)) == []      # not at the car
-    assert run(a, person(2, 20, 3, (710, 220, 790, 380), kps(legs=0.9), speed=1.0)) == []  # another car (not in cars)
+    a = person(1, 0, 3, INSIDE, kps())
+    assert run(a, person(2, 90, 3, INSIDE, kps())) == []      # > 60 s
+    assert run(a, person(2, 20, 3, BESIDE, kps())) == []      # not at the car
+    assert run(a, person(2, 20, 3, (710, 220, 790, 380), kps())) == []  # another car (not in cars)
 
 
 def test_rule_b_track_ending_beside_car_does_not_fire():
-    a = person(1, 0, 3, BESIDE, kps(legs=0.9), speed=1.0)
-    assert run(a, person(2, 20, 3, INSIDE, kps(legs=0.9), speed=1.0)) == []
+    a = person(1, 0, 3, BESIDE, kps())
+    assert run(a, person(2, 20, 3, INSIDE, kps())) == []
+
+
+def test_rule_b_walks_behind_car_occluded_and_continues_does_not_fire():
+    # legs visible and moving before the track is lost behind the car; reappears 10 s later beyond it
+    a = person(1, 0, 3, INSIDE, kps(legs=0.9), speed=1.0)
+    b = person(1, 13, 3, INSIDE, kps(legs=0.9), speed=1.0)
+    assert run(a, b) == []
+    # even if the person is torso-only (partly hidden) at the end, moving fast is not sitting down
+    assert run(person(1, 0, 3, INSIDE, kps(), speed=1.0), person(2, 13, 3, INSIDE, kps())) == []
+
+
+def test_rule_b_same_person_fragmentation_with_legs_visible_does_not_fire():
+    a = person(1, 0, 3, INSIDE, kps(legs=0.9), speed=0.0)       # standing still at the car, legs visible
+    b = person(1, 6, 3, INSIDE, kps(legs=0.9), speed=0.0)
+    assert run(a, b) == []
+
+
+def test_rule_b_reappearance_needs_torso_only_too():
+    a = person(1, 0, 3, INSIDE, kps())
+    assert run(a, person(2, 20, 3, INSIDE, kps(legs=0.9))) == []
+
+
+def test_rule_b_end_at_frame_edge_does_not_fire():
+    low = (250, 400, 330, 540)          # box bottom on the frame bottom (540); car extends past it
+    big = Det((100, 300, 500, 540), 0.9, "car")
+    a, b = person(1, 0, 3, low, kps()), person(2, 20, 3, low, kps())
+    assert S.detect(*_merge(a, b), [big], CFG, frame_size=(960, 540)) == []
+    assert len(S.detect(*_merge(a, b), [big], CFG)) == 1        # no frame size: no edge guard
+
+
+def test_rule_a_person_cut_off_by_frame_bottom_does_not_fire():
+    big = Det((100, 300, 500, 540), 0.9, "car")
+    low = (250, 400, 330, 540)
+    o, s_ = person(1, 0, 8, low, kps())
+    assert S.detect({1: s_}, {1: o}, [big], CFG, frame_size=(960, 540)) == []
+    assert len(S.detect({1: s_}, {1: o}, [big], CFG)) == 1
+
+
+def test_rule_a_head_above_the_car_outline_does_not_fire():
+    tall = (250, 100, 330, 380)         # head 100 px above the car roof: standing in front of it
+    assert run(person(1, 0, 8, tall, kps())) == []
+    assert run(person(1, 0, 8, (250, 220, 330, 380), kps())) != []
+
+
+def _merge(*parts):
+    obs, tl = {}, {}
+    for o, s_ in parts:
+        obs.setdefault(o[0].track_id, []).extend(o)
+        tl.setdefault(o[0].track_id, []).extend(s_)
+    return tl, obs
 
 
 def test_non_vehicle_dets_ignored_and_empty_inputs():
@@ -122,9 +172,25 @@ def test_per_car_sat_in_car_column():
     z = Zone("car-1", "Car 1", "car", [(0.1, 0.4), (0.5, 0.4), (0.5, 0.9), (0.1, 0.9)], "auto")
     z2 = Zone("car-2", "Car 2", "car", [(0.6, 0.4), (0.9, 0.4), (0.9, 0.9), (0.6, 0.9)], "auto")
     evs = [Event("sat_in_car", 0, 6, [1], {"rule": "a", "zone_id": "car-1"}),
+           Event("sat_in_car", 0, 6, [9], {"rule": "a", "zone_id": "car-1"}),     # staff: not counted
+           Event("sat_in_car", 0, 6, [3], {"rule": "a", "zone_id": None}),         # no zone: not counted
            Event("sat_in_car", 9, 15, [1], {"rule": "a", "zone_id": "car-1"}),
            Event("sat_in_car", 0, 6, [2], {"rule": "b", "zone_id": "car-1"})]
-    st = ST.compute([Person(1, [1], 0, 1)], {}, {}, CFG, timeline={}, episodes=[], assist={},
+    st = ST.compute([Person(1, [1], 0, 1), Person(2, [2], 0, 1), Person(3, [3], 0, 1), Person(9, [9], 0, 1)],
+                    {}, {9: "staff"}, CFG, timeline={}, episodes=[], assist={},
                     zones=[z, z2], duration=10.0, frame_size=(960, 540), sat_events=evs)
     cars = {c["zone_id"]: c for c in st.per_car}
     assert cars["car-1"]["sat_in_car"] == 2 and cars["car-2"]["sat_in_car"] == 0
+
+
+def test_pipeline_ignores_unstable_segments():
+    from pulse import cache, pipeline
+    from pulse.datatypes import StableSegment
+    o, _ = person(1, 0, 8, INSIDE, kps())
+    meta = {"frame_w": 960, "frame_h": 540, "analysed_duration": 8.2, "sample_fps": 5.0}
+    seg = lambda stable: [StableSegment(0, 8.2, stable, True)]  # noqa: E731
+    t2p = {ob.track_id: 1 for ob in o}
+    tl = {1: [Sample(ob.t, 1, (0.5, 0.7), ob.bbox, None, 0.0, "full") for ob in o]}
+    pc = cache.PerceptionCache(None, meta, o, [CAR], 0.0, seg(True), {})
+    assert len(pipeline.sat_in_car_events(pc, tl, t2p, [], CFG)) == 1
+    assert pipeline.sat_in_car_events(pc, {1: []}, t2p, [], CFG) == []   # filtered out: no stable samples

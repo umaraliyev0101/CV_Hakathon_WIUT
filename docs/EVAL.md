@@ -209,6 +209,8 @@ Caveats:
 
 Recall of the MEVA `person_enters_vehicle` activities on one **outdoor parking-lot / drive-loop clip** (`2018-03-15.15-45-07.15-50-07.hospital.G436`, hospital camera G436, CC BY 4.0). This is a proxy only, not a showroom: the vehicles are driving in and out, the people are small and far away, so pose keypoints are unreliable, and the rule's assumption that cars are fixed (one keyframe box per car) is broken. Numbers describe the proxy and say little about showroom accuracy. Reproduce: `.venv/bin/pulse eval --out docs/EVAL.md`.
 
+**Known limits:** the rules were validated on synthetic boxes only (unit tests), never on real showroom footage; and "inside a car" is an image-plane box overlap, so a person standing in front of or behind a car can still overlap it (guards: legs hidden, slow, head inside the car outline, not cut by the frame edge).
+
 A GT activity is *found* when a detected sat-in-car event (rule a or b) overlaps [start - 5 s, end + 5 s] and its keyframe car box overlaps the GT vehicle box (at the activity's last frame) by at least half of the smaller box. `any car` drops the spatial condition (an upper bound that ignores which vehicle).
 
 | measure | value |
