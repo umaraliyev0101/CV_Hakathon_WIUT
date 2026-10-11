@@ -690,6 +690,18 @@ def test_contact_sheet_captions_for_every_type():
     assert cap(Event("greet", 5.0, customer=2, staff=3, data={"time_to_greet": None})) == "Greet at 0:05: C2 greeted by Aziz"
 
 
+def test_contact_sheet_files_reads_type_and_time_from_the_names(tmp_path):
+    for name in ("02_walkout_31s.jpg", "01_greet_9s.jpg", "10_wait_alert_120s.jpg", "notes.txt", "1_greet_3s.jpg",
+                 "03_party_5s.jpg"):
+        (tmp_path / name).write_bytes(b"x")
+    got = render.contact_sheet_files(tmp_path)
+    assert [g["name"] for g in got] == ["01_greet_9s.jpg", "02_walkout_31s.jpg", "10_wait_alert_120s.jpg"]
+    assert got[0] == {"name": "01_greet_9s.jpg", "type": "greet", "t": 9.0, "caption": "Greet at 0:09"}
+    assert got[2] == {"name": "10_wait_alert_120s.jpg", "type": "wait_alert", "t": 120.0,
+                      "caption": "Long wait at 2:00"}
+    assert render.contact_sheet_files(tmp_path / "missing") == []
+
+
 def test_contact_sheets_ignore_other_events_clip_times_and_drop_stale_sheets(textured, tmp_path):
     path, res, an = textured
     only_enter = dataclasses.replace(an, events=[Event("enter", 1.0, customer=1, data={"entry_known": True}),

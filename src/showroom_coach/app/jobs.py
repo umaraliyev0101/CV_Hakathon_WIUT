@@ -45,7 +45,7 @@ from ..analysis import Analysis, analyze, rescore
 from ..export import results_dict, write_all
 from ..metrics import sales_conversion, unmatched_sales
 from ..perception import pipeline
-from ..render import contact_sheets, render_video, save_thumbnails, timeline_png
+from ..render import contact_sheet_files, contact_sheets, render_video, save_thumbnails, timeline_png
 from ..sources import VideoError, probe, video_warnings
 
 if TYPE_CHECKING:
@@ -296,14 +296,19 @@ class JobManager:
 
     def results(self, job_id: str) -> dict:
         """The results object of the web API: the analysis plus video status, URLs and every warning (and, once a sales
-        CSV was added, its `sold`/`conversion` numbers and a `sales` summary)."""
+        CSV was added, its `sold`/`conversion` numbers and a `sales` summary). `contact_sheets` lists the event contact
+        sheets of the latest finished render (empty while a render is running or before the first one); each `url`
+        carries `?v=<render revision>`, because a re-render rewrites the sheets under the same names."""
         job = self.get(job_id)
         with job.lock:
             an = self._analysis_of(job)
             ready = job.video_status == "ready" and job.video_file is not None
+            sheets = contact_sheet_files(job.dir / "contact_sheets") if ready else []
             extra = {
                 "video_status": job.video_status,
                 "video_url": self._url(job, job.video_file) if ready else None,
+                "contact_sheets": [{"url": f"{self._url(job, 'contact_sheets/' + s['name'])}?v={job.rev}",
+                                    "type": s["type"], "t": s["t"], "caption": s["caption"]} for s in sheets],
                 "timeline_url": self._url(job, "timeline.png"),
                 "export": {"json": self._url(job, "results.json"), "events_csv": self._url(job, "events.csv"),
                            "scorecard_csv": self._url(job, "scorecard.csv")},

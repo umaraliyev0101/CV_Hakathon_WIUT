@@ -582,6 +582,7 @@ function renderResults(r, nobody) {
   renderVideo(r);
   renderTiles(r);
   renderAlerts(r);
+  renderSheets(r);
   renderTimeline(r);
   renderScorecard(r);
   renderSalesNote(r);
@@ -635,6 +636,7 @@ async function watchVideo() {
         state.results = r;
         if (job.status === 'failed' && r.video_status !== 'ready') r.video_status = 'failed';
         renderVideo(r);
+        renderSheets(r);
         return;
       }
     } catch (err) {
@@ -720,6 +722,19 @@ function renderAlerts(r) {
       el('span', { class: 'alert__t', text: mmss(a.t) }),
       el('span', {}, el('span', { class: 'alert__title', text: a.title }), el('span', { class: 'alert__detail', text: a.detail }),
         el('span', { class: 'sr-only', text: `. Jump to ${mmss(a.t)} in the video` }))))));
+}
+
+/** Event contact sheets (three face-blurred frames around a greet, engagement, long wait or walk-out). The server lists
+ *  them once the annotated video is ready; each opens full size in a new tab. Captions are set as text only. */
+function renderSheets(r) {
+  const sheets = Array.isArray(r.contact_sheets) ? r.contact_sheets : [];
+  $('#sheetsPanel').hidden = !sheets.length;
+  $('#sheetCount').textContent = sheets.length ? String(sheets.length) : '';
+  $('#sheets').replaceChildren(...sheets.map((s) => el('li', {},
+    el('a', { class: 'alert alert--info', href: s.url, target: '_blank', rel: 'noopener', title: `Open the ${s.caption} snapshot full size in a new tab` },
+      el('span', { class: 'alert__t', text: mmss(s.t) }),
+      el('span', {}, el('span', { class: 'alert__title', text: s.caption }),
+        el('img', { class: 'sheet__img', src: s.url, alt: `${s.caption}: three frames around the event, faces blurred`, loading: 'lazy' }))))));
 }
 
 /* timeline ------------------------------------------------------------ */

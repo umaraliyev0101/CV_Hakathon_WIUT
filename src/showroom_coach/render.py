@@ -760,7 +760,25 @@ SHEET_PANEL_H = 240
 SHEET_SAMPLE_FPS = 10.0      # contact-sheet frames are the nearest decoded frame at this rate (within 0.05 s)
 SHEET_OFFSET_S = 2.0
 SHEET_CAPTION_H = 30
-_SHEET_NAME = re.compile(r"\d{2}_(?:greet|engagement|wait_alert|walkout)_\d+s\.jpg")
+_SHEET_NAME = re.compile(r"(\d{2})_(greet|engagement|wait_alert|walkout)_(\d+)s\.jpg")
+SHEET_LABELS = {"greet": "Greet", "engagement": "Engagement", "wait_alert": "Long wait", "walkout": "Walk-out"}
+
+
+def contact_sheet_files(out_dir) -> list[dict]:
+    """The contact sheets `contact_sheets` left in `out_dir`, in their number (= time) order:
+    `[{"name", "type", "t", "caption"}]`, with type and t (whole seconds) read from the `{n:02d}_{type}_{t:.0f}s.jpg`
+    file name and a short caption such as "Long wait at 0:42". An absent directory gives []."""
+    out_dir = Path(out_dir)
+    if not out_dir.is_dir():
+        return []
+    found = []
+    for p in out_dir.iterdir():
+        m = _SHEET_NAME.fullmatch(p.name)
+        if m and p.is_file():
+            n, kind, t = int(m.group(1)), m.group(2), float(m.group(3))
+            found.append((n, p.name, {"name": p.name, "type": kind, "t": t,
+                                      "caption": f"{SHEET_LABELS[kind]} at {_mmss(t)}"}))
+    return [item for _, _, item in sorted(found)]
 
 
 def _pick_events(events, limit: int) -> list:

@@ -58,6 +58,29 @@ def test_upload_confirm_results(client, meet_video):
     assert client.get(f"/api/jobs/{jid}/files/events.csv").status_code == 200
 
 
+def test_results_list_the_contact_sheets_once_the_video_is_ready(client, meet_video, tmp_path):
+    import re
+    jid = upload(client, meet_video)
+    wait_status(client, jid, {"needs_confirm"})
+    assert client.get(f"/api/jobs/{jid}/results").json()["contact_sheets"] == []          # nothing rendered yet
+    r = client.post(f"/api/jobs/{jid}/roles", json={"roles": {"1": "staff"}})
+    assert r.json()["contact_sheets"] == []                                             # still drawing
+    wait_status(client, jid, {"done"})
+    sheets = client.get(f"/api/jobs/{jid}/results").json()["contact_sheets"]
+    on_disk = sorted(p.name for p in (tmp_path / "jobs" / jid / "contact_sheets").glob("*.jpg"))
+    assert sheets and len(sheets) == len(on_disk)
+    pattern = re.compile(rf"/api/jobs/{jid}/files/contact_sheets/(\d{{2}})_(greet|engagement|wait_alert|walkout)_(\d+)s"
+                         r"\.jpg\?v=\d+")
+    for sheet, name in zip(sheets, on_disk):
+        assert set(sheet) == {"url", "type", "t", "caption"}
+        m = pattern.fullmatch(sheet["url"])
+        assert m and sheet["url"].split("/")[-1].split("?")[0] == name                  # in file (= time) order
+        assert sheet["type"] == m.group(2) and sheet["t"] == float(m.group(3))
+        assert isinstance(sheet["caption"], str) and sheet["caption"]
+        got = client.get(sheet["url"])
+        assert got.status_code == 200 and got.headers["content-type"] == "image/jpeg"
+
+
 def test_rescore_does_not_redetect(client, meet_video, monkeypatch):
     jid = upload(client, meet_video)
     wait_status(client, jid, {"needs_confirm"})
