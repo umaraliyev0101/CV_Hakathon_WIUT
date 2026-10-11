@@ -153,15 +153,17 @@ def _walkin(staff_x=None, customers=((500, 4.0, None),), until=20.0):
 
 def test_waiting_customer_has_a_timer_and_a_long_wait_alert():
     s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)         # wait_alert = 10 s
-    outs = _run(s, _walkin(until=16.0))
+    outs = _run(s, _walkin(until=17.0))
+    # the customer appears at 4.0, the tracker returns the box from 4.2, and the engine counts them once confirmed
+    # (3 observations over >= 1 s), which is at 5.2: that is their "enter"
     at12 = next(o for o in outs if o["t"] == pytest.approx(12.0))
     p = _person(at12, 1)
-    assert p["state"] == "waiting" and p["wait_s"] == pytest.approx(12.0 - 4.2, abs=0.01)
-    assert p["label"] == "C1 ⏱ 0:07"
+    assert p["state"] == "waiting" and p["wait_s"] == pytest.approx(12.0 - 5.2, abs=0.01)
+    assert p["label"] == "C1 ⏱ 0:06"
     assert at12["alerts"] == []
     alert_frames = [o for o in outs if o["alerts"]]
-    assert alert_frames and alert_frames[0]["t"] == pytest.approx(14.4)
-    assert alert_frames[0]["alerts"] == ["0:14 long wait: customer C1 (no staff free)"]
+    assert alert_frames and alert_frames[0]["t"] == pytest.approx(15.4)
+    assert alert_frames[0]["alerts"] == ["0:15 long wait: customer C1 (no staff free)"]
     wait_alerts = [e for o in outs for e in o["events"] if e["type"] == "wait_alert"]
     assert len(wait_alerts) == 1 and wait_alerts[0]["customer"] == 1
     assert outs[-1]["store"]["customers"] == 1 and outs[-1]["store"]["greeted"] == 0
@@ -177,8 +179,8 @@ def test_alert_names_the_free_staff_and_the_newest_comes_first():
     outs = [first] + [s.process(script(t), t) for t in _times(18.0)[1:]]
     alerts = outs[-1]["alerts"]
     assert len(alerts) == 2
-    assert re.fullmatch(r"0:1[67] long wait: customer C3 \(free: Aziz\)", alerts[0])
-    assert re.fullmatch(r"0:1[45] long wait: customer C2 \(free: Aziz\)", alerts[1])
+    assert re.fullmatch(r"0:17 long wait: customer C3 \(free: Aziz\)", alerts[0])      # confirmed at 7.2, alert at 17.4
+    assert re.fullmatch(r"0:15 long wait: customer C2 \(free: Aziz\)", alerts[1])      # confirmed at 5.2, alert at 15.4
     assert _person(outs[-1], staff)["state"] == "free"
 
 
@@ -230,6 +232,144 @@ def test_summary_of_an_empty_session():
     summary = LiveSession(fake_stack()).summary()
     assert summary["type"] == "summary" and summary["events"] == []
     assert summary["scorecard"]["staff"] == [] and summary["scorecard"]["store"]["customers"] == 0
+
+
+# --------------------------------------------------------------------------- session: confirmation of people
+
+
+BLIP_COLOURS = (GREEN, BLUE, (0, 255, 255), (255, 255, 0))    # four different looks, so four different phantom people
+
+
+def _with_flickers(real=((500, 4.0, None),), flickers=((100, 7.0), (200, 10.0), (300, 13.0), (100, 16.0)), until=20.0,
+                   colours=BLIP_COLOURS):
+    """Script: real red customers as (x1, appears, leaves-or-None) plus 3-frame blips as (x1, starts)."""
+    def script(t):
+        people = [(x, RED) for x, a, b in real if t >= a - 1e-9 and (b is None or t < b)]
+        people += [(x, colours[i % len(colours)]) for i, (x, a) in enumerate(flickers) if a - 1e-9 <= t <= a + 0.4 + 1e-9]
+        return _scene(*people)
+    script.until = until
+    return script
+
+
+def test_flickers_are_not_counted_as_customers_or_walkouts():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    outs = _run(s, _with_flickers())
+    assert outs[-1]["store"] == {"customers": 1, "greeted": 0, "walkouts": 0}
+    kinds = [e["type"] for o in outs for e in o["events"]]
+    assert kinds.count("enter") == 1 and "walkout" not in kinds and "leave" not in kinds
+    assert [e["customer"] for o in outs for e in o["events"] if e["type"] == "wait_alert"] == [1]
+    summary = s.summary()
+    assert summary["scorecard"]["store"]["customers"] == 1 and summary["scorecard"]["store"]["walkouts"] == 0
+    assert not any(a for o in outs for a in o["alerts"] if "walk-out" in a)
+    # the blips are still shown (tentative: no state) so the client can draw and blur them
+    tentative = [p for o in outs for p in o["people"] if p["state"] is None and p["pid"] != 1]
+    assert tentative
+
+
+def test_a_person_is_tentative_until_seen_three_times_over_a_second():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    script = lambda t: _scene((300, RED))
+    script.until = 1.2
+    outs = {o["t"]: o for o in _run(s, script)}
+    for t in (0.0, 0.2, 0.4, 0.6, 0.8):
+        p = outs[t]["people"][0]
+        assert p["state"] is None and p["wait_s"] is None and p["label"] == "C1"
+        assert outs[t]["store"]["customers"] == 0
+    assert outs[1.0]["people"][0]["state"] == "waiting"
+    assert outs[1.0]["store"]["customers"] == 1
+    assert outs[1.0]["events"] and outs[1.0]["events"][0]["type"] == "enter"
+
+
+def test_toggling_a_tentative_person_applies_once_confirmed():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    first = s.process(_scene((300, RED)), 0.0)
+    assert first["people"][0]["state"] is None
+    assert s.toggle(first["people"][0]["pid"]) == "staff"
+    for t in (0.2, 0.4, 0.6, 0.8):
+        out = s.process(_scene((300, RED)), t)
+        assert out["people"][0]["state"] is None and out["people"][0]["role"] == "staff"
+    out = s.process(_scene((300, RED)), 1.0)
+    p = out["people"][0]
+    assert p["state"] == "free" and p["role"] == "staff" and p["override"] is True and p["label"] == "S1"
+    assert out["store"]["customers"] == 0                         # they never were a customer
+
+
+def test_confirmation_is_per_track_so_repeated_blips_of_one_look_stay_unconfirmed():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    # the same green blob blinks six times, 3 s apart (longer than the tracker keeps a lost track, so each blink is a
+    # new 3-frame track) and each re-attaches to the same person
+    script = _with_flickers(real=(), flickers=tuple((100, 3.0 * i) for i in range(6)), until=16.0, colours=(GREEN,))
+    outs = _run(s, script)
+    assert len({p["pid"] for o in outs for p in o["people"]}) == 1          # one person, re-attached each time
+    assert all(p["state"] is None for o in outs for p in o["people"])
+    assert outs[-1]["store"]["customers"] == 0 and s.summary()["events"] == []
+
+
+# --------------------------------------------------------------------------- session: face rects for everyone
+
+
+def _detected(frame):
+    return len([d for d in fake_stack().detect(frame) if d.cls == 0])
+
+
+def test_every_detected_person_is_in_people_or_faces():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    script = _with_flickers(real=((500, 0.0, None), (60, 4.0, None)))
+    for t in _times(script.until):
+        frame = script(t)
+        out = s.process(frame, t)
+        assert len(out["people"]) + len(out["faces"]) == _detected(frame), t
+    json.dumps(out, allow_nan=False)
+
+
+def test_first_sighting_has_a_face_rect_but_no_person_yet():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    out = s.process(_scene(), 0.0)
+    assert out["people"] == [] and out["faces"] == []
+    out = s.process(_scene((300, RED)), 0.2)                      # the tracker confirms a new box on its second sighting
+    assert out["people"] == [] and len(out["faces"]) == 1
+    x1, y1, x2, y2 = out["faces"][0]
+    assert all(isinstance(v, int) for v in (x1, y1, x2, y2))
+    assert (x1, y1, x2) == (300, 100, 360) and y2 == 100 + round(0.2 * BOX_H)     # the top 20 % of the box, full width
+    out = s.process(_scene((300, RED)), 0.4)
+    assert len(out["people"]) == 1 and out["faces"] == []        # now tracked: its rect is people[0]["face"]
+
+
+# --------------------------------------------------------------------------- session: alerts follow roles
+
+
+def test_alerts_and_counters_follow_a_role_change():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    script = _walkin(customers=((300, 4.0, None),), until=17.0)
+    outs = _run(s, script)
+    assert outs[-1]["alerts"] == ["0:15 long wait: customer C1 (no staff free)"]
+    assert s.summary()["scorecard"]["store"]["wait_alerts"] == 1
+    assert s.toggle(1) == "staff"                                  # it was a salesperson all along
+    out = s.process(script(17.2), 17.2)
+    assert out["alerts"] == [] and out["store"] == {"customers": 0, "greeted": 0, "walkouts": 0}
+    summary = s.summary()
+    assert summary["scorecard"]["store"]["wait_alerts"] == 0 and summary["scorecard"]["store"]["customers"] == 0
+    assert not any(e["customer"] == 1 for e in summary["events"])
+    assert s.toggle(1) == "customer"                               # changed their mind: everything is back
+    back = s.process(script(17.4), 17.4)
+    assert back["alerts"] == ["0:15 long wait: customer C1 (no staff free)"]
+    assert s.summary()["scorecard"]["store"]["wait_alerts"] == 1
+
+
+def test_walkout_alert_shows_current_names_and_drops_when_the_leaver_becomes_staff():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    script = _walkin(staff_x=290, customers=((40, 4.0, 8.0),), until=14.0)
+    first = s.process(script(0.0), 0.0)
+    s.toggle(first["people"][0]["pid"])
+    outs = [first] + [s.process(script(t), t) for t in _times(14.0)[1:]]
+    assert any("(free: S1)" in a for a in outs[-1]["alerts"])
+    s.set_name(1, "Aziz")
+    out = s.process(script(14.2), 14.2)
+    assert any("walk-out: customer C2 (free: Aziz)" in a for a in out["alerts"])
+    s.toggle(2)
+    out = s.process(script(14.4), 14.4)
+    assert out["alerts"] == [] and out["store"]["walkouts"] == 0
+    assert s.summary()["scorecard"]["store"]["walkouts"] == 0
 
 
 # --------------------------------------------------------------------------- session: presets
@@ -396,6 +536,7 @@ def test_a_person_who_returns_after_a_gap_keeps_their_id():
     for i in range(30, 36):
         back = s.process(present, 0.2 * i)
     assert [p["pid"] for p in back["people"]] == [pid]
+    assert back["people"][0]["state"] is not None                  # re-attached to a confirmed person: not tentative again
 
 
 def test_a_dissimilar_newcomer_gets_a_new_id():
@@ -612,6 +753,71 @@ def test_ws_inference_runs_off_the_event_loop():
     asyncio.run(main())
     assert sock.accepted and sock.sent == [{"type": "overlay", "t": 0.0}]
     assert len(ticks) >= 8                                         # the loop kept running during the 0.4 s of inference
+
+
+def test_ws_oversized_frames_are_refused_without_decoding(monkeypatch):
+    from showroom_coach import live_ws
+
+    decoded = []
+    real_decode = live_ws.decode_jpeg
+
+    def spy(data, *args, **kwargs):
+        decoded.append(len(data))
+        return real_decode(data, *args, **kwargs)
+
+    monkeypatch.setattr(live_ws, "decode_jpeg", spy)
+    frame = _jpeg(_scene((50, RED)))
+    with TestClient(_make_app()) as c, c.websocket_connect("/ws/live") as ws:
+        ws.send_bytes(b"\xff" * (live_ws.MAX_FRAME_BYTES + 1))
+        assert ws.receive_json() == {"type": "error", "error": "bad frame"}
+        assert decoded == []                                       # refused on size alone
+        ws.send_bytes(frame)
+        assert ws.receive_json()["type"] == "overlay"              # the session carries on
+    assert decoded == [len(frame)] and live_ws.MAX_FRAME_BYTES == 2 * 1024 * 1024
+
+
+def test_ws_a_factory_failure_other_than_an_unknown_preset_is_not_reported_as_one():
+    app = FastAPI()
+
+    @app.websocket("/ws/live")
+    async def live(websocket: WebSocket):
+        def broken(preset):
+            raise ValueError("malformed detector spec")
+        await serve_live(websocket, broken)
+
+    with TestClient(app) as c, c.websocket_connect("/ws/live?preset=short") as ws:
+        reply = ws.receive_json()
+        assert reply["type"] == "error" and "preset" not in reply["error"]
+
+
+def test_ws_slow_controls_run_off_the_event_loop():
+    class SlowSession:
+        def summary(self):
+            time.sleep(0.4)
+            return {"type": "summary"}
+
+        def set_preset(self, name):
+            time.sleep(0.4)
+
+    sock = _FakeSocket([{"type": "websocket.receive", "text": json.dumps({"type": "summary"})},
+                        {"type": "websocket.receive", "text": json.dumps({"type": "preset", "name": "dealership"})},
+                        {"type": "websocket.receive", "text": json.dumps({"type": "summary"})},
+                        {"type": "websocket.disconnect", "code": 1001}])
+    ticks = []
+
+    async def main():
+        async def heartbeat():
+            while True:
+                ticks.append(time.perf_counter())
+                await asyncio.sleep(0.01)
+
+        beat = asyncio.create_task(heartbeat())
+        await serve_live(sock, lambda preset: SlowSession())
+        beat.cancel()
+
+    asyncio.run(main())
+    assert sock.sent == [{"type": "summary"}, {"type": "summary"}]            # in order; the preset control sent nothing
+    assert len(ticks) >= 20                                                    # ~1.2 s of slow work: the loop kept ticking
 
 
 # --------------------------------------------------------------------------- real models (slow)

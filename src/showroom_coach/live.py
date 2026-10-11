@@ -4,7 +4,14 @@
 stack on that single frame (detect, track, pose), gives every track a person id (`identity.LiveIdentity`: a new track
 may take over someone who was lost a moment ago), turns positions into floor metres (`geometry`), steps the event
 engine, and returns the overlay the browser draws (api-contract.md, "Live WebSocket"). Nothing here keeps or returns
-pixels: the overlay carries a `face` rectangle per person and the client blurs it on its own canvas.
+pixels: the overlay carries a `face` rectangle per listed person, plus `faces` for every other detection, and the
+client blurs them all on its own canvas.
+
+Confirmation. A new track may be detector noise, so a person feeds the event engine (and the replay history) only once
+confirmed: one of their tracks has `MIN_TRACK_OBS` observations spanning `MIN_TRACK_S` seconds, the same bar as the
+offline noise filter. The flag is per person and sticky, so a re-attached person stays confirmed. Until then the person
+is still listed in `people` (so the client can draw, blur and click them) with `state: null`; a click sets the override
+that applies once they are confirmed.
 
 Roles. Everyone starts as a customer with `suggested = "unsure"`. Once the session is `suggest_after` seconds old, and
 then every `suggest_every` seconds, the staff suggestion (`roles.suggest_roles`) is recomputed from the last five
@@ -29,7 +36,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .config import SAMPLE_FPS, CameraConfig, RoleWeights, get_preset
+from .config import MIN_TRACK_OBS, MIN_TRACK_S, SAMPLE_FPS, CameraConfig, RoleWeights, get_preset
 from .events import EventEngine, PersonState
 from .geometry import Camera, at_frame_edge, facing_vector, position_m
 from .identity import LiveIdentity
@@ -46,7 +53,8 @@ __all__ = ["LiveSession"]
 
 WINDOW_S = 300.0              # trajectories, frame times and outfit statistics are kept for this long
 HISTORY_FRAMES = 9000         # per-frame states kept to re-score on a preset change (30 min at 5 fps)
-MAX_ALERTS = 10
+MAX_ALERTS = 10               # alerts shown
+MAX_ALERT_RECORDS = 50        # alert records kept, so that hiding some (their customer became staff) leaves enough to show
 FPS_ALPHA = 0.2               # smoothing of the processed-fps moving average
 MIN_REFRESH_ALPHA = 0.1       # an identity descriptor never adapts slower than this (1/n for the first few)
 UNSURE_CONFIDENCE = 0.5       # P(staff) shown before the first suggestion: no evidence either way
@@ -79,6 +87,7 @@ class _Person:
     dino_n: int = 0
     emb_n: int = 0                                    # how many descriptors went into the identity's descriptor
     last_embed: int = -(10 ** 9)                      # frame counter when this person was last embedded
+    confirmed: bool = False                           # sticky: some track of theirs passed the noise bar
 
     def outfit(self) -> np.ndarray | None:
         """Torso colour mean, plus half-weight embedding mean when there is one (as in the offline pass)."""
@@ -130,7 +139,8 @@ class LiveSession:
         self._suggestions: dict[int, RoleSuggestion] = {}
         self._last_suggest: float | None = None
         self._events: list[Event] = []
-        self._alerts: list[str] = []
+        self._alerts: list[Event] = []                 # wait_alert / walkout records, newest first (rendered on demand)
+        self._tracks: dict[int, list[float]] = {}      # unconfirmed people's tracks: id -> [first t, observations, last t]
         self._history: deque[tuple[float, list[tuple]]] = deque(maxlen=HISTORY_FRAMES)
         self._t0 = 0.0                                 # the engine's "clip start": session start, or the oldest kept frame
         self._store_key: tuple | None = None           # (events so far, staff ids) the cached store counters are for
@@ -177,7 +187,7 @@ class LiveSession:
         """`{"type": "summary", "scorecard": ..., "events": [...]}` for the session so far. Engagements still going
         are included as open events (`t_end` null), counted up to now."""
         t = self._last_t or 0.0
-        events = sorted(self._events + self._open_engagements(), key=lambda e: (e.t, e.type))
+        events = sorted(self._current_events(self._events + self._open_engagements()), key=lambda e: (e.t, e.type))
         return {"type": "summary", "scorecard": to_jsonable(self._scorecard(events, t)), "events": to_jsonable(events)}
 
     # ---- one frame
@@ -197,13 +207,16 @@ class LiveSession:
         pids = self._identify(frame_bgr, t, tracked)
         self._refresh_descriptors(frame_bgr, tracked, pids, kpts)
 
-        rows = []
-        for j, (_, det) in enumerate(tracked):
-            pos = position_m(det.bbox, kpts[j], cam)
-            rows.append((pids[j], pos.xz, facing_vector(det.bbox, kpts[j], cam), at_frame_edge(det.bbox, w, h)))
+        rows = []                                      # confirmed people only: what the engine and the replay see
+        for j, (tid, det) in enumerate(tracked):
             person = self._people[pids[j]]
-            person.traj.append((t, pos.x, pos.z))
             person.last_t = t
+            if not person.confirmed:
+                self._observe_unconfirmed(tid, person, t)
+            if person.confirmed:
+                pos = position_m(det.bbox, kpts[j], cam)
+                rows.append((pids[j], pos.xz, facing_vector(det.bbox, kpts[j], cam), at_frame_edge(det.bbox, w, h)))
+                person.traj.append((t, pos.x, pos.z))
         self._frame_times.append(t)
         self._history.append((t, rows))
         if len(self._history) == self._history.maxlen:
@@ -234,15 +247,28 @@ class LiveSession:
                 "wait_s": None if wait is None else round(wait, 1), "label": self._label(pid, role, wait),
             })
         people.sort(key=lambda p: p["pid"])
+        listed = {id(det) for _, det in tracked}
+        faces = [[int(v) for v in face_region(d.bbox, None)] for d in persons if id(d) not in listed]
         overlay = {
-            "type": "overlay", "t": round(t, 3), "w": w, "h": h, "fps": 0.0, "people": people,
+            "type": "overlay", "t": round(t, 3), "w": w, "h": h, "fps": 0.0, "people": people, "faces": faces,
             "pairs": [list(p) for p in self._engine.active_pairs()], "events": new_events,
-            "alerts": list(self._alerts), "store": dict(self._store_counters(t)),
+            "alerts": self._alert_lines(), "store": dict(self._store_counters(t)),
         }
         elapsed = max(time.perf_counter() - started, 1e-3)       # the whole frame's processing time, this one included
         self._fps = 1.0 / elapsed if self._fps is None else (1 - FPS_ALPHA) * self._fps + FPS_ALPHA / elapsed
         overlay["fps"] = round(self._fps, 1)
         return to_jsonable(overlay)
+
+    def _observe_unconfirmed(self, tid: int, person: _Person, t: float) -> None:
+        """Count one more observation of track `tid`; the person is confirmed when that track has `MIN_TRACK_OBS`
+        observations spanning `MIN_TRACK_S` seconds. Judged per track, like the offline pass: several short blips of
+        one look that keep re-attaching to the same person never add up to a real visit."""
+        rec = self._tracks.setdefault(tid, [t, 0, t])
+        rec[1] += 1
+        rec[2] = t
+        if rec[1] >= MIN_TRACK_OBS and t - rec[0] >= MIN_TRACK_S - _EPS:
+            person.confirmed = True
+            self._tracks.pop(tid, None)
 
     # ---- time and cameras
 
@@ -368,6 +394,7 @@ class LiveSession:
         cutoff = t - WINDOW_S
         while self._frame_times and self._frame_times[0] < cutoff:
             self._frame_times.popleft()
+        self._tracks = {tid: rec for tid, rec in self._tracks.items() if rec[2] >= cutoff}
         for pid in list(self._people):
             person = self._people[pid]
             while person.traj and person.traj[0][0] < cutoff:
@@ -421,14 +448,26 @@ class LiveSession:
         return self._names.get(pid) or f"S{pid}"
 
     def _note_alert(self, e: Event) -> None:
-        """Wait alerts and walk-outs become one human line each, newest first, the last `MAX_ALERTS` kept."""
-        if e.type not in ("wait_alert", "walkout"):
-            return
-        free = e.data.get("free_staff") or []
-        who = "free: " + ", ".join(self._staff_name(p) for p in free) if free else "no staff free"
-        what = "long wait" if e.type == "wait_alert" else "walk-out"
-        self._alerts.insert(0, f"{_mmss(e.t)} {what}: customer C{e.customer} ({who})")
-        del self._alerts[MAX_ALERTS:]
+        """Keep wait alerts and walk-outs as records, newest first; the text is made when the overlay is built."""
+        if e.type in ("wait_alert", "walkout"):
+            self._alerts.insert(0, e)
+            del self._alerts[MAX_ALERT_RECORDS:]
+
+    def _alert_lines(self) -> list[str]:
+        """Human lines for the newest `MAX_ALERTS` alerts whose customer is not (now) staff, with current names."""
+        lines = []
+        for e in self._current_events(self._alerts):
+            free = e.data.get("free_staff") or []
+            who = "free: " + ", ".join(self._staff_name(p) for p in free) if free else "no staff free"
+            what = "long wait" if e.type == "wait_alert" else "walk-out"
+            lines.append(f"{_mmss(e.t)} {what}: customer C{e.customer} ({who})")
+            if len(lines) == MAX_ALERTS:
+                break
+        return lines
+
+    def _current_events(self, events: list[Event]) -> list[Event]:
+        """`events` without those about a customer who is now marked staff: a role change corrects the past too."""
+        return [e for e in events if e.customer is None or self._role(e.customer) != "staff"]
 
     def _open_engagements(self) -> list[Event]:
         """Engagements started but not yet closed, as events with `t_end` None (the metrics count them to 'now')."""
@@ -442,7 +481,7 @@ class LiveSession:
         staff = tuple(sorted(pid for pid in self._pids if self._role(pid) == "staff"))
         key = (len(self._events), staff)
         if key != self._store_key:
-            card = self._scorecard(self._events, t).store
+            card = self._scorecard(self._current_events(self._events), t).store
             self._store = {"customers": card.customers, "greeted": card.greeted, "walkouts": card.walkouts}
             self._store_key = key
         return self._store

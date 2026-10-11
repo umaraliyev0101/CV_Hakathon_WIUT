@@ -2,7 +2,8 @@
 
     client -> server  binary   one JPEG frame; the server answers with exactly one text message: the overlay
                                (`{"type": "overlay", ...}`), or `{"type": "error", "error": "bad frame"}` when the bytes
-                               are not an image. The session carries on after either.
+                               are not an image or are larger than `MAX_FRAME_BYTES` (refused without decoding). The
+                               session carries on after either.
     client -> server  text     a JSON control: toggle {pid}, name {pid, name}, preset {name}, time {t} (the timestamp of
                                the next frame only, used by file-fed tests) and summary. Controls get no reply except
                                `summary` (`{"type": "summary", ...}`); a control the server cannot act on gets
@@ -13,7 +14,8 @@ dropped on the client and never queue here. Even so, the loop below handles one 
 
 Each connection builds its own `LiveSession` with `session_factory(preset)` (the preset is the `?preset=` query
 parameter, "short" by default); the models behind it are shared between connections. Inference runs in a worker thread,
-so the event loop keeps serving other connections and the REST API while a frame is being processed. A dropped
+and so does every control (a preset change replays the whole session, a summary scores it), so the event loop keeps
+serving other connections and the REST API meanwhile. A dropped
 connection ends the handler quietly.
 """
 
@@ -27,6 +29,7 @@ from typing import Any, Callable
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from .config import PRESETS
 from .live import LiveSession
 from .sources import VideoError, decode_jpeg
 
@@ -36,6 +39,7 @@ __all__ = ["serve_live"]
 
 DEFAULT_PRESET = "short"
 MAX_NAME_CHARS = 40
+MAX_FRAME_BYTES = 2 * 1024 * 1024    # a 960 px JPEG is far smaller; anything bigger is refused without decoding
 
 E_BAD_FRAME = {"type": "error", "error": "bad frame"}
 E_FRAME_FAILED = {"type": "error", "error": "frame could not be processed"}
@@ -48,6 +52,8 @@ def _error(message: str) -> dict:
 
 def _process_frame(session: LiveSession, data: bytes, t: float | None) -> dict:
     """Decode and process one frame (runs in a worker thread). Never raises."""
+    if len(data) > MAX_FRAME_BYTES:
+        return E_BAD_FRAME
     try:
         frame = decode_jpeg(data)
     except VideoError:
@@ -90,10 +96,9 @@ def _apply(session: LiveSession, text: str, next_t: float | None) -> tuple[dict 
         return None, float(t)
     if kind == "preset":
         name = msg.get("name")
-        try:
-            session.set_preset(name)
-        except (ValueError, TypeError):
+        if not isinstance(name, str) or name not in PRESETS:
             return _error("unknown preset"), next_t
+        session.set_preset(name)
         return None, next_t
     if kind in ("toggle", "name"):
         pid = _pid(msg)
@@ -113,16 +118,17 @@ def _apply(session: LiveSession, text: str, next_t: float | None) -> tuple[dict 
 
 async def serve_live(websocket: WebSocket, session_factory: Callable[[str], Any]) -> None:
     """Serve one `/ws/live` connection until the client goes away. `session_factory(preset)` returns the connection's
-    `LiveSession` (ValueError for an unknown preset: the client gets an error message and the socket closes)."""
+    `LiveSession`. An unknown preset is refused before the factory runs (an error message, then the socket closes);
+    any failure inside the factory is reported as "live mode is unavailable"."""
     preset = websocket.query_params.get("preset") or DEFAULT_PRESET
     await websocket.accept()
     try:
-        try:
-            session = await run_in_threadpool(session_factory, preset)
-        except ValueError:
+        if preset not in PRESETS:
             await websocket.send_json(_error(f"unknown preset {preset!r}"))
             await websocket.close(code=1008)
             return
+        try:
+            session = await run_in_threadpool(session_factory, preset)
         except Exception:
             log.exception("cannot start a live session")
             await websocket.send_json(_error("live mode is unavailable"))
@@ -139,7 +145,7 @@ async def serve_live(websocket: WebSocket, session_factory: Callable[[str], Any]
                 t, next_t = next_t, None
                 reply = await run_in_threadpool(_process_frame, session, data, t)
             elif text is not None:
-                reply, next_t = _control(session, text, next_t)
+                reply, next_t = await run_in_threadpool(_control, session, text, next_t)
             else:
                 continue
             if reply is not None:
