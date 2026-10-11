@@ -42,7 +42,13 @@ def test_deploy_script_header_and_guards():
     assert "--i-know-this-deploys" in text
     assert '"$(uname -s)" != "Linux"' in text
     # guards come before the first state-changing command
-    assert text.index("uname -s") < text.index("useradd") < text.index("systemctl")
+    cmds = [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#")]
+    pos = lambda prefix: next(n for n, c in enumerate(cmds) if prefix in c)
+    assert pos('uname -s') < pos("python3.12 >") < pos("useradd") < pos("systemctl daemon-reload")
+    # refusal paths exit non-zero (grep only; the script is never executed)
+    assert text.count("exit 1") >= 3
+    assert 'if [ "$CONFIRMED" -ne 1 ]' in text and "Refusing" in text
+    assert "ReadWritePaths=$APP_DIR/jobs $APP_DIR/models" in text and "RuntimeMaxSec=86400" in text
     for needle in ("Restart=on-failure", "NoNewPrivileges=true", "ProtectSystem=strict",
                    "ReadWritePaths=", "Upgrade", "client_max_body_size", "24 h", "Signage"):
         assert needle in text, needle

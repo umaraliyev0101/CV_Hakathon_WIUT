@@ -37,6 +37,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+command -v python3.12 >/dev/null || { echo "python3.12 not found (apt install python3.12 python3.12-venv)" >&2; exit 1; }
 APP_USER=pulse
 APP_DIR=/opt/showroom-pulse
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -45,7 +46,6 @@ SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
 
 # 2. code + venv (python3.12)
-command -v python3.12 >/dev/null || { echo "python3.12 not found (apt install python3.12 python3.12-venv)" >&2; exit 1; }
 mkdir -p "$APP_DIR" "$APP_DIR/models" "$APP_DIR/jobs"
 cp -R "$SRC_DIR/src" "$SRC_DIR/pyproject.toml" "$SRC_DIR/labels" "$APP_DIR/"
 python3.12 -m venv "$APP_DIR/.venv"
@@ -61,7 +61,7 @@ else
 fi
 chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
 
-# 4. systemd unit, hardened; only jobs/ is writable (models/ too if models download at runtime)
+# 4. systemd unit, hardened; only jobs/ and models/ (first-use model downloads) are writable
 cat > /etc/systemd/system/showroom-pulse.service <<UNIT
 [Unit]
 Description=Showroom Pulse (anonymous showroom analytics)
@@ -83,7 +83,10 @@ PrivateDevices=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
-ReadWritePaths=$APP_DIR/jobs
+ReadWritePaths=$APP_DIR/jobs $APP_DIR/models
+# Uploads/job data are deleted after 24 h by a cleanup that runs only at app start, so restart daily.
+# A RuntimeMaxSec timeout counts as a failure, so Restart=on-failure brings the service back.
+RuntimeMaxSec=86400
 
 [Install]
 WantedBy=multi-user.target
@@ -99,7 +102,7 @@ nginx notes (put TLS in front; the app itself only listens on 127.0.0.1:8000):
   server {
       listen 443 ssl;
       server_name $PUBLIC_HOST;
-      client_max_body_size 500m;        # video uploads (the app enforces its own limit too)
+      client_max_body_size 1g;          # matches the app upload limit (MAX_UPLOAD = 1 GiB)
       location / {
           proxy_pass http://127.0.0.1:8000;
           proxy_set_header Host \$host;  # must match PULSE_ALLOWED_HOSTS
@@ -111,8 +114,8 @@ nginx notes (put TLS in front; the app itself only listens on 127.0.0.1:8000):
   }
 
 Reminders:
-  - Uploads and job data are deleted after 24 h (cleanup on app start). Restart the service
-    at least daily, or accept that old jobs stay until the next restart.
+  - Uploads and job data are deleted after 24 h by a cleanup that runs at app start; the unit's
+    RuntimeMaxSec=86400 restarts the service daily so that deletion actually happens.
   - Signage is required: customers must be told that camera analytics is in use. This is the
     operator's legal duty; the tool does not replace it.
 NOTES

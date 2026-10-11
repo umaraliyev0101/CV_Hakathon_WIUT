@@ -81,8 +81,12 @@ docker run --rm -p 127.0.0.1:8000:8000 -v "$PWD/models:/app/models" -v pulse-job
   -e PULSE_ALLOWED_HOSTS=localhost,127.0.0.1 showroom-pulse:local
 ```
 
-Publish the port on 127.0.0.1 only (as above) unless a reverse proxy with TLS fronts it; add the
-public hostname to `PULSE_ALLOWED_HOSTS`. `scripts/deploy.sh` is an on-prem systemd/nginx deployment
+Publish the port on 127.0.0.1 only (`-p 127.0.0.1:8000:8000`, as above): a plain `-p 8000:8000`
+publishes on all interfaces. Use a reverse proxy with TLS for anything else and add the public hostname
+to `PULSE_ALLOWED_HOSTS`. The container runs as uid 10001, so a bind-mounted `./models` must be readable
+by that uid (writable if models should download at runtime); a named volume avoids the ownership issue.
+Uploads and job data are deleted after 24 h by a cleanup that runs at app start, so restart a long-lived
+container daily. Signage that camera analytics is in use is required (operator's legal duty). `scripts/deploy.sh` is an on-prem systemd/nginx deployment
 script that has never been run (it needs `--i-know-this-deploys` and Linux).
 
 ## Results
