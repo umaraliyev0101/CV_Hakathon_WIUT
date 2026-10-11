@@ -247,7 +247,7 @@ Every milestone M0–M8 is built and committed locally (no remote). Each of the 
 
 ### What does not work / caveats (honest)
 - Accuracy targets are MISSED on the MEVA test clips (school hallways, not showrooms; sparse GT): entry/exit count error 50.0%, occupancy MAE 4.02, zone dwell median error 42.0% (1.80 s), journey accuracy 52.5%. Dev numbers: 3.6% / 1.00 / 40.7% / 60.0%. Test numbers were visible during tuning (disclosed in EVAL.md); the tuner itself only used dev clips.
-- File-mode speed: 1.55× real time on a 60 s 720p excerpt, but 0.88× and 0.92× on the two crowded 5-min test clips (partly met). Live: engine 8.27 fps with 1–4 people, smoke 5.02 fps paced / 10.94 max (met).
+- File-mode speed: 1.52× real time on a 60 s 720p excerpt, but 0.88× and 0.92× on the two crowded 5-min test clips (partly met). Live: engine 8.02 fps with 1–4 people, smoke 5.01 fps paced / 9.63 max (met). Speed was re-measured at 08:05 on the final code (`pulse bench speed`, git rev recorded in runs/bench/speed.json) and EVAL.md regenerated; only the speed rows changed.
 - Stops on agent-labelled stock clips: precision 2/2 (95% CI 34–100%), recall 3/6 all GT stops / 2/2 in usable time — tiny, unreviewed sample.
 - Sat-in-car: only synthetic tests; the outdoor MEVA proxy (G436) is unusable (0/11) — not a measure of the rules.
 - Hand-held/cut stock footage loses zone statistics on moving segments (e.g. 39–52% of a clip analysed).
@@ -263,9 +263,9 @@ Every milestone M0–M8 is built and committed locally (no remote). Each of the 
 | occupancy MAE | ≤ 0.5 | 4.02 | 1.00 | NO |
 | zone dwell median error (dealership) | ≤ 10% | 42.0% (1.80 s) | 40.7% (1.60 s) | NO |
 | journey accuracy | ≥ 80% | 52.5% | 60.0% | NO |
-| file-mode RTF (CPU, 5 fps) | ≥ 1× | 1.55× excerpt; full clips 0.88–1.86× | – | partly |
-| live fps (CPU) | ≥ 5 | 8.27 engine; 5.02 paced / 10.94 max | – | yes |
-Other: MOTA negative on every clip (MEVA annotates only activity participants); test IDF1 19.7% raw / 19.5% merged. Detector benchmark (M0): yolox_s chosen (person recall 0.629, 82 ms/frame CPU). CoreML engine step ≈ 34 fps (optional, separate).
+| file-mode RTF (CPU, 5 fps) | ≥ 1× | 1.52× excerpt; full clips 0.88–1.86× | – | partly |
+| live fps (CPU) | ≥ 5 | 8.02 engine; 5.01 paced / 9.63 max | – | yes |
+Other: MOTA negative on every clip (MEVA annotates only activity participants); test IDF1 19.7% raw / 19.5% merged. Detector benchmark (M0): yolox_s chosen (person recall 0.629, 82 ms/frame CPU). CoreML engine step ≈ 32 fps (optional, separate).
 
 ### Decisions taken alone (full list under "## Decisions" above; the most consequential)
 - Pre-flight was not run, so the agent created the repo and fetched open data itself; demo clips from Wikimedia Commons (CC BY-SA 4.0 / CC BY 3.0) because data/stock/ was empty and Pexels blocks scripts.
@@ -276,6 +276,7 @@ Other: MOTA negative on every clip (MEVA annotates only activity participants); 
 - Dev/test split fixed at plan time; dev-only tuning restricted to the two post-cache merge knobs; merge_sim_thr 0.75 → 0.9.
 - Visit KPIs count customers seen ≥ 1 s (`min_visit_s = 1.0`), applied after the final review; EVAL byte-identical (gate).
 - Post-review gate sweep (07:55): `tests/test_embed.py` had a conditional `pytest.skip` when the DINOv2 model is missing (not caught by the `mark.skip|xfail|.only(` grep); changed to `pytest.fail` with a download hint in 4eac694 — assertions unchanged; no other skip/skipif/importorskip/xfail/.only in tests/.
+- Test-integrity review of the whole history (08:10): no test file was ever deleted; three test functions disappeared and each was replaced by a stronger one — `test_run_eval_writes_all_sections_deterministically` split into `test_run_eval_writes_all_sections` + `test_evaluation_is_deterministic_without_the_memo` (0212ba0); `test_rescore_does_not_run_models` kept its name but now forces every model path to raise (1da875d); `test_keyframe_without_exact_detections_warns` went with the deliberately removed half-period fallback and was replaced by `test_keyframe_blurred_from_neighbouring_sample_when_no_obs_at_its_t` and `test_raw_only_detection_is_blurred_everywhere` (374b29b). No mock library is used; the 8 `monkeypatch.setattr` calls only force failures or redirect constants (ROOT, MAX_UPLOAD); model-layer stubs are injected through constructor arguments (dependency injection), never by patching the code under test.
 - verify.sh was not run by implementers while the camera was dark (to avoid looping on an environmental failure); this let two slow-test regressions through until the 07:05 run — fixed in 3a9c0a3.
 
 ### Where Showroom Pulse's shared interfaces may differ from Showroom Coach

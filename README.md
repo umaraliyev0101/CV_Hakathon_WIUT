@@ -106,8 +106,8 @@ the only data the two identity-merge knobs were tuned on.
 | occupancy MAE (persons per second) | <= 0.5 | 4.02 | 1.00 | NO |
 | zone dwell median error (Dealership preset: %) | <= 10% | 42.0% | 40.7% | NO |
 | journey accuracy (1 - normalised edit distance) | >= 80% | 52.5% | 60.0% | NO |
-| file mode real-time factor (CPU, 5 fps; 60 s 720p excerpt, then the six full 5-min clips) | >= 1.0x | 1.55x on the 60 s excerpt; full 5-min clips 0.88x-1.86x (below 1x: G421 03-13 0.88x, G299 03-09 0.92x) | (speed is not split by clip) | partly |
-| live mode fps (engine step on frames with 1-4 people; live smoke paced / max, at most 2 people in view) | >= 5 fps | 8.27 engine; smoke 5.02 paced, 10.94 max | (not split by clip) | yes |
+| file mode real-time factor (CPU, 5 fps; 60 s 720p excerpt, then the six full 5-min clips) | >= 1.0x | 1.52x on the 60 s excerpt; full 5-min clips 0.88x-1.86x (below 1x: G421 03-13 0.88x, G299 03-09 0.92x) | (speed is not split by clip) | partly |
+| live mode fps (engine step on frames with 1-4 people; live smoke paced / max, at most 3 people in view) | >= 5 fps | 8.02 engine; smoke 5.01 paced, 9.63 max | (not split by clip) | yes |
 
 **Four accuracy targets are missed on test, and file-mode speed is only partly met. We report them
 as measured; no target or threshold was lowered.** Why, in plain terms (details in EVAL.md):
@@ -121,8 +121,8 @@ as measured; no target or threshold was lowered.** Why, in plain terms (details 
   these two metrics measure zone assignment inside short snippets, not whole visits. They are
   invariant to the identity merge by construction and cannot detect merge errors. The zones used
   are agent-drawn and unreviewed.
-- *Speed.* The 1.55x figure is a quiet 60 s excerpt; crowded 5-minute clips run below real time on
-  this CPU configuration (G421 0.88x, G299 0.92x). The live engine runs 8.3 fps on frames with 1-4 people; the end-to-end WebSocket smoke ran 5.0 fps paced with at most 2 people in view.
+- *Speed.* The 1.52x figure is a quiet 60 s excerpt; crowded 5-minute clips run below real time on
+  this CPU configuration (G421 0.88x, G299 0.92x). The live engine runs 8.0 fps on frames with 1-4 people; the end-to-end WebSocket smoke ran 5.0 fps paced (9.6 fps unpaced) with at most 3 people in view.
 - *Tracking.* Pooled test IDF1 is 19.7% (raw tracks) and 19.5% (merged persons); the merge does not
   improve IDF1 at the tuned threshold. GT ids are per activity, which penalises merging.
 - *Showroom-domain evidence is thin.* The only showroom-like numbers are stop precision 2/2 and

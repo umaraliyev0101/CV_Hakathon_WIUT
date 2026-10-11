@@ -22,10 +22,10 @@ Spec section 6. Measured values are test-set, pooled over the test clips; dev va
 | occupancy MAE (persons per second) | <= 0.5 | 4.02 | 1.00 | NO |
 | zone dwell median error (Dealership preset: %) | <= 10% | 42.0% | 40.7% | NO |
 | journey accuracy (1 - normalised edit distance) | >= 80% | 52.5% | 60.0% | NO |
-| file mode real-time factor (CPU, 5 fps; 60 s 720p excerpt, then the six full 5-min clips) | >= 1.0x | 1.55x on the 60 s excerpt; full 5-min clips 0.88x-1.86x (below 1x: G421 03-13 0.88x, G299 03-09 0.92x) | (speed is not split by clip) | partly |
-| live mode fps (engine step on frames with 1-4 people; live smoke paced / max, at most 2 people in view) | >= 5 fps | 8.27 engine; smoke 5.02 paced, 10.94 max | (not split by clip) | yes |
+| file mode real-time factor (CPU, 5 fps; 60 s 720p excerpt, then the six full 5-min clips) | >= 1.0x | 1.52x on the 60 s excerpt; full 5-min clips 0.88x-1.86x (below 1x: G421 03-13 0.88x, G299 03-09 0.92x) | (speed is not split by clip) | partly |
+| live mode fps (engine step on frames with 1-4 people; live smoke paced / max, at most 3 people in view) | >= 5 fps | 8.02 engine; smoke 5.01 paced, 9.63 max | (not split by clip) | yes |
 
-Reproduce: `.venv/bin/pulse eval --out docs/EVAL.md` for the first four rows; `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` for file mode; `.venv/bin/python scripts/smoke_live.py` then `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` for live fps (the bench snapshots the smoke result into `runs/bench/speed.json`, so EVAL.md does not change when `verify.sh` re-runs the smoke). Engine-only step rate on frames with 1-4 people: 8.27 fps (see Speed).
+Reproduce: `.venv/bin/pulse eval --out docs/EVAL.md` for the first four rows; `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` for file mode; `.venv/bin/python scripts/smoke_live.py` then `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` for live fps (the bench snapshots the smoke result into `runs/bench/speed.json`, so EVAL.md does not change when `verify.sh` re-runs the smoke). Engine-only step rate on frames with 1-4 people: 8.02 fps (see Speed).
 
 **Targets missed (test):** entry/exit count error (pooled entries + exits); occupancy MAE (persons per second); zone dwell median error (Dealership preset: %); journey accuracy (1 - normalised edit distance).
 
@@ -131,16 +131,16 @@ MOTA and IDF1 against the GT person tracks (IoU >= 0.5), on the raw ByteTrack tr
 
 ## Speed
 
-Measured on `macOS-26.6.2-arm64-arm-64bit` (CPU execution provider) by `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json`; `pulse eval` only reads the stored result, `runs/bench/speed.json`, recorded at git revision `0212ba0` with config hash `955cae9cc981` (a stale file shows up as a different revision).
+Measured on `macOS-26.6.2-arm64-arm-64bit` (CPU execution provider) by `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json`; `pulse eval` only reads the stored result, `runs/bench/speed.json`, recorded at git revision `7ae3018` with config hash `957211e559f9` (a stale file shows up as a different revision).
 
 | measure | value | detail | reproduce |
 |---|---|---|---|
-| file-mode real-time factor, cold (60 s excerpt, 1280x714, 5 fps, includes embeddings and keyframe cars) | 1.55x | 38.7 s wall for 60 s of video | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
-| live engine step rate, frames with 1-4 people (detect + track + pose) | 8.27 fps | 120.9 ms/frame over 280 frames | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
-| live engine step rate, all frames | 8.43 fps | 118.7 ms/frame over 297 frames | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
-| live smoke (WebSocket, paced 5 fps), processed fps | 5.02 fps | 0 dropped, 2 people max | `.venv/bin/python scripts/smoke_live.py` |
-| live smoke, max sustainable fps (unpaced) | 10.94 fps | step 95.5 ms mean | `.venv/bin/python scripts/smoke_live.py` |
-| CoreML provider engine step rate, frames with 1-4 people (optional, reported separately) | 33.72 fps | 29.7 ms/frame over 42 frames; providers CoreMLExecutionProvider, CPUExecutionProvider | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
+| file-mode real-time factor, cold (60 s excerpt, 1280x714, 5 fps, includes embeddings and keyframe cars) | 1.52x | 39.5 s wall for 60 s of video | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
+| live engine step rate, frames with 1-4 people (detect + track + pose) | 8.02 fps | 124.6 ms/frame over 280 frames | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
+| live engine step rate, all frames | 8.19 fps | 122.1 ms/frame over 297 frames | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
+| live smoke (WebSocket, paced 5 fps), processed fps | 5.01 fps | 0 dropped, 3 people max | `.venv/bin/python scripts/smoke_live.py` |
+| live smoke, max sustainable fps (unpaced) | 9.63 fps | step 101.2 ms mean | `.venv/bin/python scripts/smoke_live.py` |
+| CoreML provider engine step rate, frames with 1-4 people (optional, reported separately) | 32.08 fps | 31.2 ms/frame over 42 frames; providers CoreMLExecutionProvider, CPUExecutionProvider | `.venv/bin/pulse bench speed --clip <dev clip> --out runs/bench/speed.json` |
 
 Full 5-minute eval clips, 960 px wide, cold perception as measured when the caches were built (`perception_seconds` in each cache's `meta.json`):
 

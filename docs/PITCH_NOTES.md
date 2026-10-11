@@ -47,7 +47,7 @@ same as the strength of established vendors: they have years of field data, and 
 From `docs/EVAL.md` (MEVA indoor clips, not showrooms): entry/exit count error 50.0% on test (target
 <= 10%, **missed**; 3.6% on dev); occupancy MAE 4.02 (target <= 0.5, **missed**); zone dwell median
 error 42.0% (target <= 10%, **missed**); journey accuracy 52.5% (target >= 80%, **missed**); live mode
-8.27 fps engine, 5.02 fps paced smoke (target >= 5, met); file mode 1.55x real time on a quiet
+8.02 fps engine, 5.01 fps paced smoke (target >= 5, met); file mode 1.52x real time on a quiet
 excerpt but 0.88x and 0.92x on two crowded 5-minute clips (partly met). The ground truth is a
 poor match to what we measure (activity-level annotation of people in a school), which explains much of
 the gap, but it also means **we do not yet have a showroom accuracy number**. The honest claim is:
