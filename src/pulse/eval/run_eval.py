@@ -300,7 +300,15 @@ def _load_json(path: Path) -> dict:
 # stops on hand-labelled stock clips
 
 def labelled_clips() -> list[Path]:
-    return sorted(p for p in (ROOT / "labels").glob("*.json") if p.name != "split.json")
+    out = []
+    for p in sorted((ROOT / "labels").glob("*.json")):
+        try:
+            d = json.loads(p.read_text())
+        except ValueError:
+            continue
+        if isinstance(d, dict) and "labeller" in d and "stops" in d:
+            out.append(p)
+    return out
 
 
 def _stops_video(clip: str) -> Path:
@@ -327,8 +335,14 @@ def evaluate_stops(label_path: Path, cfg: Config) -> dict:
     stable = filter_stable(tl, pc.segments)
     journeys = journey.build(stable, zones, cfg.preset)
     visits = [v for vs in journeys.values() for v in vs]
-    pr = stops_mod.precision_recall(visits, lab["stops"])
     dur = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
+    tol = 2.0
+    ivs = [(s.t0, min(s.t1, dur)) for s in pc.segments if s.stable and s.same_view and s.t0 < dur]
+    gt_u = stops_mod.usable_gt(lab["stops"], ivs, cfg.preset.stop_time)
+    pr = stops_mod.precision_recall(visits, lab["stops"], tol)
+    pr1 = stops_mod.precision_recall(visits, lab["stops"], tol, one_to_one=True)
+    pr_u = stops_mod.precision_recall(visits, gt_u, tol)
+    pr1_u = stops_mod.precision_recall(visits, gt_u, tol, one_to_one=True)
     usable = sum(max(0.0, min(s.t1, dur) - s.t0) for s in pc.segments if s.stable and s.same_view)
     return {
         "clip": clip, "labeller": lab["labeller"], "preset": cfg.preset.name, "duration": dur,
@@ -337,7 +351,8 @@ def evaluate_stops(label_path: Path, cfg: Config) -> dict:
         "pred_stops": [[v.person_id, v.zone_id, round(v.t_in, 1), round(v.t_out, 1)]
                        for v in sorted(visits, key=lambda v: (v.t_in, v.person_id)) if v.stopped],
         "gt_stops": [[g["visit_id"], g["zone_id"], g["t_start"], g["t_end"]] for g in lab["stops"]],
-        "pr": pr,
+        "pr": pr, "pr_1to1": pr1, "pr_usable": pr_u, "pr_1to1_usable": pr1_u,
+        "n_gt_usable": len(gt_u),
     }
 
 
@@ -376,10 +391,6 @@ def _stops_section(res: list[dict]) -> list[str]:
           "car-zone feature) is not evaluated on them either.")
         w("")
         return L
-    n_pred = sum(r["pr"]["n_pred"] for r in res)
-    n_gt = sum(r["pr"]["n_gt"] for r in res)
-    pm = sum(r["pr"]["pred_matched"] for r in res)
-    gm = sum(r["pr"]["gt_matched"] for r in res)
     tol = res[0]["pr"]["tol_s"]
     pre = res[0]["preset"]
     w(f"Stop = a person at a car zone with foot-point speed below `stop_speed` for at least `stop_time` "
@@ -389,22 +400,45 @@ def _stops_section(res: list[dict]) -> list[str]:
       "output for these clips was looked at, and nothing was tuned on them. Ours = `ZoneVisit.stopped` from "
       "the same `journey` code as everywhere else, run on the cached perception output (stable-camera "
       "samples only, every person scored as a customer, no role detection). A predicted stop matches a GT "
-      f"stop at the same zone when the intervals overlap within +-{tol:g} s. Matching is many-to-many: "
-      "precision = predicted stops matching any GT stop / predicted stops; recall = GT stops matched by any "
-      "predicted stop / GT stops. `n/a` = zero denominator.")
+      f"stop at the same zone when the intervals overlap within +-{tol:g} s. Two matchings are shown: "
+      "many-to-many (precision = predicted stops matching any GT stop / predicted stops; recall = GT stops "
+      "matched by any predicted stop / GT stops) and one-to-one (each stop used once, greedy by overlap). "
+      "`n/a` = zero denominator.")
     w("")
-    rows = []
-    for r in res:
-        q = r["pr"]
-        rows.append([r["clip"], f"{r['duration']:.1f} s", f"{r['usable_seconds']:.1f} s", str(r["n_gt_visits"]),
-                     f"{q['pred_matched']} / {q['n_pred']}", pct1(None if q["precision"] is None else q["precision"] * 100),
-                     f"{q['gt_matched']} / {q['n_gt']}", pct1(None if q["recall"] is None else q["recall"] * 100),
-                     f"`.venv/bin/pulse eval --out docs/EVAL.md` (labels/{r['clip']}.json)"])
-    rows.append(["**pooled**", "", "", "", f"{pm} / {n_pred}",
-                 f"**{pct1(pm / n_pred * 100 if n_pred else None)}**", f"{gm} / {n_gt}",
-                 f"**{pct1(gm / n_gt * 100 if n_gt else None)}**", CMD_STOPS])
-    L += _table(["clip", "length", "usable (stable, same view)", "GT visits", "predicted stops matched", "precision",
-                 "GT stops found", "recall", "reproduce"], rows)
+    def cell(k, n):
+        if not n:
+            return "n/a"
+        lo, hi = stops_mod.wilson(k, n)
+        return f"{k}/{n} = {k / n * 100:.0f}% (95% CI {lo * 100:.0f}-{hi * 100:.0f}%)"
+
+    def pooled(key, a, b):
+        return cell(sum(r[key][a] for r in res), sum(r[key][b] for r in res))
+
+    def table(prec_key, rec_key, rec_u_key, title):
+        w(title)
+        w("")
+        rows = []
+        for r in res:
+            q, qu = r[prec_key], r[rec_u_key]
+            rows.append([r["clip"], f"{r['duration']:.1f} s", f"{r['usable_seconds']:.1f} s",
+                         cell(q["pred_matched"], q["n_pred"]), cell(r[rec_key]["gt_matched"], r[rec_key]["n_gt"]),
+                         cell(qu["gt_matched"], qu["n_gt"])])
+        rows.append(["pooled", "", "", pooled(prec_key, "pred_matched", "n_pred"),
+                     pooled(rec_key, "gt_matched", "n_gt"), pooled(rec_u_key, "gt_matched", "n_gt")])
+        L.extend(_table(["clip", "length", "usable (stable, same view)", "precision",
+                         "recall, all GT stops", "recall, GT stops in usable time"], rows))
+
+    table("pr", "pr", "pr_usable", "**Many-to-many matching**")
+    table("pr_1to1", "pr_1to1", "pr_1to1_usable", "**One-to-one matching** (greedy by overlap)")
+    w(f"Reproduce: {CMD_STOPS}. Counts come first; intervals are Wilson 95% intervals and are wide because the "
+      "sample is tiny. **Recall over all GT stops mostly measures the camera-motion filter on "
+      "`wm-bangalore-04`**: the pipeline only scores samples whose view matches the keyframe (the `usable` "
+      "column), so GT stops in the panning part of the clip cannot be found. The last column keeps only GT "
+      f"stops with at least `stop_time` ({PRESETS[pre].stop_time:g} s) inside usable time; that is the number "
+      "that says whether stop detection works when the view is valid. Many-to-many lets one prediction "
+      "satisfy several GT stops: on `wm-bangalore-04` GT v2 (0-61 s) and v5 (41-61 s) share predictions, "
+      "which is why the one-to-one table is shown beside it.")
+    w("")
     w("Stops listed (GT `v<visit id>`, ours `p<predicted person id>`, each with zone and start-end):")
     w("")
     for r in res:

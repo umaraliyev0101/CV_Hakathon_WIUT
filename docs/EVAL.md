@@ -172,13 +172,25 @@ Do the GT enter (first frame) and exit (last frame) foot points fall inside one 
 
 ## Stops
 
-Stop = a person at a car zone with foot-point speed below `stop_speed` for at least `stop_time` (preset `short`: 3 s). Ground truth: `labels/<clip>.json` stops, made by viewing face-blurred frames sampled at 1 s, with hand-drawn car zones in `labels/zones/<clip>.json`; both carry `labeller: ai-agent, unreviewed`. The labels were written before the pipeline's stop output for these clips was looked at, and nothing was tuned on them. Ours = `ZoneVisit.stopped` from the same `journey` code as everywhere else, run on the cached perception output (stable-camera samples only, every person scored as a customer, no role detection). A predicted stop matches a GT stop at the same zone when the intervals overlap within +-2 s. Matching is many-to-many: precision = predicted stops matching any GT stop / predicted stops; recall = GT stops matched by any predicted stop / GT stops. `n/a` = zero denominator.
+Stop = a person at a car zone with foot-point speed below `stop_speed` for at least `stop_time` (preset `short`: 3 s). Ground truth: `labels/<clip>.json` stops, made by viewing face-blurred frames sampled at 1 s, with hand-drawn car zones in `labels/zones/<clip>.json`; both carry `labeller: ai-agent, unreviewed`. The labels were written before the pipeline's stop output for these clips was looked at, and nothing was tuned on them. Ours = `ZoneVisit.stopped` from the same `journey` code as everywhere else, run on the cached perception output (stable-camera samples only, every person scored as a customer, no role detection). A predicted stop matches a GT stop at the same zone when the intervals overlap within +-2 s. Two matchings are shown: many-to-many (precision = predicted stops matching any GT stop / predicted stops; recall = GT stops matched by any predicted stop / GT stops) and one-to-one (each stop used once, greedy by overlap). `n/a` = zero denominator.
 
-| clip | length | usable (stable, same view) | GT visits | predicted stops matched | precision | GT stops found | recall | reproduce |
-|---|---|---|---|---|---|---|---|---|
-| wm-bangalore-04 | 61.8 s | 24.2 s | 7 | 2 / 2 | 100.0% | 3 / 6 | 50.0% | `.venv/bin/pulse eval --out docs/EVAL.md` (labels/wm-bangalore-04.json) |
-| wm-bangalore-07 | 25.5 s | 13.4 s | 5 | 0 / 0 | n/a | 0 / 0 | n/a | `.venv/bin/pulse eval --out docs/EVAL.md` (labels/wm-bangalore-07.json) |
-| **pooled** |  |  |  | 2 / 2 | **100.0%** | 3 / 6 | **50.0%** | `.venv/bin/pulse eval --out docs/EVAL.md` |
+**Many-to-many matching**
+
+| clip | length | usable (stable, same view) | precision | recall, all GT stops | recall, GT stops in usable time |
+|---|---|---|---|---|---|
+| wm-bangalore-04 | 61.8 s | 24.2 s | 2/2 = 100% (95% CI 34-100%) | 3/6 = 50% (95% CI 19-81%) | 2/2 = 100% (95% CI 34-100%) |
+| wm-bangalore-07 | 25.5 s | 13.4 s | n/a | n/a | n/a |
+| pooled |  |  | 2/2 = 100% (95% CI 34-100%) | 3/6 = 50% (95% CI 19-81%) | 2/2 = 100% (95% CI 34-100%) |
+
+**One-to-one matching** (greedy by overlap)
+
+| clip | length | usable (stable, same view) | precision | recall, all GT stops | recall, GT stops in usable time |
+|---|---|---|---|---|---|
+| wm-bangalore-04 | 61.8 s | 24.2 s | 2/2 = 100% (95% CI 34-100%) | 2/6 = 33% (95% CI 10-70%) | 2/2 = 100% (95% CI 34-100%) |
+| wm-bangalore-07 | 25.5 s | 13.4 s | n/a | n/a | n/a |
+| pooled |  |  | 2/2 = 100% (95% CI 34-100%) | 2/6 = 33% (95% CI 10-70%) | 2/2 = 100% (95% CI 34-100%) |
+
+Reproduce: `.venv/bin/pulse eval --out docs/EVAL.md`. Counts come first; intervals are Wilson 95% intervals and are wide because the sample is tiny. **Recall over all GT stops mostly measures the camera-motion filter on `wm-bangalore-04`**: the pipeline only scores samples whose view matches the keyframe (the `usable` column), so GT stops in the panning part of the clip cannot be found. The last column keeps only GT stops with at least `stop_time` (3 s) inside usable time; that is the number that says whether stop detection works when the view is valid. Many-to-many lets one prediction satisfy several GT stops: on `wm-bangalore-04` GT v2 (0-61 s) and v5 (41-61 s) share predictions, which is why the one-to-one table is shown beside it.
 
 Stops listed (GT `v<visit id>`, ours `p<predicted person id>`, each with zone and start-end):
 
