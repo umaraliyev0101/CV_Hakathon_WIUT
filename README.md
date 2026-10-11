@@ -167,8 +167,9 @@ showroom-coach webcam-check                           :: grab one real camera fr
 showroom-coach fetch-models                           :: download weights, refresh models\MANIFEST.json
 showroom-coach bench-detectors --video <clip.avi> --geom <clip.geom.yml> --types <clip.types.yml>
 
-:: MEVA evaluation (needs the MEVA clips in data\meva, see data\TODO_DOWNLOADS.md and data\sources.csv)
-python -m showroom_coach.evaluation.meva_eval --clips data\meva\clips.csv --split dev --out runs\eval\meva_dev.json
+:: MEVA evaluation on the test clips with the settings tuned on dev (needs the MEVA clips in data\meva, see
+:: data\sources.csv). The full sequence (tuning, dev, oracle ablation, speed) is under "Reproduce" in docs\EVAL.md.
+showroom-coach eval-meva --split test --split-file data\meva\split.json --limit-seconds 150 --dist 2.5 --min-dur 8 --merge-thr 0.3 --out runs\eval\meva_test.json
 ```
 
 `scripts\live_file_client.py` streams a video file to `/ws/live` the way the browser does (a test of live mode that
@@ -180,11 +181,12 @@ needs no camera), and `scripts\webcam_grab.py` is the same as `webcam-check`. Th
 On the results page, "Add sales CSV (optional)" takes a file with one row per lead or sale: `salesperson,timestamp,sold`
 (`sold` is 1/0, yes/no or true/false; at most 10,000 rows and 1 MB). Each salesperson then gets `sold` and
 `conversion` (sold divided by customers engaged) in the scorecard and in `scorecard.csv`. A row belongs to the staff
-member with that name (typed on the confirm page; case and spacing are ignored) or `S<number>`, the label used in the
-video; names that match nobody are listed and ignored. [`docs/sample_sales.csv`](docs/sample_sales.csv) is **SYNTHETIC
-sample data** (invented names, dates and sales; every row says so in an extra `note` column, which is ignored) that only
-shows the format. Sales are not tied to the engagements the
-camera saw, so on a short clip the conversion can be above 100%; it is shown as computed.
+member with that name (typed on the confirm page; case, spacing, Unicode form and the style of apostrophe, as in
+o'g'il, o‘g‘il or oʻgʻil, are ignored) or `S<number>`, the label used in the video; names that match nobody are
+listed and ignored. [`docs/sample_sales.csv`](docs/sample_sales.csv) is **SYNTHETIC sample data** (invented names,
+dates and sales; every row says so in an extra `note` column, which is ignored) that only shows the format. Sales are
+not tied to the engagements the camera saw, so on a short clip the conversion can be above 100%; it is shown as
+computed.
 
 ### Tests
 
@@ -195,9 +197,10 @@ camera saw, so on a short clip the conversion can be above 100%; it is shown as 
 
 ## Results
 
-Everything below was measured on one Intel i5-10210U laptop (4 cores, 16 GB, no GPU), Windows 11. Other processes were
-sometimes loading the CPU during runs, so treat speeds as honest rather than best-case. The full log, with every
-decision, is in [PROGRESS.md](PROGRESS.md).
+Everything below was measured on one Intel i5-10210U laptop (4 cores, 16 GB, no GPU), Windows 11. The speed rows are
+the near-idle verification runs of [docs/EVAL.md](docs/EVAL.md) ("Speed (idle machine)", raw logs in `runs/verify/`)
+unless marked otherwise; speeds vary from run to run on this laptop, so read them as a range, not a promise. The full
+log, with every decision, is in [PROGRESS.md](PROGRESS.md).
 
 **MEVA evaluation numbers: see [docs/EVAL.md](docs/EVAL.md)** (tracking MOTA/IDF1, engagement against annotated
 conversations, arrival and leaving, with the commands to reproduce them). They are deliberately not repeated here.
@@ -206,12 +209,14 @@ Measured and already logged:
 
 | What | Measured | Note |
 |---|---|---|
-| Detector choice | YOLOX-nano on 2 tiles: 36 ms per frame, 26.8% recall. YOLOX-s on 2 tiles: 361 ms, 30.9% recall. | 60 frames of a MEVA school clip, score 0.3, IoU 0.5. MEVA only boxes annotated actors, so recall is understated for every model alike. The rule "fastest within 5 points of the best recall" picked YOLOX-nano on 2 tiles. |
-| File-mode speed, 60 s clip (about 11 people per frame, 960 px) | real-time factor 0.976 (61.5 s for 60 s) | The 1x target was **not** reached. |
-| File-mode speed, 5 min clip (1920x1072, about 12 people per frame) | real-time factor 0.713 (421 s for 300 s) | The 1x target was **not** reached. Pose and DINOv2 dominate the time. |
-| Rendering | the 60 s clip renders in 8.1 s (7.4x real time) | Face-blurred H.264 at 10 fps. |
+| Detector choice | YOLOX-nano on 2 tiles: 32 ms per frame (median), 26.9% recall (351 of 1303 boxes). YOLOX-s on 2 tiles: 322 ms, 31.0% recall (404 of 1303). | 60 frames of a MEVA school clip, score 0.3, IoU 0.5 (`runs/bench/detectors.json`; an earlier run logged 36 ms and 361 ms). MEVA only boxes annotated actors, so recall is understated for every model alike. The rule "fastest within 5 points of the best recall" picked YOLOX-nano on 2 tiles. |
+| File-mode speed, the spec benchmark (`meva_a_60s_720p`, 60 s, 12 people per frame, processed at 960x540) | real-time factor 0.87x (68.9 s of perception for 60 s, fresh run) | The 1x target was **missed** on the benchmark clip. Pose and DINOv2 take most of the time. |
+| File-mode speed, the same footage at 960 px (`meva_a_60s`) | 1.07x (56.2 s for 60 s) | The same footage as the row above, so the gap between 0.87x and 1.07x is run-to-run noise. |
+| File-mode speed, a busier clip (`meva_b_60s`, about 14 people per frame) | 0.56x (106.4 s for 60 s) | Another agent was running at the time, so possibly contended. |
+| Upload to staff confirmation (web app, 60 s clip) | 60.3 s on a near-idle machine; 122 s and 253 s in earlier runs with other work loading the CPU | Target under 3 minutes: met when idle, missed under load (the 253 s run). |
+| Rendering | 4.3x to 7.4x real time (the 60 s clip in 13.8 s and in 8.1 s) | Face-blurred H.264 at 10 fps. |
 | Re-scoring after a role change | 0.07 to 0.1 s | No detection is repeated. |
-| Live mode | 5.2 to 6.3 fps with about 4 people; about 3.2 fps with 11 to 15 people | Meets the 4 fps goal for small scenes only. |
+| Live mode (a MEVA cut with 3.8 people per frame) | 3.61 fps in the in-process bench; 4.45 fps end to end over the real WebSocket | Borderline: a run-to-run spread of 3.6 to 4.5 fps around the 4 fps target. Crowded scenes are slower (0.9 to 2.1 fps at 11 to 15 people per frame in earlier runs with other work on the machine, see EVAL.md). |
 | Distance model | pair distances within 0.1% on synthetic pinhole scenes at 1 to 4 m | This only proves the maths. Accuracy on real footage is **not measured**. |
 | Face blur | face-region standard deviation at most 9.2 with the blur against about 45 without it | Automated privacy guard test. |
 
@@ -227,7 +232,7 @@ installed package metadata on 2026-10-11 (versions in brackets) and from `models
 
 | component | licence | trained on (data) | where used |
 |---|---|---|---|
-| This repository's code | Apache-2.0 (declared in `pyproject.toml`) | not applicable | everything under `src/`, `tests/`, `scripts/` |
+| This repository's code | Apache-2.0 (full text in `LICENSE`, declared in `pyproject.toml`) | not applicable | everything under `src/`, `tests/`, `scripts/` |
 | numpy (2.5.4) | BSD-3-Clause (bundles 0BSD, MIT, Zlib, CC0-1.0 parts) | not applicable | array maths throughout |
 | scipy (1.18.1) | BSD-3-Clause | not applicable | declared dependency, also required by `supervision`; not imported by our own code |
 | opencv-python (5.0.0.93) | Apache-2.0; the wheel redistributes FFmpeg libraries under LGPL-2.1 (per its `LICENSE-3RD-PARTY.txt`) | not applicable | video decoding, resizing, drawing, face blur |
@@ -241,13 +246,14 @@ installed package metadata on 2026-10-11 (versions in brackets) and from `models
 | pyyaml (6.0.3) | MIT | not applicable | declared dependency, also required by `supervision`; not imported by our own code (MEVA annotations are read with plain parsers, never a YAML loader) |
 | tqdm (4.70.1) | MPL-2.0 AND MIT | not applicable | declared dependency, also required by `supervision`; not imported by our own code |
 | motmetrics (1.4.0) | MIT | not applicable | MOTA/IDF1 in the evaluation (`eval` extra, also in `dev`) |
-| httpx (0.28.1), pytest (9.1.1) | BSD-3-Clause, MIT | not applicable | development and tests only |
+| httpx (0.28.1) | BSD-3-Clause | not applicable | runtime dependency: the HTTP client of `scripts/smoke_api.py`; also behind FastAPI's test client in the tests |
+| pytest (9.1.1) | MIT | not applicable | development and tests only |
 | rtmlib 0.0.16 (code adapted, not a dependency) | Apache-2.0 | not applicable | `perception/rtm_onnx.py` ports the YOLOX and RTMPose pre/post-processing; rtmlib itself is not installed |
 | YOLOX nano, tiny, s (ONNX weights, Megvii) | Apache-2.0 | COCO 2017 | person detection (nano on 2 tiles is the default; tiny and s are benchmark candidates) |
 | RTMPose-s (ONNX, OpenMMLab, Body7 release) | Apache-2.0 (see note 2) | Body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18 | 17-keypoint pose: distance, facing, face-blur region |
 | DINOv2-small (int8 ONNX export, `Xenova/dinov2-small`) | Apache-2.0 | LVD-142M (Meta, self-supervised, no labels) | body-appearance embedding to merge track fragments and compare outfits |
 | RF-DETR-nano (third-party ONNX export, `saifkhichi96/opendetect`) | Apache-2.0 | COCO 2017 | detector benchmark only, not used by the app |
-| MEVA video and annotations (Kitware/IARPA) | CC BY 4.0 | not applicable (this is data) | evaluation only. Kept in `data/meva/`, never committed or shipped; derived demo cuts stay local too (see note 3) |
+| MEVA video and annotations (Kitware/IARPA) | CC BY 4.0 | not applicable (this is data) | evaluation and demo footage (attributed, see note 3). Kept in `data/meva/`, never committed or shipped; derived demo cuts stay local too |
 | Pexels stock clips | Pexels License (free for commercial use), if any are added | not applicable | none present: `data/stock/` was empty. Clips would be listed in `data/sources.csv` and never committed |
 
 Not in the table because they are installed only as dependencies of the rows above and are not imported by our code:
@@ -274,9 +280,9 @@ a bundle.
 3. **MEVA.** CC BY 4.0 allows commercial use with attribution. Cite: K. Corona, K. Osterdahl, R. Collins and A. Hoogs,
    "MEVA: A Large-Scale Multiview, Multimodal Video Dataset for Activity Detection", WACV 2021. Clips came from
    `mevadata-public-01.s3.amazonaws.com` and annotations from `gitlab.kitware.com/meva/meva-data-repo`; every item is
-   listed in `data/sources.csv`.
-4. The Apache-2.0 licence is declared in `pyproject.toml`; the full `LICENSE` text file has not been added to the
-   repository yet and should be before the repo is shared.
+   listed in `data/sources.csv`. Wherever a MEVA cut is shown as demo footage (on stage, in a screenshot or a
+   recording), show this attribution with it: "MEVA dataset, Kitware/IARPA, CC BY 4.0 (Corona et al., WACV 2021)".
+4. The code is licensed under the Apache License 2.0: the full text is in `LICENSE`, and `pyproject.toml` declares it.
 
 ## Privacy
 
@@ -308,8 +314,9 @@ a bundle.
   were never tuned on showroom data. Expect to correct some roles; that is why the one-click confirmation exists.
 - **MEVA is not a showroom.** Only the actors of annotated activities are boxed, so false-positive counts and
   tracking precision are pessimistic, and scenes are crowded in ways a showroom is not.
-- **Speed is CPU-only and measured on one laptop.** File mode ran below real time on both clips we timed (0.976 and
-  0.713), and live mode drops to about 3.2 fps with 11 to 15 people on screen.
+- **Speed is CPU-only and measured on one laptop.** File mode ran at 0.87x real time on the 720p benchmark clip, below
+  the 1x target (1.07x on the same footage in another run, 0.56x on a busier clip while the machine was shared). Live
+  mode ran at 3.6 to 4.5 fps with about 4 people, around the 4 fps target, and slower in crowded scenes.
 - **Distance is approximate.** It assumes a 1.70 m person and a 70 degree field of view, is flagged when it falls back to
   box height, and was only validated on synthetic scenes. Real accuracy is unmeasured.
 - **Detection misses are possible.** The small, fast detector misses some small, distant or heavily occluded people. A
@@ -349,6 +356,7 @@ Built for the WIUT Hackathon 2026 Computer Vision final (Jira YAK-44). The code 
 
 ```
 README.md               this file
+LICENSE                 Apache License 2.0 (the code)
 PROGRESS.md             progress log: measured numbers and every decision
 CLAUDE.md               project rules for the AI assistant (local only, permissive licences, privacy)
 pyproject.toml          package metadata and dependencies; pytest settings

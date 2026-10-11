@@ -11,6 +11,8 @@ They are free for commercial use under the Pexels License. Never commit them (`*
 After adding clips:
 1. Add one row per clip to `data/sources.csv` (`Pexels,<file>,https://www.pexels.com/video/<id>/,Pexels License (free commercial use),<author>,demo + agent labels,no`).
 2. Run `showroom-coach analyze data/stock/pexels-<id>.mp4 --out runs/stock/<id> --preset short`.
-3. Label the clip (`labels/<clip>.json`, see `docs/EVAL.md`) and run `showroom-coach eval-labels`.
+3. To evaluate a showroom clip (staff-suggestion accuracy, greet-time error), it needs ground-truth labels first: who is
+   staff, and when each customer was greeted or walked out. No labels and no scoring command exist yet; see "No showroom
+   footage" in `docs/EVAL.md`.
 
 MEVA evaluation clips are fetched by script (see `data/meva/clips.csv`, CC BY 4.0, Kitware/IARPA).

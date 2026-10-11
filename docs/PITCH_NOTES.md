@@ -20,32 +20,41 @@ Ground rules for everything said on stage:
 |---|---|---|---|---|
 | 1 | Title | "Showroom Coach: who was greeted, who waited, who walked out." Team, YAK-44. | One sentence: one camera in, coaching data per salesperson out, on a laptop. | presentation |
 | 2 | Problem | A customer walks in. Nobody says hello. They leave. Four questions a manager cannot answer today: how long did they wait, was someone free, did they leave unattended, how long did each conversation last. | The cost of an ungreeted walk-in is a lost sale nobody saw. Managers cannot watch every customer. (Start the demo upload now, see slide 3.) | impact |
-| 3 | Demo A: upload | Live product: upload clip, pick preset, confirm staff, results (annotated video, timeline, scorecard, alerts). | Narrate the four screens. Change one role and show the instant re-score. | innovation, presentation |
+| 3 | Demo A: upload | Live product: upload clip, pick preset, confirm staff, results (annotated video, timeline, scorecard, alerts). Credit line for a MEVA demo clip: "MEVA dataset, Kitware/IARPA, CC BY 4.0 (Corona et al., WACV 2021)". | Narrate the four screens. Change one role and show the instant re-score. | innovation, presentation |
 | 4 | Demo B: live | `/live` page with the webcam: boxes, timers, click a person to flip staff/customer. | Same engine as upload. Works in the browser with no install on the camera side. | technical complexity, presentation |
 | 5 | How it works | The pipeline diagram from the README (sources, perception, identity, geometry, roles, events, metrics, render). | CPU only: YOLOX-nano on two tiles, ByteTrack, RTMPose-s, DINOv2-small. Distances in metres with no calibration (pinhole model). One state machine for greet, wait, engagement, walk-out, party, handoff. | technical complexity |
 | 6 | Innovation: staff versus customer | Four features, one score, plain-language reasons, one click. A card: "Suggested: staff (78%). Same outfit as 2 others. Talked to 4 people." | The hard part of any showroom analytics is who is staff. The commercial leader does not disclose how. Ours is open, explainable, and a person has the last word. | innovation |
 | 7 | Compared with SKAIVISION | The comparison table in section 2 (pipeline, engagement rule, hardware, privacy, staff detection, cost). | Same measurement logic and the same 2 m / 2 min rule in our Dealership preset. They have scale and GPUs and 150+ dealerships; we run on a laptop and open the staff question. | innovation, impact |
 | 8 | Privacy by design | No face recognition. Faces blurred in every frame, thumbnail and live canvas. On-premise. Deleted after 24 h. Staff informed. Decision support only (ZRU-1115). | Privacy is the reason a showroom says yes. Appearance is only used to merge track fragments within one video, never stored as identity. | impact, technical complexity |
-| 9 | Results (honest) | Measured numbers from PROGRESS.md and EVAL.md only. See section 3. Plus a plain "What we have not measured yet". | Say the misses out loud: file mode ran at 0.976x and 0.713x real time, not 1x; live mode is 5.2 to 6.3 fps for small scenes and about 3.2 fps for crowded ones. No showroom data yet. Honesty is a feature here. | technical complexity, presentation |
+| 9 | Results (honest) | Measured numbers from PROGRESS.md and EVAL.md only. See section 3. Plus a plain "What we have not measured yet". | Say the misses out loud: file mode ran at 0.87x real time on the 720p benchmark clip, not 1x (1.07x on the same footage in another run, so that gap is run-to-run noise); live mode is 3.6 to 4.5 fps with about 4 people, borderline against the 4 fps goal, and slower in crowded scenes. No showroom data yet. Honesty is a feature here. | technical complexity, presentation |
 | 10 | ROI | The formula and one worked example, all inputs labelled "ASSUMPTION — replace with Royal Motors numbers". Break-even in cars per month. | Not a forecast. A model the partners fill in. At the example inputs the system pays for itself with about one extra car every four months. A pilot measures the real inputs. | ROI, impact |
 | 11 | Roadmap | Pilot, real numbers, sales-data join, car zones, calibration in the UI, Uzbek and Russian UI, multi-camera. | Next two weeks versus next two quarters. | impact |
 | 12 | Ask | A two-week pilot in one showroom: one camera, staff informed, a manager to review scorecards, the real ROI numbers. | What we need from Royal Motors Group and Ducati Tashkent, and what they get back. Close on the one-line promise. | impact, presentation |
 
 ### Demo script (about 3 minutes, slides 3 and 4)
 
-1. Before going on stage: run the demo clip through the app once, and keep that results page open in a second tab (job
-   data stays for 24 h). It is the fallback if the live analysis is slow or the network misbehaves.
-2. During slide 2, upload the clip on the main tab. Analysis takes about as long as the clip on this laptop (the 60 s
-   clip took 61.5 s), so a 60 s clip is ready by slide 3. A crowded 5-minute clip took 421 s: ask the jury for a clip of
+1. Before going on stage: run the demo clip through the app once, and keep that results page open in a second tab. It
+   is the fallback if the live analysis is slow or the network misbehaves. Jobs live in the server's memory, so **do
+   not restart the server after the pre-run**: a restarted server no longer knows the job ("Unknown job"), even though
+   its files stay on disk for 24 h. Also keep a command-line `showroom-coach analyze` output folder of the same clip
+   (`annotated.mp4`, `scorecard.csv`, `timeline.png`) as the offline fallback that needs no server at all.
+2. During slide 2, upload the clip on the main tab. Upload to the confirm step took 60.3 s for a 60 s clip on an idle
+   laptop, but 122 s to 253 s while other work was loading the CPU, so close everything else first. A crowded
+   5-minute clip took 421 s of perception in an earlier run with other work on the machine: ask the jury for a clip of
    about a minute, or trim it.
+   The demo clips are MEVA cuts: show the credit line "MEVA dataset, Kitware/IARPA, CC BY 4.0 (Corona et al., WACV 2021)" with them (on the slide or under the video).
 3. Confirm staff: point at one reason line, flip one role with one click, press "Looks right".
 4. Results: play the annotated video, show the timer over a waiting customer, the alert feed, the scorecard. Flip a
    role again to show the re-score taking a fraction of a second.
 5. `/live`: allow the camera, wait for two or three people to be confirmed, click one to flip the role, show the timers.
+   **Do not run an upload while `/live` is open**: both share the laptop's CPU, so the live page stalls. If it goes more
+   than 3 s without a processed frame (the "left after" time of the Short-clip preset), anyone the detector misses in the
+   next frame counts as having left, and an ungreeted customer as a walk-out. Finish the upload demo first, or close the
+   live tab while it runs.
 6. If the jury brings a video: mp4, mov or avi, up to about 5 minutes. Pick the "Short clip" preset for clips under a
    minute and "Dealership" for real dealership footage.
-7. If the webcam page fails: `scripts/live_file_client.py` feeds a video file through the same WebSocket, or fall back to
-   the pre-run results tab.
+7. If the webcam page fails: `scripts/live_file_client.py` feeds a video file through the same WebSocket (a MEVA cut
+   needs the same credit line: "MEVA dataset, Kitware/IARPA, CC BY 4.0 (Corona et al., WACV 2021)"), or fall back to the pre-run results tab.
 
 ## 2. SKAIVISION comparison
 
@@ -59,7 +68,7 @@ slides; anything they do not state is marked "not stated".
 | Engagement rule | Employee within 2 m of a customer for over 2 minutes | The same rule is the "Dealership" preset (2.0 m / 120 s). A "Short clip" preset (2.0 m / 8 s) exists for short demo clips. All thresholds are in one config file |
 | Waiting customers | Each customer gets an ID on entry and a timer runs until an employee interacts | Same idea: timer from entry, wait alert after 60 s (Dealership) that also names the staff who were free at that moment, and a walk-out event |
 | Tracking quality | Report that ByteTrack and BoT-SORT score 90% on public MOT benchmarks but about 65% in dealerships | We use ByteTrack plus an appearance-based merge of broken tracks. Our MEVA tracking numbers are in [EVAL.md](EVAL.md). We have no dealership footage, so no like-for-like comparison |
-| Hardware | An edge box with an 8 GB RTX 3050/4060 handles 15 SD cameras | One CPU-only laptop (Intel i5-10210U, no GPU), one camera. Measured: 0.976x real time on a 60 s clip, 0.713x on a crowded 5-minute clip; live 5.2 to 6.3 fps with about 4 people. Not like-for-like: they have scale, we have a low entry cost |
+| Hardware | An edge box with an 8 GB RTX 3050/4060 handles 15 SD cameras | One CPU-only laptop (Intel i5-10210U, no GPU), one camera. Measured on an idle machine: 0.87x real time on the 720p benchmark clip (12 people per frame; 1.07x on the same footage in another run); live 3.6 to 4.5 fps with about 4 people. Not like-for-like: they have scale, we have a low entry cost |
 | Privacy | Silhouettes only, no faces | No face recognition. Faces blurred in every rendered frame, thumbnail and the live canvas. On-premise, nothing leaves the machine, data deleted after 24 h |
 | Staff versus customer | Not stated in the slides | Open and explainable: four visible features, plain-language reasons, one click to confirm or flip. A person's correction always wins |
 | Cost | Not stated in the slides | Permissive open-source stack (Apache-2.0 code, no licence fee); cost is the hardware, set-up and support. See the ROI model |
@@ -70,14 +79,19 @@ What not to say: that we match their accuracy, scale or maturity.
 
 ## 3. Results slide: what may be quoted
 
-From [PROGRESS.md](../PROGRESS.md), measured on the i5-10210U laptop:
+From [PROGRESS.md](../PROGRESS.md) and the "Speed (idle machine)" table of [EVAL.md](EVAL.md), measured on the
+i5-10210U laptop:
 
-- Detector: YOLOX-nano on two tiles, 36 ms per frame and 26.8% recall, against YOLOX-s on two tiles at 361 ms and 30.9%
-  (MEVA school clip; recall is understated for every model because MEVA only boxes annotated actors).
-- File mode: real-time factor 0.976 (60 s clip, about 11 people) and 0.713 (5-minute clip, about 12 people). Both below
-  the 1x goal.
-- Rendering the annotated video: 7.4x real time. Re-scoring after a role change: 0.07 to 0.1 s.
-- Live mode: 5.2 to 6.3 fps with about 4 people; about 3.2 fps with 11 to 15 people.
+- Detector: YOLOX-nano on two tiles at 26.9% recall, against 31.0% for YOLOX-s on two tiles at about ten times the time
+  per frame (MEVA school clip; recall is understated for every model because MEVA only boxes annotated actors).
+- File mode: real-time factor 0.87x on the spec's 720p benchmark clip (60 s, 12 people per frame): the 1x goal was
+  missed. The same footage at 960 px gave 1.07x in another run, so the gap is run-to-run noise; a busier clip (about
+  14 people per frame) gave 0.56x, possibly slowed by other work on the machine.
+- Upload to the staff-confirmation step: 60.3 s for a 60 s clip on an idle machine (goal under 3 minutes: met); 122 s
+  to 253 s under load.
+- Rendering the annotated video: 4.3x to 7.4x real time. Re-scoring after a role change: 0.07 to 0.1 s.
+- Live mode: 3.61 fps in the in-process bench and 4.45 fps end to end over the WebSocket, at 3.8 people per frame: a
+  run-to-run spread of 3.6 to 4.5 fps, borderline against the 4 fps goal. Crowded scenes are slower.
 - Distance model: within 0.1% on synthetic scenes (maths only; real accuracy not measured).
 
 MEVA evaluation numbers: see [EVAL.md](EVAL.md). Copy them onto the slide from there, with their caveats.
@@ -201,7 +215,7 @@ gap. Cost barely matters. So the pilot should measure those two, not argue about
 | Privacy and legal | Cameras on staff and customers are sensitive | No face recognition; faces blurred in every output; on-premise; deleted after 24 h. Have counsel review local personal-data rules before a pilot |
 | Camera placement | Distance and detection quality depend on the angle. People cut off at the frame edge may not be detected and so not blurred; a low camera hides distances | Choose an angle showing full bodies and the entrance; keep people large in frame; use the optional manual floor calibration |
 | Accuracy on real data | Staff suggestion and distances were never tested on a showroom | Pilot with a manager reviewing roles (one click each); report measured error back honestly |
-| Speed | CPU-only: below real time on the clips we timed, about 3.2 fps live in crowded scenes | Offline analysis of recorded shifts is fine; for live, use a GPU or a faster CPU, or fewer people per camera |
+| Speed | CPU-only: 0.87x real time on the benchmark clip (1x missed), live 3.6 to 4.5 fps with about 4 people and slower in crowded scenes | Offline analysis of recorded shifts is fine; for live, use a GPU or a faster CPU, or fewer people per camera |
 | False alerts | A "walk-out" may be a browser who never wanted help | Alerts are prompts to look at a contact sheet, not verdicts |
 | The ROI inputs are guesses | A sceptical partner will see this at once | Say so on the slide; hand them the formula; replace every input from their records |
 | Licence follow-up | RTMPose-s training data and the bundled FFmpeg (GPL build) need review before commercial distribution | See notes 1 and 2 under the README licence table |
@@ -211,15 +225,15 @@ gap. Cost barely matters. So the pilot should measure those two, not argue about
 - **How do you know who is staff?** We do not know; we suggest. Four visible features (people in a similar outfit,
   distinct contacts, time on screen, who walked up to whom) give a score and plain reasons, and a person confirms or
   flips each role with one click. It has not been evaluated on real showroom data.
-- **How accurate is it?** Say what is measured: the MEVA numbers in EVAL.md, the speeds in PROGRESS.md. Say what is not:
+- **How accurate is it?** Say what is measured: the MEVA numbers and the idle-machine speeds in EVAL.md. Say what is not:
   roles and greet times on showroom footage. Do not round up.
 - **Why not a GPU?** The showroom already has a PC; a CPU-only laptop keeps the entry cost near zero. Speed on crowded
   scenes is a stated limitation.
 - **What about privacy and the law?** No face recognition, faces blurred everywhere, on-premise, 24-hour deletion,
   staff informed, decision support under the 2026 AI law (ZRU-1115). Counsel should review before a pilot.
-- **Is the data legal?** Yes: MEVA (CC BY 4.0) for evaluation only, never shipped; no ultralytics or boxmot; no re-ID
-  weights trained on Market-1501, DukeMTMC or MSMT17. Open item: the training-data terms behind RTMPose-s and the GPL
-  FFmpeg build (README licence table notes).
+- **Is the data legal?** Yes: MEVA for evaluation and demo footage (CC BY 4.0, attributed), never shipped; no
+  ultralytics or boxmot; no re-ID weights trained on Market-1501, DukeMTMC or MSMT17. Open item: the training-data terms
+  behind RTMPose-s and the GPL FFmpeg build (README licence table notes).
 - **Did you use partner footage?** No. None was available or used.
 - **Who wrote it?** Written during the hackathon with AI assistance (Claude Code); see the pre-final declaration in the
   README.

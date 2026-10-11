@@ -10,8 +10,11 @@ annotated person boxes at all. Where an actor is followed, arrival and leaving a
 not be evaluated because there is no labelled showroom footage. With the ground-truth boxes in place of the detections
 (the oracle ablation) the same engagement rule reaches 44.1% talk recall (twin-aware; 32.3% strict) on test, so detection and tracking account for
 most of the gap, but the rule alone is also under the target at the settings tested on test. On a near-idle machine file
-mode runs at 1.07x real time on a 60 s clip at 960 px and 0.87x on a 12-person 720p clip, live mode at 3.61 fps in process
-and 4.45 fps end to end over the WebSocket (3.8 people per frame), and a 60 s upload reaches the confirm step in 60.3 s.
+mode runs at 0.87x real time on the spec's 720p benchmark clip (12 people per frame), under the 1x target; the same
+footage at 960 px gave 1.07x in another run, so the gap is run-to-run noise, and a busier 60 s clip (about 14 people per
+frame) gave 0.56x while another agent was running. Live mode runs at 3.6 to 4.5 fps at 3.8 people per frame (3.61 fps in
+process, 4.45 fps end to end over the WebSocket), around the 4 fps target. A 60 s upload reaches the confirm step in 60.3 s
+(122 s and 253 s in earlier runs under load).
 The test clips were used more than once; see "Test-set exposure".
 
 ## Data
@@ -489,7 +492,9 @@ was run while another agent was working, marked below). The commands are `showro
 
 The in-process and WebSocket live figures are on the same clip but are different measurements: the first times
 `LiveSession.process` alone, the second counts the whole round trip of a frame (the server's own mean of 7.90 fps is an
-average of per-frame rates and is not comparable). The two straddle the 4 fps target.
+average of per-frame rates and is not comparable). Read them as a run-to-run spread of 3.6 to 4.5 fps around the 4 fps
+target: the WebSocket run was the faster one, and it slowed mid-run (4.5 to 5.8 overlays per second in its first
+12 s, 3.4 to 4.2 after that; `runs/verify/live_client.txt`).
 
 (The command that produces these figures is `showroom-coach bench`; see "Reproduce".)
 
@@ -500,9 +505,9 @@ average of per-frame rates and is not comparable). The two straddle the 4 fps ta
 | Talk / engagement recall >= 70% on MEVA | **System:** 1.1% test twin-aware (4 of 358), 0.5% strict (2 of 390); 13.3% when both actors are followed; dev 4.1%. **Oracle tracks (perfect detection and tracking):** 44.1% test twin-aware, 32.3% strict at 2.5 m / 8 s; dev 52.3%. A recall-first setting reaches 79% to 80% on the oracle dev grid (3.0 m, 2 to 4 s) at 13% to 18% precision; it was not run on test | ❌ missed, with and without perfect tracking |
 | Staff suggestion >= 80% correct | not measurable: no labelled showroom data | not measured |
 | Greet-time median error <= 2 s | not measurable: no labelled showroom data | not measured |
-| File mode >= 1x real time | 1.07x on the 60 s 960 px clip `meva_a_60s` (31 persons); 0.87x on the 12-person 720p cut of it; 0.56x on a 14-person 60 s clip (`meva_b_60s`, possibly contended). Earlier, with other work on the machine: 0.98x and 0.71x (5 min, 12 people) | ✅ on one clip, ❌ on the other two |
-| Live mode >= 4 fps (1 to 4 people) | On the 3.8-person clip: 4.45 fps end to end over the real WebSocket, 3.61 fps in the in-process bench. Earlier, with other work on the machine, 0.9 to 3.9 fps over all runs with retained logs (3.5 fps at best on frames with 1 to 4 people) | borderline: ✅ over the WebSocket, ❌ in process |
-| Upload to results in under 3 minutes (spec section 12) | 60.3 s from upload to the confirm step for the 60 s clip `meva_a_60s` (roles round trip 0.14 s, annotated video 12.2 s later) | ✅ met |
+| File mode >= 1x real time | **0.87x on the spec benchmark** `meva_a_60s_720p` (720p, 12 people per frame, fresh run). 1.07x on the same footage at 960 px (`meva_a_60s`, 31 persons), so the difference is run-to-run noise; 0.56x on a 14-person 60 s clip (`meva_b_60s`, possibly contended). Earlier, with other work on the machine: 0.98x and 0.71x (5 min, 12 people) | ❌ missed on the benchmark (0.87x) |
+| Live mode >= 4 fps (1 to 4 people) | On the 3.8-person clip: 3.61 fps in the in-process bench and 4.45 fps end to end over the real WebSocket, a run-to-run spread of 3.6 to 4.5 fps (the WebSocket run was the faster one and slowed mid-run). Earlier, with other work on the machine, 0.9 to 3.9 fps over all runs with retained logs (3.5 fps at best on frames with 1 to 4 people) | borderline: 3.6 to 4.5 fps around the target |
+| Upload to results in under 3 minutes (spec section 12) | 60.3 s from upload to the confirm step for the 60 s clip `meva_a_60s` on a near-idle machine (roles round trip 0.14 s, annotated video 12.2 s later). Under load (other agents running), earlier runs took 122 s (`meva_a_60s`) and 253 s (`meva_b_60s`) | ✅ met when idle; ❌ under load (253 s) |
 
 Other measured values, with no target: tracking IDF1 13.5% (persons) and 15.5% (raw tracks), MOTA -27.4% and -28.1% on
 test; enter/exit recall 20.6% twin-aware (2.9% strict) with a median absolute timing error of 0.8 s over the 7 matched events.
