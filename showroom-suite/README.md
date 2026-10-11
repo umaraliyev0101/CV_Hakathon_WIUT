@@ -1,4 +1,11 @@
-# Showroom Suite: Coach and Pulse on one demo page (YAK-45)
+# Showroom Suite: Coach and Pulse on one demo page
+
+**New (YAK-46): `studio/` is the merged site.** One design, one navigation (Live floor, Replays, Team, Visitors,
+Insights), with Coach and Pulse as two lenses on the same showroom floor instead of two embedded apps. It runs on
+demo data out of the box. [CONNECTING.md](CONNECTING.md) explains how to wire each section to the real servers.
+Run it with `python -m http.server 8080 -d showroom-suite/studio`.
+
+The rest of this file describes the earlier split-view page (`index.html`), which embeds both apps side by side.
 
 `index.html` is one static page that shows both hackathon features side by side:
 
