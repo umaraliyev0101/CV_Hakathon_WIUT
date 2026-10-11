@@ -105,9 +105,43 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
         cap.release()
 
 
+MAX_JPEG_PIXELS = 16_000_000
+MAX_JPEG_SIDE = 8192
+
+
+def _jpeg_dims(data: bytes) -> tuple[int, int]:
+    """(width, height) from the first SOF marker, without decoding. ValueError if not a JPEG."""
+    if data[:2] != b"\xff\xd8":
+        raise ValueError("not a JPEG image")
+    i, n = 2, len(data)
+    while i + 4 <= n:
+        if data[i] != 0xFF:
+            i += 1
+            continue
+        m = data[i + 1]
+        if m == 0xFF:
+            i += 1
+            continue
+        if m in (0x01, 0xD8) or 0xD0 <= m <= 0xD7:
+            i += 2
+            continue
+        if m == 0xD9 or m == 0xDA:                     # EOI / start of scan: no SOF before it
+            break
+        seg = int.from_bytes(data[i + 2:i + 4], "big")
+        if 0xC0 <= m <= 0xCF and m not in (0xC4, 0xC8, 0xCC):
+            if i + 9 > n:
+                break
+            return int.from_bytes(data[i + 7:i + 9], "big"), int.from_bytes(data[i + 5:i + 7], "big")
+        i += 2 + max(seg, 2)
+    raise ValueError("not a decodable image")
+
+
 def decode_jpeg(data: bytes, max_width: int = 960) -> np.ndarray:
     if not data:
         raise ValueError("empty image data")
+    w, h = _jpeg_dims(data)                            # reject decompression bombs before decoding
+    if w < 1 or h < 1 or w > MAX_JPEG_SIDE or h > MAX_JPEG_SIDE or w * h > MAX_JPEG_PIXELS:
+        raise ValueError("image dimensions too large")
     try:
         img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     except cv2.error as e:

@@ -11,12 +11,14 @@ import inspect
 import json
 import logging
 import math
+import os
 import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
@@ -42,6 +44,17 @@ CHUNK = 1024 * 1024
 ZONE_KINDS = ("car", "desk", "entrance", "lounge", "other")
 ROLES = ("staff", "customer")
 MIN_ZONE_AREA = 1e-4
+MAX_ZONES = 50
+MAX_POLY_POINTS = 200
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_HOSTS = ("localhost", "127.0.0.1", "[::1]", "testserver")
+WS_MAX_FRAME = 2 * 1024 * 1024        # live JPEG frame
+WS_MAX_TEXT = 64 * 1024               # live control message
+WS_MAX_ZONE_FILE = 1_000_000
+WS_IDLE_S = 120.0                     # no message from the client for this long: close
+WS_SEND_S = 10.0                      # a client that stops reading is dropped
+WS_MAX_BAD = 5                        # consecutive oversize messages before the socket is closed
+WS_MAX_SIZE = 2 * WS_MAX_FRAME        # pass as uvicorn ws_max_size (--ws-max-size) when serving
 SKIP_WARNING = "Roles skipped: everyone counted as a customer"
 
 
@@ -53,6 +66,8 @@ def validate_zones(doc) -> list[Zone]:
     """Zone file dict -> Zones, or ZoneError with a human-readable reason."""
     if not isinstance(doc, dict) or not isinstance(doc.get("zones"), list):
         raise ZoneError("Body must be an object with a 'zones' list")
+    if len(doc["zones"]) > MAX_ZONES:
+        raise ZoneError(f"At most {MAX_ZONES} zones are allowed")
     zones, seen = [], set()
     for i, z in enumerate(doc["zones"], 1):
         if not isinstance(z, dict):
@@ -70,6 +85,8 @@ def validate_zones(doc) -> list[Zone]:
             raise ZoneError(f"{label}: kind must be one of {', '.join(ZONE_KINDS)}")
         if not isinstance(poly, list) or len(poly) < 3:
             raise ZoneError(f"{label}: polygon needs at least 3 points")
+        if len(poly) > MAX_POLY_POINTS:
+            raise ZoneError(f"{label}: at most {MAX_POLY_POINTS} points per polygon")
         pts = []
         for p in poly:
             ok = (isinstance(p, (list, tuple)) and len(p) == 2
@@ -81,6 +98,41 @@ def validate_zones(doc) -> list[Zone]:
             raise ZoneError(f"{label}: polygon area is too small")
         zones.append(Zone(zid, name.strip(), kind, pts, "user"))
     return zones
+
+
+def host_name(hostport: str) -> str:
+    """'Localhost:8000' -> 'localhost', '[::1]:8000' -> '[::1]'."""
+    h = (hostport or "").strip().lower()
+    if h.startswith("["):
+        return h[:h.find("]") + 1] if "]" in h else h
+    return h.split(":")[0]
+
+
+def allowed_hosts() -> set[str]:
+    extra = {host_name(x) for x in os.environ.get("PULSE_ALLOWED_HOSTS", "").split(",") if x.strip()}
+    return set(DEFAULT_HOSTS) | extra
+
+
+class HostOriginGuard:
+    """HTTP only: unknown Host header -> 400 (DNS rebinding); unsafe method with a foreign Origin
+    -> 403 (cross-site form posts). WebSockets are checked inside the route, before accept()."""
+
+    def __init__(self, app, hosts: set[str]):
+        self.app, self.hosts = app, hosts
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+            host = headers.get("host", "")
+            resp = None
+            if host_name(host) not in self.hosts:
+                resp = JSONResponse({"error": "Host not allowed"}, status_code=400)
+            elif scope["method"] not in ("GET", "HEAD", "OPTIONS") and "origin" in headers \
+                    and urlparse(headers["origin"]).netloc.lower() != host.lower():
+                resp = JSONResponse({"error": "Cross-origin request rejected"}, status_code=403)
+            if resp is not None:
+                return await resp(scope, receive, send)
+        await self.app(scope, receive, send)
 
 
 def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
@@ -127,6 +179,9 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
         executor.shutdown(wait=False, cancel_futures=True)
 
     app = FastAPI(title="Showroom Pulse", lifespan=lifespan)
+    hosts = allowed_hosts()
+    app.state.allowed_hosts = hosts
+    app.add_middleware(HostOriginGuard, hosts=hosts)
     app.state.jobs_dir = jobs_dir
     app.state.store = store
 
@@ -240,37 +295,77 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
         return FileResponse(STATIC / "live.html")
 
     def live_zone_file(raw) -> Path:
-        """A zone file path from a live client: only files inside labels/zones/ or jobs/."""
+        """A zone file path from a live client: an existing .json (<= 1 MB) under labels/zones/ of the
+        repo or under the jobs dir. Relative paths are taken from the repo root, never the CWD."""
         if not isinstance(raw, str) or not raw or "\x00" in raw:
             raise ZoneError("load_zones needs a path")
-        allowed = [Path("labels/zones").resolve(), jobs_dir.resolve()]
-        p = Path(raw).resolve()                          # resolve() follows symlinks and '..'
-        if not any(p.is_relative_to(a) for a in allowed) or not p.is_file():
-            raise ZoneError("Zone files must be existing files under labels/zones/ or jobs/")
+        allowed = [(REPO_ROOT / "labels" / "zones").resolve(), jobs_dir.resolve()]
+        try:
+            p = (Path(raw) if Path(raw).is_absolute() else REPO_ROOT / raw).resolve()  # follows '..', symlinks
+            ok = (any(p.is_relative_to(a) for a in allowed) and p.suffix == ".json" and p.is_file()
+                  and p.stat().st_size <= WS_MAX_ZONE_FILE)
+        except OSError:
+            ok = False
+        if not ok:
+            raise ZoneError("Zone files must be .json files (up to 1 MB) under labels/zones/ or jobs/")
         return p
+
+    def step_locked(session, t, frame):
+        with live_lock:                          # the engine is shared: one step at a time
+            return session.step(t, frame)
+
+    def make_session(engine):
+        from pulse.live import LiveSession
+        with live_lock:
+            return LiveSession(get_config("short"), engine)   # resets the engine once
+
+    def release_slot_later() -> None:
+        """A cancelled step keeps running in its thread: free the slot only once it has finished."""
+        def run():
+            with live_lock:
+                live_state["active"] = False
+        threading.Thread(target=run, name="pulse-live-release", daemon=True).start()
 
     @app.websocket("/ws/live")
     async def ws_live(ws: WebSocket):
-        from pulse.live import LiveSession
+        host = ws.headers.get("host", "")
+        origin = ws.headers.get("origin")
+        if host_name(host) not in hosts or (origin is not None
+                                            and urlparse(origin).netloc.lower() != host.lower()):
+            await ws.close(code=1008)               # cross-site / rebinding attempt: never accepted
+            return
         await ws.accept()
         if live_state["active"]:
             await ws.send_json({"type": "error", "message": "Another live session is already running"})
             await ws.close(code=1013)
             return
         live_state["active"] = True
-        send_lock = asyncio.Lock()
+        worker_task = None
 
         async def send(msg: dict) -> None:
-            async with send_lock:
-                await ws.send_json(msg)
+            await asyncio.wait_for(ws.send_json(msg), WS_SEND_S)
 
         try:
-            engine = await run_in_threadpool(get_live_engine)
-            session = LiveSession(get_config("short"), engine)
-            await run_in_threadpool(session.engine.reset)
+            try:
+                engine = await run_in_threadpool(get_live_engine)
+                session = await run_in_threadpool(make_session, engine)
+            except Exception:  # noqa: BLE001 - reported to the client, logged here
+                log.exception("live engine unavailable")
+                await send({"type": "error", "message": "Live engine unavailable"})
+                await ws.close(code=1011)
+                return
             t0 = time.monotonic()
             pending: dict = {"data": None, "t": 0.0}
             wake = asyncio.Event()
+            bad = {"n": 0}
+
+            async def reject(message: str) -> bool:
+                bad["n"] += 1
+                await send({"type": "error", "message": message})
+                if bad["n"] >= WS_MAX_BAD:
+                    await ws.close(code=1009)
+                    return True
+                return False
 
             async def control(text: str) -> None:
                 try:
@@ -306,47 +401,74 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
 
             async def reader() -> None:
                 while True:
-                    msg = await ws.receive()
+                    try:
+                        msg = await asyncio.wait_for(ws.receive(), WS_IDLE_S)
+                    except asyncio.TimeoutError:
+                        await ws.close(code=1001)       # idle client must not hold the only slot
+                        return
                     if msg["type"] == "websocket.disconnect":
                         return
-                    if msg.get("bytes") is not None:
+                    data, text = msg.get("bytes"), msg.get("text")
+                    if data is not None:
+                        if len(data) > WS_MAX_FRAME:
+                            if await reject("Frame too large (limit 2 MB)"):
+                                return
+                            continue
+                        bad["n"] = 0
                         if pending["data"] is not None:
                             session.dropped += 1          # newest frame wins; the stale one is dropped
-                        pending["data"], pending["t"] = msg["bytes"], time.monotonic() - t0
+                        pending["data"], pending["t"] = data, time.monotonic() - t0
                         wake.set()
-                    elif msg.get("text") is not None:
-                        await control(msg["text"])
+                    elif text is not None:
+                        if len(text) > WS_MAX_TEXT:
+                            if await reject("Control message too large (limit 64 KB)"):
+                                return
+                            continue
+                        bad["n"] = 0
+                        await control(text)
 
             async def worker() -> None:
-                while True:
-                    await wake.wait()
-                    wake.clear()
-                    data, t = pending["data"], pending["t"]
-                    pending["data"] = None
-                    if data is None:
-                        continue
+                try:
+                    while True:
+                        await wake.wait()
+                        wake.clear()
+                        data, t = pending["data"], pending["t"]
+                        pending["data"] = None
+                        if data is None:
+                            continue
+                        try:
+                            frame = await run_in_threadpool(sources.decode_jpeg, data,
+                                                            session.cfg.max_width)
+                        except ValueError:
+                            await send({"type": "error", "message": "Frame is not a decodable JPEG"})
+                            continue
+                        try:
+                            overlay = await asyncio.to_thread(step_locked, session, t, frame)
+                        except Exception:  # noqa: BLE001 - one bad frame must not end the session
+                            log.exception("live step failed")
+                            await send({"type": "error", "message": "Frame analysis failed"})
+                            continue
+                        await send(overlay)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:  # noqa: BLE001 - a dead socket ends the worker, never silently
+                    log.warning("live send failed; closing session", exc_info=True)
                     try:
-                        frame = await run_in_threadpool(sources.decode_jpeg, data, session.cfg.max_width)
-                    except ValueError:
-                        await send({"type": "error", "message": "Frame is not a decodable JPEG"})
-                        continue
-                    try:
-                        overlay = await asyncio.to_thread(session.step, t, frame)
-                    except Exception:  # noqa: BLE001 - one bad frame must not end the session
-                        log.exception("live step failed")
-                        await send({"type": "error", "message": "Frame analysis failed"})
-                        continue
-                    await send(overlay)
+                        await ws.close(code=1008)
+                    except Exception:  # noqa: BLE001
+                        pass
 
             worker_task = asyncio.create_task(worker())
             try:
-                await reader()               # returns when the client disconnects
+                await reader()               # returns when the client disconnects or is dropped
             finally:
                 worker_task.cancel()
-        except (WebSocketDisconnect, RuntimeError):
+        except WebSocketDisconnect:
             pass
+        except Exception:  # noqa: BLE001
+            log.exception("live session crashed")
         finally:
-            live_state["active"] = False
+            release_slot_later()
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 

@@ -57,6 +57,7 @@ class LiveSession:
         self._persons: dict[int, _Person] = {}
         self._obs: dict[int, list[TrackObs]] = {}           # person -> observations in the window
         self._track_person: dict[int, int] = {}
+        self._track_seen: dict[int, float] = {}
         self._next_pid = 1
         self._frame_idx = 0
         self._boxes: list[tuple[int, tuple[float, float, float, float]]] = []
@@ -130,6 +131,11 @@ class LiveSession:
                 d.pop(pid, None)
             for tid in [k for k, v in self._track_person.items() if v == pid]:
                 del self._track_person[tid]
+                self._track_seen.pop(tid, None)
+            self.roles.pop(pid, None)
+        for tid in [k for k, seen in self._track_seen.items() if seen < cutoff]:
+            self._track_person.pop(tid, None)           # a long-silent track id never comes back
+            del self._track_seen[tid]
         for pid, ss in self.timeline.items():
             if ss and ss[0].t < cutoff:
                 self.timeline[pid] = [s for s in ss if s.t >= cutoff]
@@ -155,6 +161,7 @@ class LiveSession:
                 if pid is None:
                     continue
                 self._obs.setdefault(pid, []).append(o)
+                self._track_seen[o.track_id] = t
                 if pid not in visible or o.score > visible[pid].score:
                     visible[pid] = o
             for pid, o in visible.items():

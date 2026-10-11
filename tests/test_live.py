@@ -167,6 +167,8 @@ def test_ws_bad_control_messages(client):
 
 
 def test_ws_load_zones_from_allowed_dir(client, tmp_path, monkeypatch):
+    from pulse.app import main as _m
+    monkeypatch.setattr(_m, "REPO_ROOT", tmp_path)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "labels" / "zones").mkdir(parents=True)
     doc = {"version": 1, "zones": [CAR.to_dict()]}
@@ -194,3 +196,123 @@ def test_ws_drops_stale_frames_when_behind(tmp_path):
         last = ws.receive_json()
         assert first["type"] == last["type"] == "overlay"
         assert last["dropped"] >= 5 and last["t"] > first["t"]
+
+
+# ------------------------------------------------------------------ fix round 1: security
+import struct
+
+from starlette.websockets import WebSocketDisconnect
+
+from pulse import sources
+from pulse.app import main as main_mod
+
+
+def fake_jpeg_header(w, h):
+    sof = b"\xff\xc0" + struct.pack(">HBHHB", 11, 8, h, w, 1) + b"\x01\x11\x00"
+    return b"\xff\xd8" + sof + b"\xff\xd9"
+
+
+def test_decode_rejects_bomb_and_non_jpeg():
+    with pytest.raises(ValueError):
+        sources.decode_jpeg(fake_jpeg_header(60000, 60000))
+    with pytest.raises(ValueError):
+        sources.decode_jpeg(fake_jpeg_header(9000, 100))
+    ok, png = cv2.imencode(".png", frame())
+    with pytest.raises(ValueError):
+        sources.decode_jpeg(png.tobytes())            # only JPEG is accepted on the live path
+
+
+def test_ws_foreign_origin_rejected_and_same_origin_ok(client):
+    with pytest.raises(WebSocketDisconnect) as e:
+        with client.websocket_connect("/ws/live", headers={"origin": "http://evil.example"}):
+            pass
+    assert e.value.code == 1008
+    with client.websocket_connect("/ws/live", headers={"origin": "http://testserver"}) as ws:
+        ws.send_bytes(jpeg())
+        assert ws.receive_json()["type"] == "overlay"
+
+
+def test_foreign_host_rejected_http_and_ws(client):
+    assert client.get("/api/health", headers={"host": "evil.example"}).status_code in (400, 403)
+    assert client.get("/api/health", headers={"host": "localhost:8000"}).status_code == 200
+    assert client.get("/api/health", headers={"host": "[::1]:8000"}).status_code == 200
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/live", headers={"host": "evil.example"}):
+            pass
+
+
+def test_cross_origin_post_rejected(client):
+    r = client.post("/api/jobs", files={"file": ("a.mp4", b"x", "video/mp4")},
+                    headers={"origin": "http://evil.example"})
+    assert r.status_code == 403
+    r = client.get("/api/health", headers={"origin": "http://evil.example"})
+    assert r.status_code == 200                        # reads of other origins stay blocked by the browser
+
+
+def test_allowed_hosts_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("PULSE_ALLOWED_HOSTS", "192.168.1.20, demo.local")
+    c = TestClient(create_app(jobs_dir=tmp_path / "j", engine_factory=lambda: StubEngine(lambda t: [])))
+    assert c.get("/api/health", headers={"host": "192.168.1.20:8000"}).status_code == 200
+    assert c.get("/api/health", headers={"host": "other.example"}).status_code in (400, 403)
+
+
+def test_ws_oversize_messages_rejected_connection_kept(client):
+    with client.websocket_connect("/ws/live") as ws:
+        ws.send_bytes(b"\xff\xd8" + b"0" * (2 * 1024 * 1024 + 1))
+        assert ws.receive_json()["type"] == "error"
+        ws.send_text(json.dumps({"type": "zones", "zones": [], "pad": "x" * 70000}))
+        assert ws.receive_json()["type"] == "error"
+        ws.send_bytes(jpeg())
+        assert ws.receive_json()["type"] == "overlay"
+
+
+def test_zone_caps():
+    from pulse.app.main import ZoneError, validate_zones
+    z = CAR.to_dict()
+    with pytest.raises(ZoneError):
+        validate_zones({"zones": [dict(z, zone_id=f"z{i}") for i in range(51)]})
+    with pytest.raises(ZoneError):
+        validate_zones({"zones": [dict(z, polygon=[[0.1 + 0.0001 * (i % 2), 0.1 + 0.8 * i / 300]
+                                                   for i in range(201)])]})
+    assert len(validate_zones({"zones": [dict(z, zone_id=f"z{i}") for i in range(50)]})) == 50
+
+
+def test_load_zones_json_only_size_and_repo_root(client, tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    (root / "labels" / "zones").mkdir(parents=True)
+    monkeypatch.setattr(main_mod, "REPO_ROOT", root)
+    monkeypatch.chdir(tmp_path)                        # CWD must not matter
+    doc = json.dumps({"version": 1, "zones": [CAR.to_dict()]})
+    (root / "labels" / "zones" / "ok.json").write_text(doc)
+    (root / "labels" / "zones" / "a.txt").write_text(doc)
+    (root / "labels" / "zones" / "big.json").write_text(" " * 1_100_000 + doc)
+    with client.websocket_connect("/ws/live") as ws:
+        for path, good in (("labels/zones/ok.json", True), ("labels/zones/a.txt", False),
+                           ("labels/zones/big.json", False)):
+            ws.send_text(json.dumps({"type": "load_zones", "path": path}))
+            assert ws.receive_json()["type"] == ("zones" if good else "error"), path
+
+
+def test_engine_failure_reports_error(tmp_path):
+    def boom():
+        raise RuntimeError("model missing")
+    c = TestClient(create_app(jobs_dir=tmp_path / "j", engine_factory=boom))
+    with c.websocket_connect("/ws/live") as ws:
+        m = ws.receive_json()
+        assert m == {"type": "error", "message": "Live engine unavailable"}
+        with pytest.raises(WebSocketDisconnect) as e:
+            ws.receive_json()
+        assert e.value.code == 1011
+
+
+def test_stale_track_bookkeeping_pruned():
+    ids = iter(range(1, 1000))
+    cur = {"id": 1}
+
+    def script(t):
+        if int(t * 5) % 10 == 0:                       # new track id every 2 s, same person
+            cur["id"] = next(ids) + 100
+        return [(cur["id"], BOX)]
+    s = LiveSession(get_config("short"), StubEngine(script), zones=[CAR], window_s=5.0)
+    run(s, 30.0)
+    assert len(s._track_person) <= 5
