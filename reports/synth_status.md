@@ -4,7 +4,7 @@ Status: **2026-10-11 08:45 (+05)**. The share pack passes every gate:
 - `python sim/verify.py --all` ends with **VERIFY: PASS (32/32 gates)**; full output in §6;
 - `reports/synth_visual_review.md` marks all 12 visual items as pass for all 8 shared clips.
 
-More scenes are still rendering in the background (§4).
+All 12 scenes have finished rendering (§3, §4).
 
 ## 1. What works
 
