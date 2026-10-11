@@ -275,6 +275,7 @@ Other: MOTA negative on every clip (MEVA annotates only activity participants); 
 - "Skip" in the staff step = everyone counted as customer (spec §3), with a warning.
 - Dev/test split fixed at plan time; dev-only tuning restricted to the two post-cache merge knobs; merge_sim_thr 0.75 → 0.9.
 - Visit KPIs count customers seen ≥ 1 s (`min_visit_s = 1.0`), applied after the final review; EVAL byte-identical (gate).
+- Post-review gate sweep (07:55): `tests/test_embed.py` had a conditional `pytest.skip` when the DINOv2 model is missing (not caught by the `mark.skip|xfail|.only(` grep); changed to `pytest.fail` with a download hint in 4eac694 — assertions unchanged; no other skip/skipif/importorskip/xfail/.only in tests/.
 - verify.sh was not run by implementers while the camera was dark (to avoid looping on an environmental failure); this let two slow-test regressions through until the 07:05 run — fixed in 3a9c0a3.
 
 ### Where Showroom Pulse's shared interfaces may differ from Showroom Coach
