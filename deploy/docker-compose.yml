@@ -5,15 +5,24 @@ name: showroom
 x-app: &app
   restart: unless-stopped
   init: true
-  # CPU inference (onnxruntime). Keep the two apps from starving each other and the machine's other services.
+  # Keep the two apps from starving each other and the machine's other services (decode, tracking, rendering).
   cpus: ${APP_CPUS:-16}
+  # Inference on one GPU (GPU_ID, default 1: GPU 0 belongs to other services on this machine).
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            device_ids: ["${GPU_ID:-1}"]
+            capabilities: [gpu]
 
 services:
   coach:
     <<: *app
-    build: ../showroom-coach
+    build: {context: ../showroom-coach, args: {ORT_GPU: "1"}}
     image: showroom-coach:local
     environment:
+      ORT_DEVICE: ${ORT_DEVICE:-cuda}                    # "cpu" to run without the GPU
       SHOWROOM_DETECTOR: ${SHOWROOM_DETECTOR:-}          # e.g. rfdetr_ft@2 once our fine-tuned weights win
       SHOWROOM_LIVE_DETECTOR: ${SHOWROOM_LIVE_DETECTOR:-}
       SHOWROOM_RFDETR_FT: ${SHOWROOM_RFDETR_FT:-}        # e.g. /opt/ft/showroom_detector_ft.onnx
@@ -23,9 +32,10 @@ services:
 
   pulse:
     <<: *app
-    build: ../showroom-pulse
+    build: {context: ../showroom-pulse, args: {ORT_GPU: "1"}}
     image: showroom-pulse:local
     environment:
+      ORT_DEVICE: ${ORT_DEVICE:-cuda}
       PULSE_ALLOWED_HOSTS: pulse                         # nginx always presents Host: pulse (see nginx.conf.template)
       PULSE_RFDETR_FT: ${PULSE_RFDETR_FT:-}
     volumes:

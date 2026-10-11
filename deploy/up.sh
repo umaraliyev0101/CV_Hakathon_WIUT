@@ -42,6 +42,11 @@ done
 echo "local:  http://127.0.0.1:${port}/"
 
 if (( public )); then
+  # Token order: deploy/.env NGROK_AUTHTOKEN, then NGROK_TOKEN in the repo-root .env, then the local ngrok config.
+  if [[ -z "${NGROK_AUTHTOKEN:-}" && -f ../.env ]]; then
+    NGROK_AUTHTOKEN="$(sed -n 's/^NGROK_TOKEN=//p' ../.env | tail -1 | tr -d '[:space:]"'"'")"
+    export NGROK_AUTHTOKEN
+  fi
   if [[ -z "${NGROK_AUTHTOKEN:-}" && -f "$HOME/.config/ngrok/ngrok.yml" ]]; then
     NGROK_AUTHTOKEN="$(sed -n 's/^ *authtoken: *//p' "$HOME/.config/ngrok/ngrok.yml" | head -1)"
     export NGROK_AUTHTOKEN
@@ -51,7 +56,7 @@ if (( public )); then
   "${compose[@]}" --profile public up -d ngrok
   url=""
   for _ in $(seq 30); do
-    url="$("${compose[@]}" --profile public logs ngrok 2>/dev/null | grep -o 'url=https://[^ ]*' | tail -1 | cut -d= -f2)"
+    url="$("${compose[@]}" --profile public logs ngrok 2>/dev/null | grep -o 'url=https://[^ ]*' | tail -1 | cut -d= -f2 || true)"
     [[ -n "$url" ]] && break
     sleep 1
   done

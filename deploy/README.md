@@ -24,7 +24,7 @@ deploy/up.sh --public                   # same, plus ngrok; prints the public ht
 - **Stop:** `docker compose -f deploy/docker-compose.yml --profile public down`.
   Add `-v` to also delete the uploaded jobs, caches and Pulse's downloaded models.
 - **Logs:** `docker compose -f deploy/docker-compose.yml logs -f coach pulse web ngrok`
-- **ngrok token:** read from `~/.config/ngrok/ngrok.yml` unless `NGROK_AUTHTOKEN` is set. If you set `NGROK_DOMAIN`
+- **ngrok token:** `NGROK_AUTHTOKEN` in `deploy/.env`, else `NGROK_TOKEN` in the repo-root `.env` (gitignored), else `~/.config/ngrok/ngrok.yml`. If you set `NGROK_DOMAIN`
   (your static ngrok domain), the URL stays the same across restarts.
 
 **Neither app has accounts.** Once public, anyone with the URL can upload videos (up to 1 GB each) and use CPU. Set

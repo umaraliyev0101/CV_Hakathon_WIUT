@@ -23,3 +23,6 @@ deck/build/deck.html
 deploy/.env
 deploy/htpasswd
 deploy/demo/
+
+# local secrets (NGROK_TOKEN etc.)
+/.env
