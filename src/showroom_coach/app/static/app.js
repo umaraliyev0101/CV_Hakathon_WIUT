@@ -60,6 +60,10 @@ const state = {
   people: [], thumbs: {}, draft: { roles: {}, names: {} },
   results: null, videoEl: null, videoVersion: 0,
   tl: null, pollToken: 0, videoToken: 0,
+  epoch: 0,            // bumped by resetToUpload: async work started before a reset must not touch the UI
+  upload: null,        // the in-flight upload attempt {aborted, xhr}
+  loadedNames: {},     // names as the server last reported them (to detect cleared names)
+  reconnect: null,     // what the "Retry" button does after a connection loss
 };
 
 /* ------------------------------------------------------------------ API */
@@ -93,13 +97,14 @@ async function api(method, path, body) {
 }
 
 /** Multipart upload with progress (fetch cannot report upload progress). */
-function uploadJob(file, preset, onProgress) {
-  if (MOCK) return mockApi('POST', '/api/jobs', { onProgress });
+function uploadJob(file, preset, onProgress, attempt) {
+  if (MOCK) return mockApi('POST', '/api/jobs', { onProgress, attempt });
   return new Promise((resolve, reject) => {
     const fd = new FormData();
     fd.append('preset', preset);
     fd.append('file', file);
     const x = new XMLHttpRequest();
+    attempt.xhr = x;
     x.open('POST', '/api/jobs');
     x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     x.onload = () => {
@@ -109,6 +114,7 @@ function uploadJob(file, preset, onProgress) {
       else reject(new ApiError(x.status, uploadMessage(x.status, data)));
     };
     x.onerror = () => reject(new ApiError(0, 'Could not reach the Showroom Coach server. Is it still running?'));
+    x.onabort = () => reject(new ApiError(-1, 'Upload cancelled.'));
     x.send(fd);
   });
 }
@@ -137,11 +143,17 @@ async function mockApi(method, path, body) {
   };
   if (path === '/api/presets') return read('presets.json');
   if (method === 'POST' && path === '/api/jobs') {
-    for (let i = 1; i <= 5; i++) { body.onProgress(i / 5); await sleep(140); }
+    for (let i = 1; i <= 5; i++) {
+      if (body.attempt.aborted) throw new ApiError(-1, 'Upload cancelled.');
+      body.onProgress(i / 5);
+      await sleep(MOCK_SLOW ? 700 : 140);
+    }
+    if (body.attempt.aborted) throw new ApiError(-1, 'Upload cancelled.');
     Object.assign(mock, { t0: Date.now(), rescored: 0, roles: null, names: null });
     return { job_id: 'mock0001' };
   }
   if (path.endsWith('/people')) {
+    if (MOCK_EMPTY) return { people: [] };
     const d = await read('people.json');
     for (const p of d.people) {
       if (mock.roles?.[p.pid]) p.role = mock.roles[p.pid];
@@ -159,6 +171,7 @@ async function mockApi(method, path, body) {
   }
   if (path.endsWith('/results')) {
     const r = withEdits(await read('results.json'));
+    if (MOCK_EMPTY) return emptyResults(r);
     r.video_status = mock.rescored && Date.now() - mock.rescored < 2500 ? 'rendering' : 'ready';
     return r;
   }
@@ -173,7 +186,14 @@ async function mockApi(method, path, body) {
   }
   throw new ApiError(404, `no mock for ${method} ${path}`);
 }
-const MOCK_FAIL = Q.has('fail');
+const MOCK_FAIL = Q.has('fail');     // ?mock=1&fail=1  the job fails part-way
+const MOCK_EMPTY = Q.has('empty');   // ?mock=1&empty=1 nobody detected
+const MOCK_SLOW = Q.has('slow');     // ?mock=1&slow=1  ~3.5 s upload (to try "New clip" mid-upload)
+const emptyResults = (r) => ({
+  ...r, persons: [], suggestions: {}, roles: {}, names: {}, events: [], timelines: {}, video_status: 'none', video_url: null,
+  scorecard: { staff: [], store: { customers: 0, customers_entry_known: 0, greeted: 0, greet_rate: null, median_time_to_greet: null, walkouts: 0, unattended_wait_s: 0, wait_alerts: 0, engagements: 0 } },
+  warnings: ['nobody detected — the camera may be too far or too dark'],
+});
 
 /* ---------------------------------------------------------------- views */
 
@@ -297,8 +317,10 @@ function bindUpload() {
 }
 
 function resetToUpload() {
-  state.pollToken++; state.videoToken++;
-  Object.assign(state, { file: null, jobId: null, job: null, people: [], thumbs: {}, results: null, videoEl: null, tl: null });
+  state.epoch++; state.pollToken++; state.videoToken++;
+  if (state.upload) { state.upload.aborted = true; if (state.upload.xhr) state.upload.xhr.abort(); }
+  Object.assign(state, { file: null, jobId: null, job: null, people: [], thumbs: {}, loadedNames: {}, results: null, videoEl: null, tl: null, upload: null, reconnect: null });
+  hideFail();
   $('#file').value = '';
   $('#drop').classList.remove('has-file');
   $('#dropTitle').textContent = 'Drop a video here, or choose a file';
@@ -333,32 +355,51 @@ function renderJob(job) {
   renderBadges($('#progWarn'), job.warnings);
 }
 
-function showFail(message) {
+const isTransient = (err) => err.status === 0 || [502, 503, 504].includes(err.status);
+
+/** Failure panel. With `retry` it becomes a "Connection lost" panel whose Retry button keeps the job (and #job= in the URL). */
+function showFail(message, retry = null) {
   state.pollToken++;
-  setMeter(state.job?.progress ?? 0, 'Stopped', false);
-  $('#progVerb').textContent = 'Stopped analysing';
+  state.reconnect = retry;
+  setMeter(state.job?.progress ?? 0, retry ? 'Connection lost' : 'Stopped', false);
+  $('#progVerb').textContent = retry ? 'Lost contact while analysing' : 'Stopped analysing';
+  $('#progFailTitle').textContent = retry ? 'Connection lost' : 'This clip could not be analysed';
   $('#progError').textContent = message;
+  $('#btnReconnect').hidden = !retry;
+  $('#btnRetry').hidden = !!retry;
   $('#progFail').hidden = false;
   $('#progFoot').hidden = true;
 }
 
-async function startJob() {
-  const file = state.file, preset = $('#preset').value;
-  $('#progFile').textContent = file.name;
+function hideFail() {
+  state.reconnect = null;
   $('#progVerb').textContent = 'Analysing';
   $('#progFail').hidden = true;
   $('#progFoot').hidden = false;
+}
+
+async function startJob() {
+  if (state.upload) return;                       // an upload is already running
+  const file = state.file, preset = $('#preset').value;
+  const attempt = state.upload = { aborted: false, xhr: null };
+  const current = () => !attempt.aborted && state.upload === attempt;   // false once "New clip" was pressed
+  $('#progFile').textContent = file.name;
+  hideFail();
   renderBadges($('#progWarn'), []);
   renderStages(0);
   setMeter(0, 'Uploading…');
   setView('progress');
   try {
-    const { job_id } = await uploadJob(file, preset, (p) => setMeter(p, `Uploading ${fmtBytes(file.size * p)} of ${fmtBytes(file.size)}`));
+    const { job_id } = await uploadJob(file, preset, (p) => { if (current()) setMeter(p, `Uploading ${fmtBytes(file.size * p)} of ${fmtBytes(file.size)}`); }, attempt);
+    if (!current()) return;
+    state.upload = null;
     state.jobId = job_id;
     if (!MOCK) history.replaceState(null, '', `${location.pathname}${location.search}#job=${job_id}`);
     setMeter(0, 'Waiting for the analysis to start…');
     pollJob(job_id);
   } catch (err) {
+    if (!current()) return;
+    state.upload = null;
     setView('upload');
     showUploadError(err.message);
   }
@@ -379,7 +420,9 @@ async function pollJob(id) {
     } catch (err) {
       if (token !== state.pollToken) return;
       if (err.status === 404) return showFail('The server no longer knows this job. It may have been restarted. Upload the clip again.');
-      if (++errors >= 5) return showFail(err.message);
+      if (!isTransient(err)) { if (++errors >= 5) return showFail(err.message); }
+      else if (++errors >= 5) return showFail('Showroom Coach cannot reach the server. Check that it is still running, then retry. Your job is kept.', () => { hideFail(); setMeter(state.job?.progress ?? 0, 'Reconnecting…'); pollJob(id); });
+      else setMeter(state.job?.progress ?? 0, 'Connection lost — retrying…');
     }
     await sleep(POLL_MS);
   }
@@ -388,18 +431,27 @@ async function pollJob(id) {
 /* -------------------------------------------------------------- confirm */
 
 async function enterConfirm(fromResults) {
+  const epoch = state.epoch, id = state.jobId;
   try {
-    const data = await api('GET', `/api/jobs/${state.jobId}/people`);
+    const data = await api('GET', `/api/jobs/${id}/people`);
+    if (epoch !== state.epoch) return;
     state.people = data.people || [];
+    // Nobody detected: there is nothing to confirm, so go straight to one empty-state results page.
+    if (!state.people.length) return showResults(await api('GET', `/api/jobs/${id}/results`), epoch);
   } catch (err) {
-    if (state.view === 'progress') return showFail(err.message);
-    return showNotice(err.message);
+    if (epoch !== state.epoch) return;
+    if (state.view === 'progress') {
+      return showFail(err.message, isTransient(err) ? () => { hideFail(); pollJob(id); } : null);
+    }
+    return showNotice(isTransient(err) ? 'Connection lost. Check that Showroom Coach is still running, then try again.' : err.message);
   }
   state.draft = { roles: {}, names: {} };
+  state.loadedNames = {};
   for (const p of state.people) {
     state.thumbs[p.pid] = p.thumb_url;
     state.draft.roles[p.pid] = p.role === 'staff' ? 'staff' : 'customer';
     state.draft.names[p.pid] = p.name || '';
+    state.loadedNames[p.pid] = (p.name || '').trim();
   }
   renderBadges($('#confirmWarn'), state.job?.warnings);
   $('#people').replaceChildren(...state.people.map(personCard));
@@ -460,12 +512,17 @@ async function submitRoles() {
   const body = { roles: {}, names: {} };
   for (const p of state.people) {
     body.roles[p.pid] = state.draft.roles[p.pid];
-    const name = (state.draft.names[p.pid] || '').trim();
-    if (state.draft.roles[p.pid] === 'staff' && name) body.names[p.pid] = name;
+    // The server keeps ids that are left out, so a cleared name (or a staff member switched back to customer) must be sent as "".
+    const name = state.draft.roles[p.pid] === 'staff' ? (state.draft.names[p.pid] || '').trim() : '';
+    if (name !== (state.loadedNames[p.pid] || '')) body.names[p.pid] = name;
   }
+  const epoch = state.epoch;
   try {
-    await showResults(await api('POST', `/api/jobs/${state.jobId}/roles`, body));
+    const r = await api('POST', `/api/jobs/${state.jobId}/roles`, body);
+    if (epoch !== state.epoch) return;
+    await showResults(r, epoch);
   } catch (err) {
+    if (epoch !== state.epoch) return;
     showNotice(err.message);
     btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = 'Looks right →';
   }
@@ -473,18 +530,33 @@ async function submitRoles() {
 
 /* -------------------------------------------------------------- results */
 
-async function showResults(r) {
-  state.results = r;
-  state.videoVersion++;
-  if (!Object.keys(state.thumbs).length) {
+async function showResults(r, epoch = state.epoch) {
+  const nobody = !(r.persons && r.persons.length);
+  if (!nobody && !Object.keys(state.thumbs).length) {
     try { for (const p of (await api('GET', `/api/jobs/${state.jobId}/people`)).people) state.thumbs[p.pid] = p.thumb_url; } catch { /* initials fall back */ }
   }
-  renderResults(r);
-  setView('results');
-  if (r.video_status !== 'ready' && r.video_status !== 'failed') watchVideo();
+  if (epoch !== state.epoch) return;
+  state.results = r;
+  state.videoVersion++;
+  setView('results');            // show the view before rendering: the timeline sizes its ticks from a visible box
+  renderResults(r, nobody);
+  if (!nobody && r.video_status !== 'ready' && r.video_status !== 'failed') watchVideo();
 }
 
-function renderResults(r) {
+function renderResults(r, nobody) {
+  $('#nobody').hidden = !nobody;
+  $('#resultsBody').hidden = nobody;
+  $('#btnChange').hidden = nobody;
+  $('#resPreset').closest('.field').hidden = nobody;
+  if (nobody) {
+    state.tl = null; state.videoEl = null; state.videoToken++;
+    $('#resMeta').textContent = `${state.job?.filename || 'Clip'}, ${mmss(r.duration)} long, no people detected`;
+    renderBadges($('#resWarn'), (r.warnings || []).filter((w) => !w.startsWith('nobody detected')));   // the empty state already says it
+    const ex = r.export || {};
+    $('#exports').replaceChildren(el('span', { class: 'muted', text: 'Download' }),
+      ...[['JSON', ex.json]].filter(([, href]) => href).map(([label, href]) => el('a', { href, download: '', text: label })));
+    return;
+  }
   const staffN = Object.values(r.roles || {}).filter((x) => x === 'staff').length;
   const custN = Object.keys(r.roles || {}).length - staffN;
   $('#resMeta').textContent = `${state.job?.filename || 'Clip'}, ${mmss(r.duration)} long, ${staffN} staff and ${plural(custN, 'customer')}`;
@@ -541,6 +613,7 @@ async function watchVideo() {
     try {
       const job = await api('GET', `/api/jobs/${state.jobId}`);
       if (token !== state.videoToken) return;
+      errors = 0;
       state.job = job;
       if (job.video_status === 'ready' || job.video_status === 'failed' || job.status === 'failed') {
         const r = await api('GET', `/api/jobs/${state.jobId}/results`);
@@ -600,8 +673,8 @@ function buildAlerts(r) {
       const free = list(d.free_staff, names);
       out.push({
         kind: 'wait', t: e.t,
-        title: free ? `Long wait while staff free: ${free}` : 'Long wait, all staff busy',
-        detail: `${custLabel(e.customer)} had waited ${mmss(d.wait_s)} without a greeting`,
+        title: free ? `Missed greet — staff were free: ${free}` : 'Long wait — all staff were busy',
+        detail: `Long wait: ${custLabel(e.customer)} had waited ${mmss(d.wait_s)} without a greeting`,
       });
     } else if (e.type === 'walkout') {
       const waited = waitedFor(r, e.customer);
@@ -782,7 +855,7 @@ function bindResults() {
   let resizeTimer = 0;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (state.view === 'results' && state.results) renderTimeline(state.results); }, 150);
+    resizeTimer = setTimeout(() => { if (state.view === 'results' && state.results?.persons?.length) renderTimeline(state.results); }, 150);
   });
   $('#btnConfirm').addEventListener('click', submitRoles);
   $('#btnChange').addEventListener('click', () => enterConfirm(true));
@@ -790,27 +863,49 @@ function bindResults() {
   $('#resPreset').addEventListener('change', async (e) => {
     const sel = e.target;
     sel.disabled = true;
-    try { await showResults(await api('POST', `/api/jobs/${state.jobId}/roles`, { preset: sel.value })); }
-    catch (err) { showNotice(err.message); sel.value = state.results?.preset || sel.value; }
-    finally { sel.disabled = false; }
+    const epoch = state.epoch;
+    try {
+      const r = await api('POST', `/api/jobs/${state.jobId}/roles`, { preset: sel.value });
+      if (epoch === state.epoch) await showResults(r, epoch);
+    } catch (err) {
+      if (epoch === state.epoch) { showNotice(err.message); sel.value = state.results?.preset || sel.value; }
+    } finally { sel.disabled = false; }
   });
+  $('#btnNobodyRetry').addEventListener('click', resetToUpload);
+  $('#btnReconnect').addEventListener('click', () => { if (state.reconnect) state.reconnect(); });
+  // Under <base href="/static/"> a "#main" link would navigate to /static/#main and reset the app, so handle it here.
+  $('.skip').addEventListener('click', (e) => { e.preventDefault(); $('#main').focus(); });
+}
+
+/** Connection loss while resuming: keep the job (and #job= in the URL) and offer a Retry. */
+function lostContact(id) {
+  $('#progFile').textContent = 'this clip';
+  renderStages(1);
+  setView('progress');
+  showFail('Showroom Coach cannot reach the server. Check that it is still running, then retry. Your job is kept.', () => { hideFail(); resume(id); });
 }
 
 /** Reload-proof demo: the job id lives in the URL hash, so F5 returns to wherever the job is. */
 async function resume(id) {
+  const epoch = state.epoch;
   state.jobId = id;
+  const forget = () => { history.replaceState(null, '', location.pathname + location.search); state.jobId = null; };
   try {
     const job = await api('GET', `/api/jobs/${id}`);
+    if (epoch !== state.epoch) return;
     state.job = job;
     $('#progFile').textContent = job.filename || 'clip';
-    $('#progFail').hidden = true;
+    hideFail();
     if (job.status === 'failed') { setView('progress'); renderStages(1); return showFail(job.error || job.message || 'The analysis failed.'); }
     if (job.status === 'needs_confirm') return enterConfirm(false);
-    if (job.status === 'rendering' || job.status === 'done') return showResults(await api('GET', `/api/jobs/${id}/results`));
+    if (job.status === 'rendering' || job.status === 'done') {
+      const r = await api('GET', `/api/jobs/${id}/results`);
+      return showResults(r, epoch);
+    }
     renderStages(1); setView('progress'); pollJob(id);
-  } catch {
-    history.replaceState(null, '', location.pathname + location.search);
-    state.jobId = null;
+  } catch (err) {
+    if (epoch !== state.epoch) return;
+    if (isTransient(err)) lostContact(id); else forget();    // only an unknown/unusable job clears the URL
   }
 }
 

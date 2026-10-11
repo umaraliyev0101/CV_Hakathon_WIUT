@@ -143,8 +143,9 @@
     </div>
     <ul class="badges" id="progWarn"></ul>
     <div class="fail" id="progFail" hidden>
-      <h3>This clip could not be analysed</h3>
+      <h3 id="progFailTitle">This clip could not be analysed</h3>
       <p id="progError"></p>
+      <button type="button" class="btn btn--primary" id="btnReconnect" hidden>Retry</button>
       <button type="button" class="btn btn--primary" id="btnRetry">Try another clip</button>
     </div>
     <p class="muted" id="progFoot">Keep this tab open. Detection runs on this computer and the video is not sent anywhere else.</p>
@@ -185,6 +186,13 @@
     </div>
     <ul class="badges" id="resWarn"></ul>
 
+    <div class="empty-state" id="nobody" hidden>
+      <h3 class="empty-state__title">Nobody was detected</h3>
+      <p>The camera may be too far or too dark. Try a clip where people are larger in the frame.</p>
+      <button type="button" class="btn btn--primary" id="btnNobodyRetry">Try another clip</button>
+    </div>
+
+    <div class="results-body" id="resultsBody">
     <div class="results-top">
       <div class="stage" id="videoStage"></div>
       <div class="results-side">
@@ -216,6 +224,7 @@
       <h3 id="sc-title" class="panel__title">Salespeople</h3>
       <div id="scorecard"></div>
     </section>
+    </div>
   </section>
 </main>
 

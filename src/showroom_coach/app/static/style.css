@@ -202,6 +202,10 @@ input[type="text"]:hover, select:hover { border-color: var(--ink-3); }
 .panel__title { font-family: var(--display); font-weight: 600; font-size: 1.2rem; font-stretch: 90%; display: flex; align-items: baseline; gap: 0.6rem; }
 .count { font-family: var(--body); font-size: 0.85rem; font-weight: 600; color: var(--ink-3); }
 
+.results-body { display: grid; gap: 1.25rem; min-width: 0; }
+.empty-state { background: var(--panel); border: 1px solid var(--line); border-left: 6px solid var(--ink-3); border-radius: 12px; padding: 1.4rem 1.6rem; display: grid; gap: 0.6rem; justify-items: start; max-width: 46rem; color: var(--ink-2); }
+.empty-state__title { font-family: var(--display); font-weight: 600; font-size: 1.5rem; color: var(--ink); }
+
 /* store summary: one joined strip, not four cards */
 .tiles { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .tile { padding: 0.8rem 1rem 0.9rem; display: grid; gap: 0.15rem; align-content: start; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
