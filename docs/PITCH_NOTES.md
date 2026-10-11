@@ -26,7 +26,7 @@ Ground rules for everything said on stage:
 | 6 | Innovation: staff versus customer | Four features, one score, plain-language reasons, one click. A card: "Suggested: staff (78%). Same outfit as 2 others. Talked to 4 people." | The hard part of any showroom analytics is who is staff. The commercial leader does not disclose how. Ours is open, explainable, and a person has the last word. | innovation |
 | 7 | Compared with SKAIVISION | The comparison table in section 2 (pipeline, engagement rule, hardware, privacy, staff detection, cost). | Same measurement logic and the same 2 m / 2 min rule in our Dealership preset. They have scale and GPUs and 150+ dealerships; we run on a laptop and open the staff question. | innovation, impact |
 | 8 | Privacy by design | No face recognition. Faces blurred in every frame, thumbnail and live canvas. On-premise. Deleted after 24 h. Staff informed. Decision support only (ZRU-1115). | Privacy is the reason a showroom says yes. Appearance is only used to merge track fragments within one video, never stored as identity. | impact, technical complexity |
-| 9 | Results (honest) | Measured numbers from PROGRESS.md and EVAL.md only. See section 3. Plus a plain "What we have not measured yet". | Say the misses out loud: file mode ran at 0.87x real time on the 720p benchmark clip, not 1x (1.07x on the same footage in another run, so that gap is run-to-run noise); live mode is 3.6 to 4.5 fps with about 4 people, borderline against the 4 fps goal, and slower in crowded scenes. No showroom data yet. Honesty is a feature here. | technical complexity, presentation |
+| 9 | Results (honest) | Measured numbers from PROGRESS.md and EVAL.md only. See section 3. Plus a plain "What we have not measured yet". | Say the misses out loud: file mode ran at 0.87x real time on the 720p benchmark clip, not 1x (1.07x on the same footage in another run. The two runs differ in command (bench vs analyze), source cut (720p vs 960 px) and people found (31 at 960 px); neither was repeated, so the cause of the gap is not isolated); live mode is 3.6 to 4.5 fps with about 4 people, borderline against the 4 fps goal, and slower in crowded scenes. No showroom data yet. Honesty is a feature here. | technical complexity, presentation |
 | 10 | ROI | The formula and one worked example, all inputs labelled "ASSUMPTION — replace with Royal Motors numbers". Break-even in cars per month. | Not a forecast. A model the partners fill in. At the example inputs the system pays for itself with about one extra car every four months. A pilot measures the real inputs. | ROI, impact |
 | 11 | Roadmap | Pilot, real numbers, sales-data join, car zones, calibration in the UI, Uzbek and Russian UI, multi-camera. | Next two weeks versus next two quarters. | impact |
 | 12 | Ask | A two-week pilot in one showroom: one camera, staff informed, a manager to review scorecards, the real ROI numbers. | What we need from Royal Motors Group and Ducati Tashkent, and what they get back. Close on the one-line promise. | impact, presentation |
@@ -48,9 +48,9 @@ Ground rules for everything said on stage:
    role again to show the re-score taking a fraction of a second.
 5. `/live`: allow the camera, wait for two or three people to be confirmed, click one to flip the role, show the timers.
    **Do not run an upload while `/live` is open**: both share the laptop's CPU, so the live page stalls. If it goes more
-   than 3 s without a processed frame (the "left after" time of the Short-clip preset), anyone the detector misses in the
-   next frame counts as having left, and an ungreeted customer as a walk-out. Finish the upload demo first, or close the
-   live tab while it runs.
+   than 3 s without a processed frame (the "left after" time of the Short-clip preset), every ungreeted customer still on
+   screen gets a false leave and walk-out (if their entry time is known), followed by a fresh enter when frames resume.
+   Finish the upload demo first, or close the live tab while it runs.
 6. If the jury brings a video: mp4, mov or avi, up to about 5 minutes. Pick the "Short clip" preset for clips under a
    minute and "Dealership" for real dealership footage.
 7. If the webcam page fails: `scripts/live_file_client.py` feeds a video file through the same WebSocket (a MEVA cut
@@ -85,7 +85,7 @@ i5-10210U laptop:
 - Detector: YOLOX-nano on two tiles at 26.9% recall, against 31.0% for YOLOX-s on two tiles at about ten times the time
   per frame (MEVA school clip; recall is understated for every model because MEVA only boxes annotated actors).
 - File mode: real-time factor 0.87x on the spec's 720p benchmark clip (60 s, 12 people per frame): the 1x goal was
-  missed. The same footage at 960 px gave 1.07x in another run, so the gap is run-to-run noise; a busier clip (about
+  missed. The same footage at 960 px gave 1.07x in another run. The two runs differ in command (bench vs analyze), source cut (720p vs 960 px) and people found (31 at 960 px); neither was repeated, so the cause of the gap is not isolated; a busier clip (about
   14 people per frame) gave 0.56x, possibly slowed by other work on the machine.
 - Upload to the staff-confirmation step: 60.3 s for a 60 s clip on an idle machine (goal under 3 minutes: met); 122 s
   to 253 s under load.

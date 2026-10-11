@@ -211,7 +211,7 @@ Measured and already logged:
 |---|---|---|
 | Detector choice | YOLOX-nano on 2 tiles: 32 ms per frame (median), 26.9% recall (351 of 1303 boxes). YOLOX-s on 2 tiles: 322 ms, 31.0% recall (404 of 1303). | 60 frames of a MEVA school clip, score 0.3, IoU 0.5 (`runs/bench/detectors.json`; an earlier run logged 36 ms and 361 ms). MEVA only boxes annotated actors, so recall is understated for every model alike. The rule "fastest within 5 points of the best recall" picked YOLOX-nano on 2 tiles. |
 | File-mode speed, the spec benchmark (`meva_a_60s_720p`, 60 s, 12 people per frame, processed at 960x540) | real-time factor 0.87x (68.9 s of perception for 60 s, fresh run) | The 1x target was **missed** on the benchmark clip. Pose and DINOv2 take most of the time. |
-| File-mode speed, the same footage at 960 px (`meva_a_60s`) | 1.07x (56.2 s for 60 s) | The same footage as the row above, so the gap between 0.87x and 1.07x is run-to-run noise. |
+| File-mode speed, the same footage at 960 px (`meva_a_60s`) | 1.07x (56.2 s for 60 s) | The two runs differ in command (bench vs analyze), source cut (720p vs 960 px) and people found (31 at 960 px); neither was repeated, so the cause of the gap is not isolated. The 1.07x row is at 960 px, 31 persons. |
 | File-mode speed, a busier clip (`meva_b_60s`, about 14 people per frame) | 0.56x (106.4 s for 60 s) | Another agent was running at the time, so possibly contended. |
 | Upload to staff confirmation (web app, 60 s clip) | 60.3 s on a near-idle machine; 122 s and 253 s in earlier runs with other work loading the CPU | Target under 3 minutes: met when idle, missed under load (the 253 s run). |
 | Rendering | 4.3x to 7.4x real time (the 60 s clip in 13.8 s and in 8.1 s) | Face-blurred H.264 at 10 fps. |
