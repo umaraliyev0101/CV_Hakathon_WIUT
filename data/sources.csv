@@ -16,3 +16,4 @@ MEVA annotations,"2018-03-12.10-10-01.10-15-01.school.G423.{geom,activities,type
 MEVA (derived),data/samples/meva_a_60s.mp4,"cut 20-80 s of 2018-03-09.10-15-00.10-20-00.school.G299, 960 px, H.264",CC BY 4.0,"MEVA: Kitware/IARPA, Corona et al., WACV 2021 (CC BY 4.0)",demo + smoke tests,no
 MEVA (derived),data/samples/meva_a_60s_720p.mp4,same cut at 1280x720,CC BY 4.0,"MEVA: Kitware/IARPA, Corona et al., WACV 2021 (CC BY 4.0)",speed benchmark,no
 MEVA (derived),data/samples/meva_b_60s.mp4,"cut 180-240 s of 2018-03-13.15-50-00.15-55-00.school.G421, 960 px, H.264",CC BY 4.0,"MEVA: Kitware/IARPA, Corona et al., WACV 2021 (CC BY 4.0)",demo + smoke tests,no
+MEVA (derived),data/samples/meva_g423_20s.mp4,"cut 123-143 s of 2018-03-12.10-10-01.10-15-01.school.G423, 960 px, H.264 (~4 people; live-fps benchmark)",CC BY 4.0,"MEVA: Kitware/IARPA, Corona et al., WACV 2021 (CC BY 4.0)",speed benchmark,no
