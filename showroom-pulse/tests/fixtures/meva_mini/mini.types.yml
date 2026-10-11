@@ -1,0 +1,4 @@
+- { meta: "mini" }
+- { types: { id1: 718954285527769780, cset3: { person: 1.0 } } }
+- { types: { id1: 9143980220328846590, cset3: { person: 1.0 } } }
+- { types: { id1: 5555555555555555555, cset3: { vehicle: 1.0 } } }

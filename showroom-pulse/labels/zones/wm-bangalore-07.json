@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    540
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "car-1",
+      "name": "Car: white hatchback",
+      "kind": "car",
+      "polygon": [
+        [
+          0.24,
+          0.62
+        ],
+        [
+          0.85,
+          0.62
+        ],
+        [
+          0.85,
+          0.96
+        ],
+        [
+          0.24,
+          0.96
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "car-2",
+      "name": "Car: white SUV (left, cropped)",
+      "kind": "car",
+      "polygon": [
+        [
+          0,
+          0.62
+        ],
+        [
+          0.22,
+          0.62
+        ],
+        [
+          0.22,
+          1.0
+        ],
+        [
+          0,
+          1.0
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

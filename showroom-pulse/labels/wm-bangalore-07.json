@@ -1,0 +1,41 @@
+{
+  "clip": "wm-bangalore-07",
+  "labeller": "ai-agent, unreviewed",
+  "fps_sampled": 1,
+  "zones_file": "labels/zones/wm-bangalore-07.json",
+  "notes": "Auto-show booth, hand-held camera. Nobody stands at either car zone. v1 (green shirt) is seated at a neighbouring stand behind the cars; v2 stands beside v1; v3/v4 are distant walkers; v5 (plaid shirt) walks in from the right edge at t=22 and crouches by the bag at the bottom right (outside the zone) until the end.",
+  "visits": [
+    {
+      "id": 1,
+      "t_in": 0,
+      "t_out": 19,
+      "role": "customer"
+    },
+    {
+      "id": 2,
+      "t_in": 0,
+      "t_out": 4,
+      "role": "customer"
+    },
+    {
+      "id": 3,
+      "t_in": 14,
+      "t_out": 17,
+      "role": "customer"
+    },
+    {
+      "id": 4,
+      "t_in": 18,
+      "t_out": 21,
+      "role": "customer"
+    },
+    {
+      "id": 5,
+      "t_in": 22,
+      "t_out": 25,
+      "role": "customer"
+    }
+  ],
+  "zone_visits": [],
+  "stops": []
+}

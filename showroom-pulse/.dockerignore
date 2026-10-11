@@ -1,0 +1,12 @@
+.venv
+.git
+.superpowers
+.playwright-mcp
+data
+models
+runs
+jobs
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache

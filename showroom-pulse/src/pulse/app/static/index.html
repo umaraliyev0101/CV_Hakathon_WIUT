@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="page.title">Showroom Pulse</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <h1>Showroom Pulse</h1>
+    <div class="banner-box">
+      <p class="banner" role="note">Anonymous, aggregated analytics; decision support only.</p>
+      <p class="banner-sub" data-i18n="banner.sub">Faces are blurred and the video stays on this machine.</p>
+    </div>
+    <a class="top-link" href="/live" data-i18n="nav.live">Live mode</a>
+    <div id="lang-switch" class="lang-switch"></div>
+  </div>
+</header>
+
+<nav class="steps" aria-label="Progress" data-i18n-attr="aria-label:nav.progress">
+  <ol>
+    <li data-step="upload"><span>1</span> <span data-i18n="step.upload">Upload</span></li>
+    <li data-step="zones"><span>2</span> <span data-i18n="step.zones">Zones</span></li>
+    <li data-step="staff"><span>3</span> <span data-i18n="step.staff">Staff</span></li>
+    <li data-step="results"><span>4</span> <span data-i18n="step.results">Results</span></li>
+  </ol>
+</nav>
+
+<main>
+  <div id="notice" class="notice" role="alert" hidden></div>
+
+  <section id="step-upload" class="panel" aria-labelledby="h-upload">
+    <h2 id="h-upload" data-i18n="upload.h">1. Upload a showroom video</h2>
+    <p class="muted" data-i18n="upload.help">MP4, MOV, AVI, MKV or WebM, up to 1 GB. The video stays on this machine.</p>
+    <form id="upload-form">
+      <div class="field">
+        <label for="file" data-i18n="upload.file">Video file</label>
+        <input type="file" id="file" name="file" accept="video/*,.mp4,.mov,.avi,.mkv,.webm" required>
+      </div>
+      <fieldset class="field">
+        <legend data-i18n="preset.legend">Preset</legend>
+        <label class="radio"><input type="radio" name="preset" value="dealership"> <span data-i18n="preset.dealership">Dealership</span> <small data-i18n="preset.dealership.hint">(long recordings, stricter thresholds)</small></label>
+        <label class="radio"><input type="radio" name="preset" value="short" checked> <span data-i18n="preset.short">Short clip</span> <small data-i18n="preset.short.hint">(demo, lower thresholds)</small></label>
+      </fieldset>
+      <button type="submit" class="primary" id="upload-btn" data-i18n="upload.btn">Upload and analyse</button>
+    </form>
+    <div id="progress" hidden>
+      <p id="progress-msg" aria-live="polite">Uploading…</p>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progress-msg"><div id="bar-fill"></div></div>
+      <p id="progress-pct" class="muted">0%</p>
+    </div>
+  </section>
+
+  <section id="step-zones" class="panel" aria-labelledby="h-zones" hidden>
+    <h2 id="h-zones" data-i18n="zones.h">2. Check the zones</h2>
+    <p class="muted" data-i18n="zones.help">Zones were suggested automatically. Drag corners to adjust, add or delete zones, then confirm.</p>
+    <div class="zone-layout">
+      <div>
+        <div class="toolbar" role="toolbar" aria-label="Zone tools" data-i18n-attr="aria-label:zones.tools">
+          <button type="button" id="tool-select" aria-pressed="true" data-i18n="tool.select">Select / move</button>
+          <button type="button" id="tool-rect" aria-pressed="false" data-i18n="tool.rect">Add rectangle</button>
+          <button type="button" id="tool-poly" aria-pressed="false" data-i18n="tool.poly">Add polygon</button>
+          <button type="button" id="tool-calib" aria-pressed="false" data-i18n="tool.calib">Calibrate floor</button>
+          <button type="button" id="tool-finish" data-i18n="tool.finish" hidden>Finish polygon</button>
+          <button type="button" id="tool-delete" class="danger" data-i18n="tool.delete" disabled>Delete zone</button>
+        </div>
+        <p id="tool-hint" class="muted" aria-live="polite"></p>
+        <div class="canvas-wrap" id="canvas-wrap">
+          <img id="zone-img" alt="Showroom keyframe with face blur" data-i18n-attr="alt:zones.img.alt" draggable="false">
+          <canvas id="zone-canvas"></canvas>
+        </div>
+      </div>
+      <aside class="zone-side">
+        <h3 data-i18n="zones.side">Zones</h3>
+        <ul id="zone-list" class="zone-list"></ul>
+        <form id="zone-form" class="zone-form" hidden>
+          <h3 data-i18n="zone.selected">Selected zone</h3>
+          <div class="field"><label for="zone-name" data-i18n="zone.name">Name</label><input id="zone-name" type="text" maxlength="80"></div>
+          <div class="field"><label for="zone-kind" data-i18n="zone.kind">Kind</label>
+            <select id="zone-kind">
+              <option value="car" data-i18n="kind.car">Car</option><option value="desk" data-i18n="kind.desk">Desk</option><option value="entrance" data-i18n="kind.entrance">Entrance</option>
+              <option value="lounge" data-i18n="kind.lounge">Lounge</option><option value="other" data-i18n="kind.other">Other</option>
+            </select>
+          </div>
+        </form>
+        <div id="floor-box">
+          <h3 data-i18n="floor.h">Floor calibration (optional)</h3>
+          <p class="muted" data-i18n="floor.help">Gives a top-down heatmap in metres. Use Calibrate floor, click 4 floor points, enter their real X/Y in metres.</p>
+          <ol id="floor-rows" class="zone-list"></ol>
+          <button type="button" id="tool-clear-floor" data-i18n="floor.clear">Clear floor points</button>
+        </div>
+        <p id="zone-error" class="error" role="alert" hidden></p>
+        <button type="button" id="zones-ok" class="primary" data-i18n="common.looks_right">Looks right</button>
+      </aside>
+    </div>
+  </section>
+
+  <section id="step-staff" class="panel" aria-labelledby="h-staff" hidden>
+    <h2 id="h-staff" data-i18n="staff.h">3. Who is staff?</h2>
+    <p class="muted" data-i18n="staff.help">Staff are excluded from customer statistics. Suggestions come with a confidence and plain reasons; correct any that look wrong. Faces are blurred.</p>
+    <p id="staff-count" class="muted" aria-live="polite"></p>
+    <div id="people" class="people" role="list"></div>
+    <div class="actions">
+      <button type="button" id="staff-ok" class="primary" data-i18n="common.looks_right">Looks right</button>
+      <button type="button" id="staff-skip" data-i18n="staff.skip">Skip</button>
+    </div>
+  </section>
+
+  <section id="step-results" aria-labelledby="h-results" hidden>
+    <h2 id="h-results" class="sr-only" data-i18n="step.results">Results</h2>
+    <div id="dashboard"></div>
+  </section>
+</main>
+
+<footer class="foot"><p class="muted" data-i18n="note.english">Recommendations, warnings and zone names come from the analysis and are shown in English.</p></footer>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>
