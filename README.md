@@ -111,7 +111,7 @@ roles.
 
 | Unit | Module(s) | What it does |
 |---|---|---|
-| sources | `sources.py` | Reads a file with OpenCV, samples to 5 fps, resizes to at most 960 px wide, trims at 300 s, and fails cleanly on damaged files. |
+| sources | `sources.py` | Reads a file with OpenCV, samples to 5 fps, resizes to at most 960 px wide and trims at 300 s. An unreadable file fails cleanly; a file that stops decoding early is analysed as far as it goes, with a warning. |
 | perception | `perception/` | YOLOX-nano person detector run on two overlapping tiles (picked by a CPU benchmark, see Results), ByteTrack from `supervision`, RTMPose-s keypoints (every 2nd frame per track, carried in between), and DINOv2-small plus HSV descriptors for real tracks only. ONNX Runtime on CPU; no PyTorch. A per-video cache keyed by file hash and every content-changing parameter lets roles and thresholds change without re-running any model. |
 | identity | `identity.py` | Merges the track fragments of one person by body appearance. Offline: constrained clustering where two tracks that overlap in time can never be the same person. Live: re-attach to a person lost a moment ago. |
 | geometry | `geometry.py` | Calibration-free pinhole model: assume a 1.70 m person and a 70 degree horizontal field of view, depth Z = f*H/h_px, using full body height, else shoulder-to-hip torso length (seated or cut-off people), else box height (flagged "distance approximate"). Facing comes from the shoulder line. An optional 4-point floor homography (`CameraConfig.floor_points`) replaces the model. |
@@ -316,6 +316,9 @@ a bundle.
   angle that shows full bodies, keep people reasonably large in the frame, and where possible fill in the optional
   manual floor calibration (four floor points, a configuration option, not yet in the UI).
 - **One camera per job.** No tracking across cameras. Videos are limited to about 5 minutes and 1 GB.
+- **Damaged or oddly muxed files are analysed only as far as they decode.** When the picture ends well before the
+  length the container promises (a cut-off file, or an audio track longer than the video), the results cover the
+  decoded part only and carry a "video ended at ... s" warning.
 - **Windows only tested.** `run.sh` has not been run on Linux or macOS.
 
 ## Pre-final declaration

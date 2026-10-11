@@ -309,15 +309,30 @@ def test_render_failure_keeps_scores(client, small_meet, monkeypatch):
     assert res["video_status"] == "failed" and res["video_url"] is None and res["scorecard"]["staff"]
 
 
-def test_damaged_video_fails_mid_run_without_partial_results(shared, small_meet, tmp_path):
+def test_cut_off_video_gives_partial_results_with_a_warning(shared, small_meet, tmp_path):
     c, _ = shared
     data = small_meet.read_bytes()
     bad = tmp_path / "cut.avi"
     bad.write_bytes(data[: int(len(data) * 0.4)])        # header intact: probe passes, decoding stops at ~8 s
     jid = upload(c, bad)
     s = wait_status(c, jid, {"failed", "needs_confirm"})
-    assert s["status"] == "failed" and s["error"].startswith("cannot read video") and "damaged" in s["error"]
-    assert s["message"] == "failed"
+    assert s["status"] == "needs_confirm" and s["error"] is None
+    (warning,) = [w for w in s["warnings"] if w.startswith("video ended at")]
+    res = c.get(f"/api/jobs/{jid}/results").json()
+    assert 0 < res["duration"] < 0.9 * 20
+    assert warning == (f"video ended at {res['duration']:.0f} s of an expected 20 s — the file may be damaged or have "
+                       f"a longer audio track; results cover the first {res['duration']:.0f} s")
+    assert res["warnings"].count(warning) == 1
+    assert c.get(f"/api/jobs/{jid}/people").status_code == 200
+
+
+def test_unreadable_video_still_fails_without_results(shared, tmp_path):
+    c, _ = shared
+    zero = tmp_path / "zero.avi"
+    cv2.VideoWriter(str(zero), cv2.VideoWriter_fourcc(*"MJPG"), 10.0, (320, 240)).release()   # a header, no frames
+    jid = upload(c, zero)
+    s = wait_status(c, jid, {"failed", "needs_confirm"})
+    assert s["status"] == "failed" and s["error"] == "cannot read video: zero.avi" and s["message"] == "failed"
     assert c.get(f"/api/jobs/{jid}/people").status_code == 409
     assert c.get(f"/api/jobs/{jid}/results").status_code == 409
 

@@ -225,13 +225,22 @@ def test_render_respects_the_perception_trim(meet_video, tmp_path):
     assert len(_video_frames(out)) == pytest.approx(50, abs=2)
 
 
-def test_render_of_a_damaged_video_fails_cleanly(textured, tmp_path):
+def test_render_of_an_unreadable_video_fails_cleanly(textured, tmp_path):
     path, res, an = textured
     bad = tmp_path / "bad.avi"
-    bad.write_bytes(path.read_bytes()[: path.stat().st_size // 10])
+    bad.write_bytes(path.read_bytes()[:200])                                      # not even a whole header
     with pytest.raises(VideoError):
         render_video(bad, res, an, tmp_path / "out" / "a.mp4")
     assert not list((tmp_path / "out").glob("*"))                                 # neither the file nor a temp file
+
+
+def test_render_of_a_cut_off_video_draws_the_part_that_decodes(textured, tmp_path):
+    path, res, an = textured
+    cut = tmp_path / "cut.avi"
+    cut.write_bytes(path.read_bytes()[: path.stat().st_size // 10])               # decoding stops early
+    out = render_video(cut, res, an, tmp_path / "out" / "a.mp4", fps_out=10)
+    assert 0 < len(_video_frames(out)) < len(_video_frames(render_video(path, res, an, tmp_path / "full.mp4",
+                                                                         fps_out=10)))
 
 
 # -------------------------------------------------------------------------------------------------- H264Writer

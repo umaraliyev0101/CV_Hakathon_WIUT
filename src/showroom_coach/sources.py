@@ -3,6 +3,11 @@
 Frames are decoded with OpenCV, sampled at ``sample_fps`` on the source timeline (frame ``i`` is at
 ``i / src_fps``; the container's own timestamps are not trusted), resized to at most ``max_width`` pixels
 wide (even dimensions) and cut off at ``max_seconds``.
+
+A file whose decoding stops well before the length its container promises (a damaged or cut-off file, or a container
+whose audio track runs longer than its picture) is not an error: the frames that could be read are delivered, and a
+``StreamEnd`` passed to ``iter_frames`` records the shortfall so that the caller can say what the results cover.
+Only a file that cannot be opened, or that yields no frame at all, raises ``VideoError``.
 """
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ import numpy as np
 
 _EPS = 1e-6
 _MAX_FPS = 240.0           # containers with no real frame rate report 1000 or 90000
-_MIN_READ_FRACTION = 0.9   # fewer decoded frames than this share of the expected count means a damaged file
+_MIN_READ_FRACTION = 0.9   # fewer decoded frames than this share of the expected count: the file ended early
 
 
 class VideoError(Exception):
@@ -29,8 +34,8 @@ class VideoInfo:
     src_width: int
     src_height: int
     src_fps: float
-    src_frames: int
-    duration: float          # seconds of the processed part (after trimming)
+    src_frames: int          # as the container reports it (it may promise more than can be decoded)
+    duration: float          # seconds of the processed part (after trimming, or where decoding really ended)
     src_duration: float
     width: int               # processed size (max width 960, even numbers)
     height: int
@@ -38,6 +43,33 @@ class VideoInfo:
     sample_fps: float
     trimmed: bool
     max_seconds: float
+    ended_early: bool = False                # decoding stopped before 90% of the expected frames (see iter_frames)
+    expected_duration: float | None = None   # when it did: the length the container promised (after trimming)
+
+
+@dataclass
+class StreamEnd:
+    """How an ``iter_frames`` pass ended; pass one in as ``end=`` and read it after the loop.
+
+    ``early`` is set when decoding stopped (end of data or a decode error) having read fewer than 90% of the frames the
+    container promised up to ``max_seconds``. ``read_s`` is the source time decoded (frames read / fps) and
+    ``expected_s`` the time the container promised up to ``max_seconds``."""
+    early: bool = False
+    read_s: float = 0.0
+    expected_s: float = 0.0
+
+
+def video_warnings(info) -> list[str]:
+    """The user-facing warnings about the video itself: trimmed to ``max_seconds``, or ended before its promised length
+    (the strings of api-contract.md)."""
+    out = []
+    if getattr(info, "trimmed", False):
+        out.append(f"video trimmed to the first {info.max_seconds:g} s")
+    if getattr(info, "ended_early", False):
+        x, y = float(info.duration), float(info.expected_duration or info.src_duration)
+        out.append(f"video ended at {x:.0f} s of an expected {y:.0f} s — the file may be damaged or have a longer "
+                   f"audio track; results cover the first {x:.0f} s")
+    return out
 
 
 def _even(x: float) -> int:
@@ -124,15 +156,16 @@ def probe(path, max_width: int = 960, sample_fps: float = 5.0, max_seconds: floa
     )
 
 
-def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
-                max_seconds: float = 300.0) -> Iterator[tuple[int, float, np.ndarray]]:
+def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960, max_seconds: float = 300.0,
+                end: StreamEnd | None = None) -> Iterator[tuple[int, float, np.ndarray]]:
     """Yield ``(src_frame_idx, t_sec, frame_bgr_resized)`` at about ``sample_fps``, for ``t < max_seconds``.
 
     Frame ``i`` is kept when ``i / src_fps >= next_t - 1e-6`` and ``next_t`` then advances by ``1 / sample_fps``.
     Skipped frames are only ``grab()``-ed (no decode to an array); kept ones are ``retrieve()``-d.
-    ``VideoError`` is raised on the first ``next()`` if the file cannot be read, and after the last readable
-    frame if decoding stops before ``max_seconds`` having read under 90% of the container's frame count (damaged
-    or cut-off file); a short file whose count matches what was read is fine.
+    ``VideoError`` is raised on the first ``next()`` if the file cannot be opened, and at the end if it yielded no
+    frame at all. Decoding that stops before ``max_seconds`` having read under 90% of the container's frame count
+    (a damaged or cut-off file, or an audio track longer than the picture) just ends the iteration; ``end``, when
+    given, records it (see ``StreamEnd``). A short file whose count matches what was read is fine.
     """
     if sample_fps <= 0:
         raise ValueError("sample_fps must be > 0")
@@ -141,9 +174,12 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
         fps = _fps(cap, path)
         n_frames = _frame_count(cap)
         expected = min(n_frames, max_seconds * fps) if n_frames > 0 else 0.0
+        if end is not None:
+            end.early, end.read_s, end.expected_s = False, 0.0, expected / fps
         step = 1.0 / sample_fps
         next_t = 0.0
         i = 0
+        yielded = 0
         while cap.grab():
             t = i / fps
             if t >= max_seconds:
@@ -152,11 +188,15 @@ def iter_frames(path, sample_fps: float = 5.0, max_width: int = 960,
                 next_t += step
                 ok, frame = cap.retrieve()
                 if ok and frame is not None:
+                    yielded += 1
                     yield i, t, resize_max_width(frame, max_width)
             i += 1
         else:                                    # grab() failed: end of file, or a decode error that looks like it
-            if expected > 0 and i < _MIN_READ_FRACTION * expected:
-                raise VideoError(
-                    f"video stops early at {i / fps:.1f} s of ~{expected / fps:.1f} s: the file may be damaged")
+            if yielded == 0:
+                raise VideoError(f"cannot read video: {Path(str(path)).name}")
+            if end is not None and expected > 0 and i < _MIN_READ_FRACTION * expected:
+                end.early = True
+        if end is not None:
+            end.read_s = i / fps
     finally:
         cap.release()

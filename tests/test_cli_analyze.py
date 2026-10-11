@@ -156,10 +156,41 @@ def test_summary_stays_one_screen_with_many_staff():
     assert "7 more" in text and "scorecard.csv" in text
 
 
-def test_analyze_cli_damaged_video_exits_2(meet_video, tmp_path, capsys):
+def test_analyze_cli_cut_off_video_gives_partial_results_with_a_warning(meet_video, tmp_path, capsys):
     damaged = tmp_path / "damaged.avi"
     data = meet_video.read_bytes()
     damaged.write_bytes(data[: len(data) * 2 // 5])              # the file stops in the middle
-    assert main(["analyze", str(damaged), "--out", str(tmp_path / "o"), "--fake", "--no-video",
+    out = tmp_path / "o"
+    assert main(["analyze", str(damaged), "--out", str(out), "--fake", "--no-video",
+                 "--cache", str(tmp_path / "cache")]) == 0
+    text = capsys.readouterr().out
+    res = json.loads((out / "results.json").read_text(encoding="utf-8"))
+    assert 0 < res["duration"] < 0.9 * 20
+    (warning,) = [w for w in res["warnings"] if w.startswith("video ended at")]
+    assert warning.endswith(f"results cover the first {res['duration']:.0f} s")
+    assert f"warning      {warning.replace('—', '-')}" in text                            # in the summary too
+    assert f"video        {res['duration']:.1f} s analysed" in text
+
+
+def test_analyze_cli_longer_audio_track(tmp_path, make_video, long_audio, capsys):
+    mover = {"color": (0, 0, 255), "w": 40, "h": 100, "pos": lambda t: (20 + 20 * t, 60)}
+    clip = make_video(tmp_path / "clip.avi", seconds=4, fps=10, size=(320, 240), movers=[mover])
+    mkv = long_audio(clip, tmp_path / "clip.mkv", 12)
+    out = tmp_path / "o"
+    assert main(["analyze", str(mkv), "--out", str(out), "--fake", "--cache", str(tmp_path / "cache")]) == 0
+    text = capsys.readouterr().out
+    res = json.loads((out / "results.json").read_text(encoding="utf-8"))
+    assert res["duration"] == pytest.approx(4.0)
+    assert ("video ended at 4 s of an expected 12 s — the file may be damaged or have a longer audio track; "
+            "results cover the first 4 s") in res["warnings"]
+    assert "warning      video ended at 4 s of an expected 12 s" in text
+    assert (out / "annotated.mp4").is_file()
+
+
+def test_analyze_cli_zero_frame_video_exits_2(tmp_path, capsys):
+    import cv2
+    zero = tmp_path / "zero.avi"
+    cv2.VideoWriter(str(zero), cv2.VideoWriter_fourcc(*"MJPG"), 10.0, (320, 240)).release()   # a header, no frames
+    assert main(["analyze", str(zero), "--out", str(tmp_path / "o"), "--fake", "--no-video",
                  "--cache", str(tmp_path / "cache")]) == 2
-    assert "cannot read video" in capsys.readouterr().err.lower()
+    assert "cannot read video: zero.avi" in capsys.readouterr().err

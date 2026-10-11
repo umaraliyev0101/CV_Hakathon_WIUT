@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
-from showroom_coach.sources import VideoError, decode_jpeg, iter_frames, probe, resize_max_width
+from showroom_coach.sources import StreamEnd, VideoError, decode_jpeg, iter_frames, probe, resize_max_width
 
 SAMPLE = Path(__file__).resolve().parents[1] / "data" / "samples" / "meva_a_60s.mp4"
 
@@ -172,26 +172,51 @@ def small_video(tmp_path, make_video):
 
 
 @pytest.mark.parametrize("how", ["truncate", "overwrite"])
-def test_damaged_video_fails_instead_of_looking_complete(small_video, tmp_path, how):
+def test_damaged_video_ends_early_and_says_so(small_video, tmp_path, how):
+    """Decoding stops part-way: the readable part is delivered and `end` reports the shortfall (no exception)."""
     bad = _damaged_copy(small_video, tmp_path / f"{how}.avi", how)
-    got = []
-    with pytest.raises(VideoError, match=r"video stops early at \d+\.\d s of ~4\.0 s: the file may be damaged"):
-        for _, t, _ in iter_frames(bad, sample_fps=5.0):
-            got.append(t)
-    assert 0 < len(got) < 0.9 * 20           # the readable part was still delivered before the error
+    end = StreamEnd()
+    got = [t for _, t, _ in iter_frames(bad, sample_fps=5.0, end=end)]
+    assert 0 < len(got) < 0.9 * 20                         # the readable part only
+    assert end.early and end.expected_s == pytest.approx(4.0)
+    assert got[-1] < end.read_s < 0.9 * 4.0
 
 
 def test_intact_video_does_not_trip_the_damage_check(small_video):
-    frames = list(iter_frames(small_video, sample_fps=5.0))
+    end = StreamEnd()
+    frames = list(iter_frames(small_video, sample_fps=5.0, end=end))
     assert len(frames) == 20 and frames[-1][1] == pytest.approx(3.8)
+    assert not end.early and end.read_s == pytest.approx(4.0) and end.expected_s == pytest.approx(4.0)
 
 
 def test_damage_beyond_the_trim_point_is_not_our_problem(small_video, tmp_path):
     bad = _damaged_copy(small_video, tmp_path / "late.avi", "truncate", frac=0.6)    # readable up to ~2.4 s
-    frames = list(iter_frames(bad, sample_fps=5.0, max_seconds=1.0))
-    assert len(frames) == 5
-    with pytest.raises(VideoError, match="stops early"):
-        list(iter_frames(bad, sample_fps=5.0, max_seconds=3.5))
+    end = StreamEnd()
+    frames = list(iter_frames(bad, sample_fps=5.0, max_seconds=1.0, end=end))
+    assert len(frames) == 5 and not end.early
+    end = StreamEnd()
+    frames = list(iter_frames(bad, sample_fps=5.0, max_seconds=3.5, end=end))
+    assert 0 < len(frames) < 0.9 * 3.5 * 5 and end.early and end.expected_s == pytest.approx(3.5)
+
+
+def test_container_with_a_longer_audio_track_ends_early(small_video, tmp_path, long_audio):
+    """A 4 s picture in a 10 s Matroska container: the frame count is derived from the 10 s, the decoder finds 4 s."""
+    mkv = long_audio(small_video, tmp_path / "long_audio.mkv", 10)
+    info = probe(mkv)
+    assert info.src_frames == pytest.approx(300, abs=2) and info.duration == pytest.approx(10.0, abs=0.1)
+    end = StreamEnd()
+    frames = list(iter_frames(mkv, sample_fps=5.0, end=end))
+    assert len(frames) == 20 and frames[-1][1] == pytest.approx(3.8)
+    assert end.early and end.read_s == pytest.approx(4.0) and end.expected_s == pytest.approx(10.0, abs=0.1)
+
+
+def test_zero_frame_video_still_raises(tmp_path):
+    path = tmp_path / "zero.avi"
+    cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 10.0, (320, 240)).release()   # a header, no frames
+    with pytest.raises(VideoError, match="cannot read video: zero.avi"):
+        probe(path)
+    with pytest.raises(VideoError, match="cannot read video: zero.avi"):
+        list(iter_frames(path, end=StreamEnd()))
 
 
 def test_probe_rejects_rateless_container(tmp_path, make_video):
@@ -228,9 +253,10 @@ def test_real_meva_sample_5fps():
 
 
 @pytest.mark.slow
-def test_real_meva_sample_damaged_copy_fails(tmp_path):
+def test_real_meva_sample_damaged_copy_ends_early(tmp_path):
     if not SAMPLE.exists():
         pytest.skip(f"missing {SAMPLE}")
     bad = _damaged_copy(SAMPLE, tmp_path / "damaged.mp4", "overwrite")
-    with pytest.raises(VideoError, match="stops early"):
-        list(iter_frames(bad, sample_fps=5.0))
+    end = StreamEnd()
+    frames = list(iter_frames(bad, sample_fps=5.0, end=end))
+    assert frames and end.early and end.read_s < 0.9 * end.expected_s

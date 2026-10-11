@@ -43,7 +43,7 @@ import numpy as np
 
 from ..config import MAX_SECONDS, MAX_WIDTH, MIN_TRACK_OBS, MIN_TRACK_S, SAMPLE_FPS
 from ..render import blur_faces
-from ..sources import VideoError, VideoInfo, iter_frames, probe
+from ..sources import StreamEnd, VideoError, VideoInfo, iter_frames, probe
 from ..types import to_jsonable
 from .embed import hsv_hist, person_crop, torso_crop, usable_crop
 from .stack import PerceptionStack
@@ -240,7 +240,13 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
     `pose_every` sampled frames have passed since its last fresh ones (1 = every frame); in between they are
     carried along with its box. A box too small for pose (no keypoints came back) is retried every frame.
     Only real tracks (see the module docstring) get `track_emb` / `track_outfit` entries and crop files.
-    Raises `VideoError` when the file cannot be decoded, ValueError for `pose_every < 1`.
+    Raises `VideoError` when the file cannot be decoded at all, ValueError for `pose_every < 1`.
+
+    A file whose decoding stops before 90% of the length its container promises (damaged, cut off, or an audio track
+    longer than the picture; see `sources.StreamEnd`) is analysed as far as it goes: `video.duration` becomes the
+    last decoded frame's time plus one sample interval, `video.ended_early` is set, `video.expected_duration` keeps
+    the promised length and `video.trimmed` is cleared, so the analysis ends the clip where the picture ended
+    (`sources.video_warnings` words the warning).
 
     Timings: `decode` is probing plus frame decoding; `embed` is everything appearance-related (cutting crops,
     descriptors, thumbnails); `total` is the wall time of the whole call.
@@ -274,7 +280,8 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
     seq = itertools.count()
     out_dir = Path(crops_dir) if crops_dir is not None else None
 
-    frames = iter_frames(path, sample_fps, max_width, max_seconds)
+    end = StreamEnd()
+    frames = iter_frames(path, sample_fps, max_width, max_seconds, end=end)
     try:
         while True:
             t0 = time.perf_counter()
@@ -361,6 +368,12 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
                 progress(frac, f"Finding and tracking people: {t:.0f} of {info.duration:.0f} s")
     finally:
         frames.close()
+    if end.early and frame_times:
+        effective = min(float(info.duration), frame_times[-1] + 1.0 / float(sample_fps))
+        log.warning("%s: decoding stopped at %.1f s of the %.1f s the container promises; analysing the first %.1f s",
+                    Path(str(path)).name, end.read_s, info.duration, effective)
+        info = replace(info, duration=effective, trimmed=False, ended_early=True,
+                       expected_duration=float(info.duration))
 
     t0 = time.perf_counter()
     real = {tid for tid, (first, last) in t_span.items()

@@ -12,7 +12,9 @@ running), then runs the cached perception pass (progress 0-0.9: finding people o
 analyses it with suggested roles (0.9-1.0), saves thumbnails and the first exports and stops at `needs_confirm`. Only
 one perception pass runs at a time in the whole process (`PERCEPTION_SLOT`), so two uploads never fight over the CPU;
 the second waits as `queued`. Any exception fails the job (message "failed", `error` for the user) and is logged with
-its traceback; the server keeps running, and a job never keeps partial results.
+its traceback; the server keeps running, and a failed job never keeps partial results. A video that decodes only part
+of the way (damaged, cut off, or an audio track longer than the picture) is not a failure: the part that decodes is
+analysed and the job carries the warning saying what the results cover.
 
 After that, `set_roles` re-scores in place (`analysis.rescore`: events and metrics only, never detection), rewrites the
 exports and the timeline at once and draws the annotated video in a background thread. Each call bumps the job's
@@ -44,7 +46,7 @@ from ..export import results_dict, write_all
 from ..metrics import sales_conversion, unmatched_sales
 from ..perception import pipeline
 from ..render import contact_sheets, render_video, save_thumbnails, timeline_png
-from ..sources import VideoError, probe
+from ..sources import VideoError, probe, video_warnings
 
 if TYPE_CHECKING:
     from ..perception.pipeline import PerceptionResult
@@ -405,9 +407,8 @@ class JobManager:
             self._set(job, status="queued", message=M_READING)
             # Probed before queueing: a garbage upload fails now instead of after the job ahead of it.
             info = probe(job.upload, config.MAX_WIDTH, config.SAMPLE_FPS, float(config.MAX_SECONDS))
-            if info.trimmed:
-                with job.lock:
-                    job.warnings.append(f"video trimmed to the first {info.max_seconds:g} s")
+            with job.lock:
+                job.warnings = video_warnings(info)
             self._set(job, message=M_QUEUED)
             while not PERCEPTION_SLOT.acquire(timeout=0.25):
                 self._check_open()
@@ -441,6 +442,8 @@ class JobManager:
         stack = self.stack_factory()
         res, _cached = pipeline.cached_perception(job.upload, stack, job.dir / "cache", progress=progress,
                                                   max_seconds=info.max_seconds)
+        with job.lock:                   # what perception found replaces the probe's guess (e.g. the video ended early)
+            job.warnings = video_warnings(res.video)
         self._check_open()
         self._set(job, status="analyzing", progress=PERCEPTION_SHARE, message=M_ANALYZING)
         an = analyze(res, preset=job.preset)

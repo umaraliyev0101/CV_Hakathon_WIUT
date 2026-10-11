@@ -1,5 +1,6 @@
 """Perception pipeline: detect -> track -> pose -> embed over a video, the per-video cache, and the face blur
 helpers that make the saved track crops safe to show."""
+import dataclasses
 import inspect
 import json
 import os
@@ -13,7 +14,7 @@ import numpy as np
 import pytest
 
 from showroom_coach import config
-from showroom_coach.analysis import build_persons
+from showroom_coach.analysis import analyze, build_persons
 from showroom_coach.perception import pipeline
 from showroom_coach.perception.pipeline import (
     cache_key, cached_perception, carry_keypoints, load_result, perception_params, run_perception, save_result,
@@ -239,6 +240,57 @@ def test_unreadable_input_raises_video_error(tmp_path):
         run_perception(bad, fake_stack())
     with pytest.raises(VideoError):
         video_key(tmp_path / "missing.mp4", 5.0, 960, 300.0, "fake")
+    zero = tmp_path / "zero.avi"
+    cv2.VideoWriter(str(zero), cv2.VideoWriter_fourcc(*"MJPG"), 10.0, (320, 240)).release()   # a header, no frames
+    with pytest.raises(VideoError, match="cannot read video: zero.avi"):
+        run_perception(zero, fake_stack())
+
+
+# --------------------------------------------------------------------------- a video that ends early
+
+
+def _walk_in_and_out(make_video, path):
+    """8 s, 10 fps, 320x240: one red customer stands at x 140 from 3.4 s to 5.6 s, then is gone (an entry the
+    short preset knows, and a leave that is only 2.4 s old when the picture ends)."""
+    mover = {"color": (0, 0, 255), "w": 40, "h": 100, "pos": lambda t: (140, 60) if 3.4 <= t < 5.6 else None}
+    return make_video(path, seconds=8, fps=10, size=(320, 240), movers=[mover])
+
+
+def test_a_longer_audio_track_gives_partial_results_with_a_warning(make_video, long_audio, tmp_path):
+    mkv = long_audio(_walk_in_and_out(make_video, tmp_path / "walk.avi"), tmp_path / "walk.mkv", 20)
+    res = run_perception(mkv, fake_stack())
+    v = res.video
+    assert v.ended_early and v.expected_duration == pytest.approx(20.0, abs=0.1) and not v.trimmed
+    assert res.frame_times[-1] == pytest.approx(7.8)
+    assert v.duration == pytest.approx(res.frame_times[-1] + 1 / v.sample_fps) == pytest.approx(8.0)
+    an = analyze(res, "short")
+    warning = ("video ended at 8 s of an expected 20 s — the file may be damaged or have a longer audio track; "
+               "results cover the first 8 s")
+    assert warning in an.warnings and an.duration == pytest.approx(8.0)
+    assert [e.type for e in an.events if e.type in ("leave", "walkout")] == []          # still in the shop at 8 s
+    # Control: had the clip "ended" where the container says, the same customer would count as a walk-out.
+    claimed = dataclasses.replace(res, video=dataclasses.replace(v, duration=20.0))
+    assert "walkout" in [e.type for e in analyze(claimed, "short").events]
+    save_result(res, tmp_path / "c")
+    assert load_result(tmp_path / "c").video == v                                        # survives the cache
+
+
+def test_a_cut_off_file_gives_partial_results_with_a_warning(make_video, tmp_path):
+    src = _walk_in_and_out(make_video, tmp_path / "walk.avi")
+    cut = tmp_path / "cut.avi"
+    cut.write_bytes(src.read_bytes()[: int(src.stat().st_size * 0.5)])     # header intact, picture stops at ~4 s
+    res = run_perception(cut, fake_stack())
+    v = res.video
+    assert v.ended_early and v.expected_duration == pytest.approx(8.0)
+    assert 0 < v.duration < 0.9 * 8.0 and v.duration == pytest.approx(res.frame_times[-1] + 0.2)
+    assert any(w.startswith(f"video ended at {v.duration:.0f} s of an expected 8 s") for w in analyze(res).warnings)
+
+
+def test_an_intact_video_is_not_flagged(synth_video):
+    res = run_perception(synth_video, fake_stack())
+    assert not res.video.ended_early and res.video.expected_duration is None
+    assert res.video.duration == pytest.approx(6.0)
+    assert not any(w.startswith("video ended") for w in analyze(res).warnings)
 
 
 # --------------------------------------------------------------------------- pose stride

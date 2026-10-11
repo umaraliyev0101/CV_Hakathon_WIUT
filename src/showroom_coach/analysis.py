@@ -22,6 +22,7 @@ from .geometry import Camera, at_frame_edge, facing_vector, position_m
 from .identity import TrackSummary, merge_tracks
 from .metrics import scorecard as build_scorecard
 from .roles import interaction_features, outfit_peers, presence, suggest_roles
+from .sources import video_warnings
 from .types import Event, Person, RoleSuggestion, Scorecard, to_jsonable
 
 if TYPE_CHECKING:
@@ -300,8 +301,7 @@ def _warnings(res: PerceptionResult, persons: list[Person], roles: dict[int, str
         out.append(W_NO_STAFF)
     if approx_share > APPROX_WARN_SHARE:
         out.append(f"distance is approximate for {round(100 * approx_share)}% of samples")
-    if res.video.trimmed:
-        out.append(f"video trimmed to the first {res.video.max_seconds:g} s")
+    out += video_warnings(res.video)        # trimmed, or ended before the length its container promised
     return out
 
 

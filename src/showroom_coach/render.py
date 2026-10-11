@@ -597,8 +597,8 @@ def render_video(video_path, res: PerceptionResult, an: Analysis, out_path, fps_
     is not sped up) in the processed size and trimmed like the perception run. Each frame is blurred first (see the
     module docstring), then boxes, labels, engaged lines, waiting timers, greeted ticks, the HUD ("m:ss | preset")
     and the 3 s alert banners are drawn. `progress(fraction, message)` is called about every 10 frames and finally
-    with 1.0. The file appears at `out_path` only when it is complete; a failure (VideoError for a damaged source)
-    leaves nothing behind.
+    with 1.0. The file appears at `out_path` only when it is complete; a failure (VideoError for an unreadable source)
+    leaves nothing behind. A source that stops decoding early is drawn as far as it decodes.
     """
     video = res.video
     scene = _Scene(res, an)

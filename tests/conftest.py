@@ -89,3 +89,22 @@ def meet_video(tmp_path_factory):
     ]
     path = tmp_path_factory.mktemp("meet") / "meet.avi"
     return _write_video(path, 20.0, 30, (1280, 720), movers)
+
+
+@pytest.fixture
+def long_audio():
+    """Factory: ``long_audio(video, dst, seconds)`` -> Path of an .mkv with `video`'s frames (stream-copied) and a silent
+    audio track `seconds` long. Matroska has no frame count of its own, so OpenCV derives one from the container's
+    duration: the file then claims `seconds` worth of video frames while holding only those of `video`."""
+    def _mux(video, dst, seconds):
+        import subprocess
+
+        import imageio_ffmpeg
+
+        dst = Path(dst)
+        cmd = [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(video),
+               "-f", "lavfi", "-t", f"{float(seconds):g}", "-i", "anullsrc=r=8000:cl=mono",
+               "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "pcm_s16le", str(dst)]
+        subprocess.run(cmd, check=True, capture_output=True)
+        return dst
+    return _mux
