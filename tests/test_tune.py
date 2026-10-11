@@ -241,3 +241,51 @@ def test_main_without_motmetrics_says_how_to_install_it(meet_video, tmp_path, mo
     rc = tune.main(["--clips", str(root / "clips.csv"), "--split-file", str(root / "split.json"),
                     "--out", str(tmp_path / "o.json")])
     assert rc == 2 and "motmetrics" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------------------------------------ oracle ablation
+
+def test_an_oracle_clip_has_the_ground_truth_boxes_as_tracks(meet_clip):
+    video, prefix, cache = meet_clip
+    plain = tune.load_dev_clip(video, prefix, fake_stack(), cache, None)
+    oracle = tune.load_dev_clip(video, prefix, fake_stack(), cache, None, oracle=True)
+    assert not plain.oracle and plain.res.stack_name != "oracle"
+    assert oracle.oracle and oracle.res.stack_name == "oracle" and oracle.clusters == plain.clusters
+    assert sorted(set(oracle.res.obs_track.tolist())) == [1, 2]               # actor 3 is a twin of 2
+
+
+def test_the_oracle_grid_matches_eval_clip_oracle_at_the_same_settings(meet_video, tmp_path):
+    prefix = write_meet_annotations(tmp_path)
+    cache = tmp_path / "cache"
+    cached_perception(meet_video, fake_stack(), cache)
+    clip = tune.load_dev_clip(meet_video, prefix, fake_stack(), cache, None, oracle=True)
+    out = tune.evaluate([clip], merges=(0.3,), dists=(2.0, 2.5), min_durs=(4.0, 8.0), gap_tol=1.5, preset="short")
+    ref = me.eval_clip(meet_video, prefix, fake_stack(), cache, dist=2.5, min_dur=8.0, oracle=True)
+    got = tune.find(out["rows"], 0.3, 2.5, 8.0)
+    for variant in me.VARIANTS:
+        for key in ("n_gt", "n_gt_tracked", "n_det", "n_det_mapped", "n_matched", "recall_all", "precision_mapped"):
+            assert got[variant]["talk"][key] == ref[variant]["talk"][key], (variant, key)
+    assert got["twin_aware"]["talk"]["n_matched"] == 1
+    assert got["enter_exit_recall"]["twin_aware"] == ref["twin_aware"]["enter_exit"]["all"]["recall_all"]
+    assert got["persons_idf1"] == pytest.approx(ref["persons"]["tracking"]["idf1"])
+
+
+def test_main_oracle_tunes_dist_and_min_dur_on_the_dev_clips_with_ground_truth_tracks(meet_video, tmp_path, monkeypatch,
+                                                                                    capsys):
+    root = tmp_path / "meva"
+    root.mkdir()
+    make_meva_tree(root, meet_video, {"limit_seconds": 12, "dev": ["meet.G1"], "test": ["held.G2"]})
+    cache = tmp_path / "cache"
+    cached_perception(root / "videos" / "meet.G1.r13.avi", fake_stack(), cache, max_seconds=12.0)
+    monkeypatch.setattr(me, "_default_stack", fake_stack)
+    monkeypatch.setattr(tune, "GRID_DIST", (2.0, 2.5))
+    monkeypatch.setattr(tune, "GRID_MIN_DUR", (4.0, 8.0))
+    out = tmp_path / "tune_oracle.json"
+    rc = tune.main(["--clips", str(root / "clips.csv"), "--split-file", str(root / "split.json"), "--out", str(out),
+                    "--cache", str(cache), "--oracle"])
+    assert rc == 0
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["mode"] == "oracle" and data["clips"] == ["meet.G1"]
+    assert len(data["rows"]) == 4 and {r["merge_thr"] for r in data["rows"]} == {0.3}   # the merge threshold has no effect
+    assert data["merge_decision"]["adopt"] is False and data["chosen"] in data["rows"]
+    assert "ORACLE" in capsys.readouterr().out

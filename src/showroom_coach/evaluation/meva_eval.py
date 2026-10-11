@@ -12,6 +12,8 @@ frames, with the ground truth taken at the matching source frame and scaled to t
   ``person_talks_to_person``.
 * ``enter_exit_eval`` compares the presence of a mapped person with the enter/exit-through-structure events, as the
   nearest presence boundary and as first/last seen.
+* ``oracle_result`` replaces the cached detections with the ground-truth boxes (``--oracle``): an ablation that scores the
+  geometry and the engagement rule alone, with perfect detection and tracking.
 * ``eval_clip`` runs all of it for one clip. Talks and enter/exit are scored twice and reported side by side: ``strict``
   (an id maps to one actor if it is on it for >= 3 frames and >= 30% of its own frames; twin actors are separate) and
   ``twin_aware`` (an id also maps when it is on >= 50% of a briefly annotated actor's frames, and twin actors count as
@@ -29,6 +31,7 @@ detection and tracking misses).
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import json
 import math
@@ -66,6 +69,14 @@ TALK_TIOU = 0.30      # temporal IoU for a detected interval to match a ground-t
 TALK_TIOU_2 = 0.10    # the secondary, looser line
 ENTER_EXIT_WINDOW_S = 5.0
 EDGE_S = 1.0          # enter/exit events this close to the start or end of the clip are not scored
+
+ORACLE_NOTE = (
+    "ORACLE MODE (ablation, not the system): the cached detections are replaced by the ground-truth person boxes at the "
+    "same sampled frames, one track per person (twin actors collapsed into the lowest actor id of their cluster), score "
+    "1.0, no keypoints (distance comes from the box height) and no embeddings (persons are the tracks, nothing is "
+    "merged). The analysis, pair detector and scoring are the same as in a normal run; our ids map to themselves. It "
+    "isolates the geometry and the engagement rule from detection and tracking. Ground-truth boxes exist only while an "
+    "actor takes part in an annotated activity, so presence and enter/exit timing are partly circular here.")
 
 NOTES = [
     "MEVA annotates only the actors of its activities: people we track who are not annotated count as false "
@@ -602,10 +613,58 @@ def aggregate(clips: list[dict]) -> dict:
     }
 
 
+# ------------------------------------------------------------------------------------------------------- oracle
+
+def oracle_result(res, gt_boxes: dict[int, list[GeomBox]], clusters: dict[int, int] | None = None):
+    """A copy of the perception result ``res`` whose observations are the ground-truth person boxes (perfect detection
+    and tracking), for the oracle ablation.
+
+    The sampled frames (``frame_times``, ``src_frame_idx``) and the video info are those of ``res``. On every sampled frame
+    there is one observation per ground-truth person: the box of the source frame it matches, scaled to processed pixels,
+    score 1.0, keypoints with confidence 0 (geometry then falls back to the box height and flags the distance as
+    approximate). The track id is the actor id, or with ``clusters`` (``twin_clusters``) the representative of the
+    actor's twin cluster, so the several annotations of one physical person become one track; where several members of
+    a cluster are annotated in a frame, the box of the lowest actor id is kept. There are no embeddings or outfit
+    descriptors, so the identity merge leaves every track a person of its own. Observations are ordered by frame, then
+    track id. ``res`` is not modified.
+    """
+    clusters = clusters or {}
+    scale = float(res.video.scale)
+    frames: list[int] = []
+    tracks: list[int] = []
+    boxes: list[tuple] = []
+    for f in range(len(res.frame_times)):
+        per_track: dict[int, tuple] = {}
+        for b in sorted(gt_boxes.get(int(res.src_frame_idx[f]), ()), key=lambda b: b.actor):
+            per_track.setdefault(clusters.get(b.actor, b.actor), b.bbox)
+        for track in sorted(per_track):
+            frames.append(f)
+            tracks.append(int(track))
+            boxes.append(per_track[track])
+    out = copy.copy(res)
+    out.obs_frame = np.asarray(frames, np.int64)
+    out.obs_track = np.asarray(tracks, np.int64)
+    out.obs_bbox = np.asarray(boxes, float).reshape(-1, 4) * scale
+    out.obs_score = np.ones(len(frames))
+    out.obs_kpts = np.zeros((len(frames), 17, 3), np.float32)
+    out.raw_frame, out.raw_bbox = out.obs_frame.copy(), out.obs_bbox.copy()
+    out.track_emb, out.track_outfit = {}, {}
+    out.crops_dir, out.cars, out.timings = None, [], {}
+    out.stack_name = "oracle"
+    return out
+
+
+def oracle_id_map(an) -> dict[int, int]:
+    """Person id -> actor for an analysis of ``oracle_result`` tracks: a person is its track, and the track id is the
+    actor id (or the representative of a twin cluster)."""
+    return {p.pid: p.track_ids[0] for p in an.persons}
+
+
 # ---------------------------------------------------------------------------------------------------- one clip
 
 def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist: float = 2.0, min_dur: float = 8.0,
-              gap_tol: float = 1.5, merge_thr: float = 0.30, limit_seconds: float | None = None) -> dict:
+              gap_tol: float = 1.5, merge_thr: float = 0.30, limit_seconds: float | None = None,
+              oracle: bool = False) -> dict:
     """Run perception (cached), the offline analysis and every metric for one clip.
 
     ``ann_prefix`` is the annotation path without ``.geom.yml`` / ``.activities.yml`` / ``.types.yml``. With
@@ -613,6 +672,10 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
     are computed for the raw tracks (``tracks``) and the merged persons (``persons``). Engagement and enter/exit are
     scored for the persons, twice: ``strict`` (each of our ids maps to one actor by the first version's share rule, no
     twins) and ``twin_aware`` (the actor-share rule of ``match_ids`` and twin actors credited as one person).
+
+    With ``oracle`` the cached perception only supplies the sampled frames; the observations are the ground-truth boxes
+    (``oracle_result``), the analysis and scoring are unchanged, and every track maps to its own actor.
+    ``merge_thr`` then has no effect (there are no embeddings). The output says ``"mode": "oracle"``.
     """
     started = time.perf_counter()
     prefix = str(ann_prefix)
@@ -621,12 +684,19 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
     acts = load_activities(prefix + ".activities.yml")
     res, cached = cached_perception(video, stack, cache_root,
                                     **({} if limit_seconds is None else {"max_seconds": float(limit_seconds)}))
+    clusters = twin_clusters(res, gt_boxes)
+    if oracle:
+        res = oracle_result(res, gt_boxes, clusters)
     an = analysis.analyze(res, preset=preset, merge_thr=merge_thr)
     fps, t_end = float(res.video.src_fps), float(res.video.duration)
 
-    strict_map = match_ids(res, an, gt_boxes, True, min_actor_share=None)
-    twin_map = match_ids(res, an, gt_boxes, True)
-    clusters = twin_clusters(res, gt_boxes)
+    if oracle:      # the tracks are the actors: every person maps to its track id, which is its actor id
+        strict_map = twin_map = oracle_id_map(an)
+        track_map = {int(t): int(t) for t in res.track_ids()}
+    else:
+        strict_map = match_ids(res, an, gt_boxes, True, min_actor_share=None)
+        twin_map = match_ids(res, an, gt_boxes, True)
+        track_map = match_ids(res, None, gt_boxes, False, min_actor_share=None)
     intervals = pair_intervals(an, res, dist, min_dur, gap_tol)
     talks = [a for a in acts if a.name == GT_TALK]
     annotated = {b.actor for f in res.src_frame_idx for b in gt_boxes.get(int(f), ())}
@@ -636,14 +706,13 @@ def eval_clip(video, ann_prefix, stack, cache_root, preset: str = "short", dist:
         return [[g.a, g.b, g.t0, g.t1] for g in gt_talk_pairs(talks, fps, t_end, persons_gt, **kw)]
 
     return {
-        "clip": Path(prefix).name, "video": str(video), "duration_s": t_end, "src_fps": fps,
+        "clip": Path(prefix).name, "mode": "oracle" if oracle else "system", "video": str(video), "duration_s": t_end, "src_fps": fps,
         "limit_s": limit_seconds, "cached": bool(cached), "n_sampled_frames": int(len(res.frame_times)),
         "n_gt_persons": len(annotated), "n_tracks": len(res.track_ids()), "n_persons": len(an.persons),
         "n_gt_boxes": dup_counts[1], "n_gt_dup_boxes": dup_counts[0], "gt_dup_share": _ratio(*dup_counts),
         "timings": {"perception_s": float(res.timings.get("total", 0.0)),
                     "eval_s": time.perf_counter() - started},
-        "tracks": {"id_map": match_ids(res, None, gt_boxes, False, min_actor_share=None),
-                   "tracking": tracking_metrics(res, None, gt_boxes, False)},
+        "tracks": {"id_map": track_map, "tracking": tracking_metrics(res, None, gt_boxes, False)},
         "persons": {"tracking": tracking_metrics(res, an, gt_boxes, True),
                     "intervals": [[a, b, t0, t1] for a, b, t0, t1 in intervals]},
         "strict": {
@@ -764,6 +833,9 @@ def format_tables(clips: list[dict], total: dict, params: dict | None = None) ->
     lines = [""]
     if params:
         lines.append("settings: " + " ".join(f"{k}={v}" for k, v in params.items()))
+        if params.get("oracle"):
+            lines.append("ORACLE MODE: ground-truth boxes instead of detections (perfect detection and tracking); "
+                         "an ablation of the geometry and the engagement rule, not the system")
     lines += ["Tracking (sampled frames; MEVA annotates only some people, so precision/MOTA are pessimistic;"
               " dup = GT boxes with a twin box, which caps recall)",
               f"{'clip':<{w}}  {'MOTA trk':>8} {'IDF1 trk':>8} {'IDSW':>5}  {'MOTA per':>8} {'IDF1 per':>8} {'IDSW':>5}"
@@ -838,6 +910,9 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--merge-thr", type=float, default=0.30, help="identity-merge threshold of the analysis")
     p.add_argument("--limit-seconds", type=float, default=None, help="only the first N seconds of every clip")
     p.add_argument("--cache", default=None, help="perception cache directory (default: the app's)")
+    p.add_argument("--oracle", action="store_true",
+                   help="ablation: use the ground-truth person boxes instead of the detections (perfect detection and "
+                        "tracking); writes runs/eval/meva_<split>_oracle.json by default")
     return p
 
 
@@ -845,7 +920,8 @@ def main(argv=None) -> int:
     """Exit codes: 0 all clips evaluated, 1 a clip failed or nothing could be evaluated, 2 usage error."""
     args = _parser().parse_args(argv)
     clips_path = Path(args.clips)
-    out_path = Path(args.out) if args.out else Path("runs") / "eval" / f"meva_{args.split}.json"
+    suffix = "_oracle" if args.oracle else ""
+    out_path = Path(args.out) if args.out else Path("runs") / "eval" / f"meva_{args.split}{suffix}.json"
     try:
         rows = select_clips(read_clips(clips_path), args.split, args.split_file)
     except (OSError, ValueError) as exc:
@@ -875,7 +951,9 @@ def main(argv=None) -> int:
         return 1
 
     params = {"preset": args.preset, "dist": args.dist, "min_dur": args.min_dur, "gap_tol": args.gap_tol,
-              "merge_thr": args.merge_thr, "limit_seconds": args.limit_seconds}
+              "merge_thr": args.merge_thr, "limit_seconds": args.limit_seconds, "oracle": args.oracle}
+    notes = NOTES + ([ORACLE_NOTE] if args.oracle else [])
+    mode = "oracle" if args.oracle else "system"
     stack = _default_stack()
     cache_root = Path(args.cache) if args.cache else config.cache_dir()
     results: list[dict] = []
@@ -887,8 +965,8 @@ def main(argv=None) -> int:
             message = f"{type(exc).__name__}: {exc}"
             print(f"error: {clip}: {message}", file=sys.stderr)
             results.append({"clip": clip, "error": message})
-        _write_results(out_path, {"split": args.split, "params": params, "notes": NOTES, "skipped": skipped,
-                                  "clips": results, "total": aggregate(results)})
+        _write_results(out_path, {"split": args.split, "mode": mode, "params": params, "notes": notes,
+                                  "skipped": skipped, "clips": results, "total": aggregate(results)})
     total = aggregate(results)
     print(format_tables(results, total, params))
     print(f"wrote {out_path}")

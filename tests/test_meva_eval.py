@@ -856,12 +856,11 @@ def _kpf_geom(path, boxes):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path, monkeypatch):
-    from showroom_coach import analysis
-    from showroom_coach.perception.stack import fake_stack
-    # meet_video: 20 s at 30 fps, 1280x720. Blue (actor 1) stands at x 600..680; red (actor 2) walks in 4-8 s, stays
-    # at x 470..550 until 18 s, then walks out. Both are 80x220 at y 250. Actor 3 is a twin annotation of actor 2 for its
-    # last 4 s (a slightly larger box) and is the one that "exits"; actor 2 itself enters at 4 s.
+def write_meet_annotations(tmp_path):
+    """KPF files for ``meet_video`` (20 s at 30 fps, 1280x720); returns the annotation prefix. Blue (actor 1) stands at
+    x 600..680; red (actor 2) walks in 4-8 s, stays at x 470..550 until 18 s, then walks out. Both are 80x220 at y 250.
+    Actor 3 is a twin annotation of actor 2 for its last 4 s (a slightly larger box) and is the one that "exits"; actor 2
+    itself enters at 4 s. Actors 1 and 2 talk from 8 s to 18 s."""
     from tests.conftest import _customer_x1
     boxes = []
     for f in range(600):
@@ -885,6 +884,13 @@ def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path, 
         "- {'act': {'act2': {'person_exits_scene_through_structure': 1.0}, 'actors': [{'id1': 3, 'timespan': "
         "[{'tsr0': [540, 570]}]}], 'id2': 6, 'src_status': 'good', 'timespan': [{'tsr0': [540, 570]}]}}\n",
         encoding="utf-8")
+    return prefix
+
+
+def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path, monkeypatch):
+    from showroom_coach import analysis
+    from showroom_coach.perception.stack import fake_stack
+    prefix = write_meet_annotations(tmp_path)
 
     passed = []
     real_analyze = analysis.analyze
@@ -914,3 +920,116 @@ def test_eval_clip_end_to_end_on_the_synthetic_meet_video(meet_video, tmp_path, 
     short = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", limit_seconds=10.0)
     assert short["duration_s"] == pytest.approx(10.0, abs=0.3)
     assert short["strict"]["talk"]["n_gt"] == 1                      # GT clipped to 8-10 s
+
+
+# ------------------------------------------------------------------------------------------------ oracle ablation
+
+def test_oracle_result_has_one_observation_per_gt_box_in_processed_pixels():
+    res = make_res(10, [])
+    gt = make_gt({100: A_SRC, 200: B_SRC}, 10)
+    before = dict(vars(res))
+    o = me.oracle_result(res, gt)
+    assert len(o.obs_frame) == 20 and o.obs_frame.dtype == np.int64 and o.obs_track.dtype == np.int64
+    assert list(o.obs_frame) == [f for f in range(10) for _ in (0, 1)]
+    assert list(o.obs_track) == [100, 200] * 10                       # sorted by frame, then track id
+    assert np.allclose(o.obs_bbox[0], A_OUT) and np.allclose(o.obs_bbox[1], B_OUT)   # scale 0.5
+    assert np.all(o.obs_score == 1.0)
+    assert o.obs_kpts.shape == (20, 17, 3) and not o.obs_kpts.any()   # confidence 0: geometry falls back to box height
+    assert o.track_emb == {} and o.track_outfit == {}
+    assert o.frame_times is res.frame_times and o.src_frame_idx is res.src_frame_idx and o.video is res.video
+    assert all(vars(res)[k] is before[k] for k in before)             # the cached result is not touched
+    assert o.stack_name == "oracle"
+
+
+def test_oracle_result_uses_only_the_sampled_frames_of_the_window():
+    res = make_res(5, [])                                              # source frames 0, 6, ..., 24
+    gt = make_gt({1: A_SRC}, 20)                                       # annotated for 120 source frames
+    o = me.oracle_result(res, gt)
+    assert list(o.obs_frame) == [0, 1, 2, 3, 4]
+    odd = {7: [GeomBox(1, 7, A_SRC)], 6: [GeomBox(2, 6, B_SRC)]}       # frame 7 is not sampled, frame 6 is
+    o = me.oracle_result(res, odd)
+    assert list(o.obs_frame) == [1] and list(o.obs_track) == [2]
+
+
+def test_oracle_result_collapses_twin_actors_into_one_track_with_the_lowest_actors_box():
+    twin = (102, 102, 202, 302)                                        # a slightly shifted second annotation
+    gt = make_gt({8: twin, 7: A_SRC, 9: B_SRC}, 4)
+    o = me.oracle_result(make_res(4, []), gt, clusters={7: 7, 8: 7})
+    assert list(o.obs_track) == [7, 9] * 4                             # one observation per person and frame
+    assert np.allclose(o.obs_bbox[0], A_OUT)                           # the box of actor 7, not of its twin 8
+    assert list(me.oracle_result(make_res(4, []), gt, clusters={8: 7, 7: 7}).obs_track) == [7, 9] * 4
+
+
+def test_oracle_result_follows_a_twin_when_its_representative_is_not_annotated():
+    gt = make_gt({7: lambda f: A_SRC if f < 12 else None, 8: lambda f: (101, 101, 201, 301) if f >= 12 else None}, 4)
+    o = me.oracle_result(make_res(4, []), gt, clusters={7: 7, 8: 7})
+    assert list(o.obs_track) == [7, 7, 7, 7] and np.allclose(o.obs_bbox[3], np.array((101, 101, 201, 301)) * 0.5)
+
+
+def test_oracle_result_without_ground_truth_is_empty():
+    o = me.oracle_result(make_res(3, []), {})
+    assert o.obs_frame.shape == (0,) and o.obs_bbox.shape == (0, 4) and o.obs_kpts.shape == (0, 17, 3)
+    assert len(o.frame_times) == 3
+
+
+def test_eval_clip_oracle_scores_the_engagement_logic_on_perfect_tracks(meet_video, tmp_path, monkeypatch):
+    from showroom_coach import analysis
+    from showroom_coach.perception.stack import fake_stack
+    prefix = write_meet_annotations(tmp_path)
+    seen = []
+    real_analyze = analysis.analyze
+    monkeypatch.setattr(analysis, "analyze", lambda res, *a, **kw: (seen.append(res.stack_name), real_analyze(res, *a, **kw))[1])
+    r = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", dist=2.0, min_dur=8.0, oracle=True)
+    assert seen == ["oracle"]                                          # the analysis ran on the oracle tracks
+    json.dumps(r)
+    assert r["mode"] == "oracle" and r["n_tracks"] == 2 and r["n_persons"] == 2   # actors 1 and 2 (3 is 2's twin)
+    assert r["tracks"]["id_map"] == {1: 1, 2: 2} and r["strict"]["id_map"] == {1: 1, 2: 2}
+    assert r["persons"]["tracking"]["num_switches"] == 0
+    # the only ground-truth boxes the oracle misses are the second box of each twin pair (half of the boxes with a twin)
+    assert (1 - r["persons"]["tracking"]["recall"]) == pytest.approx(r["gt_dup_share"] / 2, abs=0.01)
+    assert r["persons"]["tracking"]["precision"] == 1.0
+    for variant in me.VARIANTS:
+        talk = r[variant]["talk"]
+        assert talk["n_gt"] == 1 and talk["n_gt_tracked"] == 1 and talk["n_matched"] == 1
+        assert talk["recall_all"] == 1.0 and talk["precision_mapped"] == 1.0
+        assert r[variant]["enter_exit"]["enter"]["n_matched"] == 1
+    # the exit belongs to actor 3, which the oracle folded into actor 2: only the twin-aware numbers credit it
+    assert r["strict"]["enter_exit"]["exit"]["n_gt_tracked"] == 0
+    assert r["twin_aware"]["enter_exit"]["exit"]["n_matched"] == 1
+    normal = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache")
+    assert normal["mode"] == "system" and normal["cached"] is True
+
+
+def test_eval_clip_oracle_ignores_the_merge_threshold(meet_video, tmp_path):
+    from showroom_coach.perception.stack import fake_stack
+    prefix = write_meet_annotations(tmp_path)
+    a = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", oracle=True, merge_thr=0.0)
+    b = me.eval_clip(meet_video, prefix, fake_stack(), tmp_path / "cache", oracle=True, merge_thr=0.9)
+    assert a["twin_aware"]["talk"] == b["twin_aware"]["talk"] and a["n_persons"] == b["n_persons"] == 2
+
+
+def test_main_oracle_flag_reaches_eval_clip_and_marks_the_output(csv_and_split, tmp_path, monkeypatch, capsys):
+    clips, split = csv_and_split
+    seen = []
+
+    def fake_eval(video, ann, stack, cache_root, **kw):
+        seen.append(kw)
+        return {**fake_clip_eval(video.name.split(".r13")[0]), "mode": "oracle" if kw.get("oracle") else "system"}
+
+    monkeypatch.setattr(me, "eval_clip", fake_eval)
+    monkeypatch.setattr(me, "_default_stack", lambda: "STACK")
+    monkeypatch.setattr(me, "_files_exist", lambda *p: True)
+    monkeypatch.chdir(tmp_path)
+    rc = me.main(["--clips", str(clips), "--split", "dev", "--split-file", str(split), "--oracle"])
+    assert rc == 0 and seen and all(kw["oracle"] is True for kw in seen)
+    out = tmp_path / "runs" / "eval" / "meva_dev_oracle.json"             # a separate default file name
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["mode"] == "oracle" and data["params"]["oracle"] is True
+    assert any("oracle" in n.lower() for n in data["notes"])
+    text = capsys.readouterr().out
+    assert "ORACLE" in text and "oracle=True" in text
+    seen.clear()
+    assert me.main(["--clips", str(clips), "--split", "dev", "--split-file", str(split), "--out",
+                    str(tmp_path / "plain.json")]) == 0
+    assert all(kw["oracle"] is False for kw in seen)
+    assert json.loads((tmp_path / "plain.json").read_text(encoding="utf-8"))["mode"] == "system"

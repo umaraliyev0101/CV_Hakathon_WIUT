@@ -8,7 +8,9 @@ the cache of an earlier evaluation run (a missing entry is an error, never a sil
 clip's perception and ground truth are loaded once. For every identity ``merge_thr`` the analysis runs once per clip;
 for every engagement ``dist`` x ``min_dur`` (``gap_tol`` fixed) the roles-ignored pair intervals are scored against the
 talks with ``meva_eval.talk_eval``, strict and twin-aware, pooled over the dev clips (micro-average). The same
-``merge_thr`` rows also carry the persons' IDF1 / MOTA and the enter/exit recall.
+``merge_thr`` rows also carry the persons' IDF1 / MOTA and the enter/exit recall. With ``--oracle`` the clips are
+loaded as ground-truth tracks (``meva_eval.oracle_result``), only ``merge_thr`` 0.30 is scored (there are no embeddings
+to merge) and the result is the dist / min_dur grid of the engagement rule alone.
 
 Selection rule (``choose``): the highest twin-aware talk F1, the harmonic mean of ``recall_all`` and
 ``precision_mapped``; ties are broken by the persons' IDF1, then by the settings nearest the untuned defaults.
@@ -93,11 +95,13 @@ class DevClip:
     fps: float
     t_end: float
     clusters: dict[int, int]
+    oracle: bool = False
 
 
-def load_dev_clip(video, ann_prefix, stack, cache_root, limit_seconds: float | None) -> DevClip:
+def load_dev_clip(video, ann_prefix, stack, cache_root, limit_seconds: float | None, oracle: bool = False) -> DevClip:
     """Load one clip from the perception cache. RuntimeError (and no work done) when the cache has no entry for it: tuning
-    never runs the detector."""
+    never runs the detector. With ``oracle`` the observations are the ground-truth boxes (``meva_eval.oracle_result``;
+    the cache only supplies the sampled frames) and the clip's ids map to themselves."""
     kw = {} if limit_seconds is None else {"max_seconds": float(limit_seconds)}
     entry = Path(cache_root) / pipeline.cache_key(video, pipeline.perception_params(stack, **kw))
     if not entry.is_dir():
@@ -110,8 +114,11 @@ def load_dev_clip(video, ann_prefix, stack, cache_root, limit_seconds: float | N
     res, cached = pipeline.cached_perception(video, stack, Path(cache_root), **kw)
     if not cached:                                  # lost a race with a sweep: do not carry on with a fresh detector run
         raise RuntimeError(f"the cached perception of {Path(str(video)).name} was rebuilt while loading it")
+    clusters = me.twin_clusters(res, gt_boxes)
+    if oracle:
+        res = me.oracle_result(res, gt_boxes, clusters)
     return DevClip(Path(prefix).name, res, gt_boxes, acts, persons_gt, float(res.video.src_fps),
-                   float(res.video.duration), me.twin_clusters(res, gt_boxes))
+                   float(res.video.duration), clusters, oracle)
 
 
 # ------------------------------------------------------------------------------------------------- the grid
@@ -137,8 +144,10 @@ def evaluate(clips: list[DevClip], merges=GRID_MERGE, dists=GRID_DIST, min_durs=
     for merge in merges:
         started = time.perf_counter()
         ans = [analysis.analyze(c.res, preset=preset, merge_thr=merge) for c in clips]
-        maps = {"strict": [me.match_ids(c.res, an, c.gt_boxes, True, min_actor_share=None) for c, an in zip(clips, ans)],
-                "twin_aware": [me.match_ids(c.res, an, c.gt_boxes, True) for c, an in zip(clips, ans)]}
+        maps = {"strict": [me.oracle_id_map(an) if c.oracle else
+                           me.match_ids(c.res, an, c.gt_boxes, True, min_actor_share=None) for c, an in zip(clips, ans)],
+                "twin_aware": [me.oracle_id_map(an) if c.oracle else me.match_ids(c.res, an, c.gt_boxes, True)
+                               for c, an in zip(clips, ans)]}
         tracking = me._sum_tracking([me.tracking_metrics(c.res, an, c.gt_boxes, True) for c, an in zip(clips, ans)])
         enter_exit = {v: me._sum_ee_blocks([
             me.enter_exit_eval(an, c.acts, m, c.fps, t_end=c.t_end, persons=c.persons_gt,
@@ -210,18 +219,24 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--clips", default="data/meva/clips.csv", help="the clips table (default: %(default)s)")
     p.add_argument("--split-file", default="data/meva/split.json",
                    help='JSON {"dev": [...], "test": [...]}; only "dev" is read (default: %(default)s)')
-    p.add_argument("--out", default="runs/eval/tune_dev.json", help="results JSON (default: %(default)s)")
+    p.add_argument("--out", default=None,
+                   help="results JSON (default: runs/eval/tune_dev.json, or tune_dev_oracle.json with --oracle)")
     p.add_argument("--preset", default="short", help="threshold preset for the analysis (default: %(default)s)")
     p.add_argument("--limit-seconds", type=float, default=None,
                    help=f"seconds of every clip that were evaluated (default: the split file's limit_seconds, else "
                         f"{DEFAULT_LIMIT_S:g})")
     p.add_argument("--cache", default=None, help="perception cache directory (default: the app's)")
+    p.add_argument("--oracle", action="store_true",
+                   help="ablation: tune dist and min_dur on ground-truth boxes instead of detections (perfect detection "
+                        "and tracking); merge_thr has no effect there, so only 0.30 is scored")
     return p
 
 
 def main(argv=None) -> int:
     """Exit codes: 0 done, 1 a dev clip could not be loaded (for instance no cached perception), 2 usage error."""
     args = _parser().parse_args(argv)
+    out_path = args.out or ("runs/eval/tune_dev_oracle.json" if args.oracle else "runs/eval/tune_dev.json")
+    merges = (DEFAULTS["merge_thr"],) if args.oracle else GRID_MERGE
     clips_path, split_path = Path(args.clips), Path(args.split_file)
     try:
         rows = me.select_clips(me.read_clips(clips_path), "dev", split_path)
@@ -253,28 +268,31 @@ def main(argv=None) -> int:
             return 1
         print(f"loading {row['clip']} ...", file=sys.stderr, flush=True)
         try:
-            clips.append(load_dev_clip(video, prefix, stack, cache_root, limit))
+            clips.append(load_dev_clip(video, prefix, stack, cache_root, limit, oracle=args.oracle))
         except RuntimeError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
 
-    out = evaluate(clips, GRID_MERGE, GRID_DIST, GRID_MIN_DUR, GAP_TOL, args.preset,
+    out = evaluate(clips, merges, GRID_DIST, GRID_MIN_DUR, GAP_TOL, args.preset,
                    log=lambda m: print(m, file=sys.stderr, flush=True))
     all_rows = out["rows"]
     chosen = choose(all_rows)
     untuned = find(all_rows, **DEFAULTS)
     merge_default = find(all_rows, DEFAULTS["merge_thr"], chosen["dist"], chosen["min_dur"])
-    adopt = (abs(chosen["merge_thr"] - DEFAULTS["merge_thr"]) > TIE and merge_default is not None
+    adopt = (not args.oracle and abs(chosen["merge_thr"] - DEFAULTS["merge_thr"]) > TIE and merge_default is not None
              and merge_beats_default(chosen, merge_default))
     decision = {"adopt": bool(adopt), "chosen_merge_thr": chosen["merge_thr"], "default_merge_thr": DEFAULTS["merge_thr"],
                 "rule": "adopt a merge_thr other than 0.30 only if, at the chosen dist and min_dur, it is better than 0.30 "
                         "on one of twin-aware talk F1 and persons IDF1 and not worse on the other"}
-    me._write_results(Path(args.out), {
-        "split_file": str(split_path), "clips": [c.name for c in clips], "limit_seconds": limit, "preset": args.preset,
-        "grid": {"merge_thr": list(GRID_MERGE), "dist": list(GRID_DIST), "min_dur": list(GRID_MIN_DUR), "gap_tol": GAP_TOL},
+    me._write_results(Path(out_path), {
+        "mode": "oracle" if args.oracle else "system", "split_file": str(split_path), "clips": [c.name for c in clips], "limit_seconds": limit, "preset": args.preset,
+        "grid": {"merge_thr": list(merges), "dist": list(GRID_DIST), "min_dur": list(GRID_MIN_DUR), "gap_tol": GAP_TOL},
         "selection_rule": SELECTION_RULE, "chosen": chosen, "default_untuned": untuned,
         "merge_default_at_chosen": merge_default, "merge_decision": decision, "per_merge": out["per_merge"],
         "rows": all_rows})
+    if args.oracle:
+        print("\nORACLE MODE: ground-truth boxes instead of detections (perfect detection and tracking); an ablation of "
+              "the geometry and the engagement rule, not the system")
     print(format_grid(all_rows, out["per_merge"], chosen))
     print("")
     print("chosen   " + _describe(chosen))
@@ -282,8 +300,9 @@ def main(argv=None) -> int:
         print("untuned  " + _describe(untuned))
     if merge_default is not None and merge_default is not chosen:
         print("merge 0.30 at the chosen dist/min_dur  " + _describe(merge_default))
-    print(f"merge_thr {chosen['merge_thr']:g} {'beats' if adopt else 'is not adopted over'} the product default 0.30")
-    print(f"wrote {args.out}")
+    if not args.oracle:
+        print(f"merge_thr {chosen['merge_thr']:g} {'beats' if adopt else 'is not adopted over'} the product default 0.30")
+    print(f"wrote {out_path}")
     return 0
 
 
