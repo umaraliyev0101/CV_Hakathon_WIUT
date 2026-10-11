@@ -38,4 +38,4 @@ showroom_coach = ["app/static/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: needs real models/video; skipped when files are missing"]
-addopts = "-ra"
+addopts = "-ra -m 'not slow'"
