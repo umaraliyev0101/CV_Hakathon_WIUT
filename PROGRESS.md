@@ -48,7 +48,7 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 
 ### M2 summary (~05:00): perception on real video, with a per-video cache
 
-- Chain: sampled frame source (5 fps, ≤ 960 px, ≤ 300 s, fails cleanly on damaged files) → yolox_nano@2 → supervision ByteTrack → RTMPose-s (batched, every 2nd frame per track, keypoints carried in between) → DINOv2-small + HSV descriptors on real tracks only. The cache (`runs/cache/<key>/perception.npz/json`) is keyed by file hash plus every content-changing parameter, and loads without pickle.
+- Chain: sampled frame source (5 fps, ≤ 960 px, ≤ 300 s; unreadable files fail cleanly, files that end early give partial results with a warning) → yolox_nano@2 → supervision ByteTrack → RTMPose-s (batched, every 2nd frame per track, keypoints carried in between) → DINOv2-small + HSV descriptors on real tracks only. The cache (`runs/cache/<key>/perception.npz/json`) is keyed by file hash plus every content-changing parameter, and loads without pickle.
 - **File-mode speed** (wall clock, i5-10210U, honest; other agents were loading the CPU during some runs): `meva_a_60s` (960 px, about 11 people per frame) gives **RTF 0.976** (61.5 s for 60 s). The full G421 clip (1920×1072, 5 min, about 12 people per frame) gives **RTF 0.713** (421 s for 300 s). Before batching and the pose stride the figures were 0.706 and 0.506. **The ≥ 1× target is met only on uncrowded clips.** Pose and DINOv2 dominate the time.
 
 ### M3 summary (~05:30): analysis, rendering, export
@@ -58,7 +58,7 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 
 ### M4 summary (~06:00): web app, upload flow
 
-- FastAPI app (`showroom-coach serve`, `run.bat`): upload (411/413/415/400 guards) → background perception (one job at a time; damaged or unreadable video fails cleanly) → confirm-staff gallery (blurred thumbnails, suggestion with confidence and ≤ 3 reasons, one-click toggle, names) → results (annotated video with HTTP Range, timeline, scorecards, alerts, JSON/CSV export). Re-scoring takes about 0.14 s and never re-detects. Each re-render is versioned. Job data older than 24 h is deleted at startup.
+- FastAPI app (`showroom-coach serve`, `run.bat`): upload (411/413/415/400 guards) → background perception (one job at a time; unreadable video fails cleanly; a video that ends early is analysed up to its end, with a warning) → confirm-staff gallery (blurred thumbnails, suggestion with confidence and ≤ 3 reasons, one-click toggle, names) → results (annotated video with HTTP Range, timeline, scorecards, alerts, JSON/CSV export). Re-scoring takes about 0.14 s and never re-detects. Each re-render is versioned. Job data older than 24 h is deleted at startup.
 - **Real smoke via `run.bat` + `scripts/smoke_api.py`** (`meva_b_60s.mp4`, CPU shared with other agents): `SMOKE OK`, 331 requests. Upload 0.08 s, needs_confirm after 253 s, roles round-trip 0.46 s, video ready 67 s later. An earlier run on `meva_a_60s` reached needs_confirm in 122 s. **The < 3 min target was missed under load**; it is re-measured idle in the Morning summary.
 - Frontend: vanilla JS, no CDN, works offline. Verified with Playwright at 1280/1920 px, including the nobody-detected and connection-lost states, with no console errors.
 
@@ -101,7 +101,7 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 - **Tracker floor:** the ByteTrack new-track floor equals the detector threshold (0.35). supervision is pinned to `>=0.28,<0.31`, because ByteTrack is removed in 0.31.
 - **DINOv2 batch size:** DINOv2 runs at batch 1, because the int8 dynamic quantisation makes embeddings depend on what else is in the batch.
 - **Pose:** RTMPose is batched per frame and runs every 2nd sampled frame per track, with keypoints carried along with the box in between. Only real tracks (≥ 3 observations spanning ≥ 1 s) are embedded.
-- **Damaged files:** a damaged video (frames stop before 90% of the expected count) or a container reporting more than 240 fps fails cleanly with a `VideoError`.
+- **Damaged or short files (revised at the end of the night):** a container reporting more than 240 fps, or a video with no readable frames, fails cleanly with a `VideoError`. A video whose frames stop before 90% of the container's count was first rejected. The final review showed valid mkv/webm files with a longer audio track trip that check, and the duration skew caused false walk-outs. Such a video is now analysed up to its last frame (effective duration = last frame + one sample interval) with the warning "video ended at X s of an expected Y s — the file may be damaged or have a longer audio track; results cover the first X s".
 - **Re-rendered videos:** each re-render is written to `annotated-<rev>.mp4`, because Windows browsers lock the mp4 that is playing.
 - **Default test run:** it excludes `@pytest.mark.slow`; run those with `pytest -m slow`.
 
@@ -115,3 +115,100 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 
 - (resolved in M7) The README licence table lists every model and dataset; `models/MANIFEST.json` keeps the hashes.
 - (fixed in 746394c) `write_manifest()` now keeps a row for every registry entry, so a partial fetch can no longer shrink the licence record.
+
+## Morning summary (2026-10-11, written at the end of the overnight run)
+
+Branch `yak-44/showroom-coach`, fast-forwarded into `main` (local only; no remote exists). Reverse with `git branch -f main 07a01f6`. Every number below comes from a command whose output is in `runs/verify/` or `docs/EVAL.md`.
+
+### What works (verified tonight)
+- **Upload flow:** `run.bat` starts the app at http://localhost:8000. You can upload a clip, confirm staff in a gallery (face-blurred thumbnails, suggested role with confidence and up to 3 plain-language reasons, one-click toggle, names), and get results:
+  - a face-blurred annotated H.264 video (staff blue, customers orange, engaged-pair lines, wait timers, alert banners);
+  - a per-person timeline;
+  - a scorecard per salesperson and a store summary;
+  - an alert feed and contact sheets, shown in the results page (blurred; three frames around each event);
+  - JSON/CSV export and an optional sales-CSV conversion.
+  - Flipping a role re-scores in about 0.14 s and never re-runs detection. The video re-renders in the background.
+- **Live mode:** the `/live` page runs the webcam over a WebSocket into the same engine, drawing overlays and timers on a canvas.
+  - Faces are blurred on the canvas, including people who are not yet tracked.
+  - Clicking a box toggles staff/customer, and auto-suggestion starts after 30 s.
+  - It reconnects on its own after a drop.
+- **CLI:** `showroom-coach analyze | serve | eval-meva | bench | webcam-check | fetch-models`.
+- **Privacy and licences:**
+  - No face recognition. Body-appearance embeddings are used only to merge track fragments within one video.
+  - Faces are blurred in every rendered output.
+  - Processing stays on this computer, and job data is deleted after 24 h.
+  - The README has the licence table, the privacy notes and the pre-final declaration. The `LICENSE` file is Apache-2.0.
+
+### Verification evidence (fresh runs, near-idle machine)
+- `pytest` (fresh, `-p no:cacheprovider`): **835 passed, 11 deselected** (`runs/verify/pytest_final.txt`). Run time was 289 s on the final run with desktop apps active and 344 s while a reviewer ran tests in parallel, against 173–175 s on two quiet runs earlier. **The < 3 min target is met only on a quiet machine.** The 11 deselected tests are `@pytest.mark.slow` (real models and MEVA files; run them with `pytest -m slow`). They passed in their task runs but were not re-run together at the end.
+- `showroom-coach analyze` on two clips (fresh cache):
+  - `meva_a_60s`: RTF 1.07×, 31 people, all outputs written;
+  - `meva_b_60s`: RTF 0.56× (possibly contended), 33 people, all outputs written.
+  - Outputs: `runs/verify/analyze_{a,b}/`.
+- `run.bat` + `scripts/smoke_api.py --budget 180` on `meva_a_60s`:
+  - upload → staff confirmation 60.3 s (BUDGET MET);
+  - roles round-trip 0.14 s;
+  - video ready 12.2 s later;
+  - SMOKE OK, 85 HTTP requests.
+- File-fed live WebSocket (`scripts/live_file_client.py`, `meva_g423_20s`, 100 frames): 4.45 fps end to end, 5.21 fps round trip, 3.8 people per frame.
+- Real webcam frame grab (`showroom-coach webcam-check`): "Web Camera" at index 0 (DSHOW), 640×480 captured, exit 0. The room was dark and empty, so 0 people.
+- `showroom-coach bench`:
+  - file mode, 720p, 12 people per frame: RTF 0.87×; render 4.3× real time;
+  - live in-process, 3.8 people per frame: 3.61 fps mean.
+
+### Measured numbers vs the spec targets (honest)
+| Target (spec §6/§12) | Measured | Status |
+|---|---|---|
+| Upload → results < 3 min | 60.3 s for a 60 s clip, idle; 122–253 s under heavy load | ✅ idle |
+| File mode ≥ 1× real time | 0.87× on the 720p benchmark (12 people per frame); 1.07× on the same footage at 960 px; 0.56× on a 14-person clip | ❌ on crowded scenes (borderline) |
+| Live ≥ 4 fps with 1–4 people | 4.45 fps end to end over the WebSocket; 3.61 fps in the in-process bench (3.8 people per frame) | borderline |
+| Talk/engagement recall ≥ 70% (MEVA) | test: 1.1% twin-aware / 0.5% strict; with oracle tracks (perfect detection) 44.1% / 32.3% | ❌ |
+| Enter/exit (MEVA) | test recall 20.6% twin-aware / 2.9% strict, median timing error 0.8 / 1.1 s | — (no target) |
+| Tracking (MEVA) | persons IDF1 13.5%, MOTA −27.4% (raw tracks 15.5% / −28.1%) | — |
+| Staff suggestion ≥ 80% | not measurable: no labelled showroom footage (`data/stock/` was empty) | n/a |
+| Greet-time median error ≤ 2 s | not measurable, for the same reason | n/a |
+| Detector (M0 benchmark, MEVA) | yolox_nano@2 (2 tiles): recall 26.9% at 31.6 ms/frame (retained log), chosen by the spec rule | — |
+
+### What doesn't work / known weaknesses
+- **MEVA engagement recall is far below target.** The detector finds only 17.6% of annotated MEVA people, who are tiny (median 47 px tall), so most talks involve someone we never track. Even with perfect tracks, the 2.5 m / 8 s rule reaches 44% recall. Showroom cameras with larger people should do much better, but this is **unmeasured**.
+- **Staff suggestion has never been checked on real staff/customer footage.** On crowded school clips the heuristics break down: 16 of 33 people were suggested as staff in one 60 s clip. Real showroom footage is needed.
+- **Speed:** file mode is under 1× real time on crowded scenes (pose and DINOv2 dominate), and live is borderline at about 4 fps. The two biggest levers are fewer crops per track and a lighter appearance embedder.
+- **Detector misses:** people the detector misses entirely, for example cut off at a frame edge, are not blurred. This is documented in the README. Mitigation: camera placement that shows full bodies.
+- **Distance is calibration-free:** a pinhole model with H = 1.70 m and a 70° field of view. Optional 4-point floor calibration exists in config but has no UI.
+- **Stretch goals not done:** auto car zones and the Uzbek/Russian UI. The Dockerfile is written but not built (Docker wasn't running). The deploy script is an example only and was never run.
+
+### Every decision taken alone (rulings; full list with costs is under "Decisions" above)
+1. **Branch, no worktree:** worked on branch `yak-44/showroom-coach` in the main checkout, not a worktree, then fast-forwarded `main`. Reverse with `git branch -f main 07a01f6`.
+2. **No `Co-Authored-By` trailers:** CLAUDE.md overrides the tool's default.
+3. **Detector:** chosen by the spec rule after adding a **2-tile mode**. yolox_nano@2 beat yolox_s (26.8% vs 18.0% recall, 4–5× faster).
+4. **Tile-merge seam rule:** in the overlap, a box is dropped only if it touches its own tile's cut (keeps nested people).
+5. **Standing vs seated:** decided by (ankle − hip) / torso ≥ 1.35 instead of the plan's 2.4 nose-ankle ratio, which misread seated people.
+6. **Event-engine rules:**
+   - a wait alert is held while a greet streak is open;
+   - "browsing" state added;
+   - visits by people finally marked staff are excluded from store metrics;
+   - live counts only confirmed people (≥ 3 observations over ≥ 1 s).
+7. **Live identity:** call order `end_step` then `resolve`, and one active track per person ID.
+8. **Perception speed:** batched pose, pose every 2nd frame per track (keypoints carried), embeddings only for real tracks. crops_per_track kept at 4 for quality.
+9. **Dependencies and tracker:** supervision pinned `>=0.28,<0.31`; tracker new-track floor = detector threshold (0.35).
+10. **Re-renders:** written to `annotated-<rev>.mp4` (Windows file locks).
+11. **Uploads:** no Content-Length / chunked → 411, so the 1 GB cap holds.
+12. **Videos that end early:** at first such videos were rejected as damaged. The final review showed valid mkv/webm files with longer audio trip that check, so they are now analysed up to the last frame, with a warning, and events use the effective duration.
+13. **Default pytest run:** excludes `@pytest.mark.slow`; run those with `pytest -m slow`.
+14. **MEVA evaluation scope:** first 150 s of 7 clips. The dev/test split was written before tuning, and twin-aware mapping is reported next to strict. Test exposure is disclosed in EVAL.md: 5 post-split runs, plus test clip G421 used before the split.
+15. **Oracle ablation:** added to separate detection failures from the engagement rule.
+16. **History left as is:** commit `37aa229` mixes two tasks (a shared git index between concurrent agents). History was not rewritten.
+17. **Thumbnails and live canvas:** they also blur the top 20% of every tracked box, not only the keypoint face region (final review).
+18. **Stretch built in spec order 1, 4, 5:** sales-CSV join, Dockerfile, guarded deploy example. Items 2 (car zones) and 3 (uz/ru UI) were skipped for time.
+
+### Team to-do list
+- **Review the agent-made labels:** there are none yet, because there was no showroom footage. Download the Pexels clips listed in `data/TODO_DOWNLOADS.md`, label staff/greets/engagements, and re-run the evaluation.
+- **Film staged showroom scenes** (staff + customers, a known greet time) to measure staff suggestion, greet-time error and real engagement recall. These are the numbers the jury will ask for.
+- **Put real Royal Motors numbers into the ROI model** in `docs/PITCH_NOTES.md`. Every input there is marked ASSUMPTION.
+- **Deploy (owner's decision):** the Dockerfile and `scripts/deploy_example.sh` are written but were never built or run. Decide on hosting, HTTPS for remote live mode, and the GPL FFmpeg / Body7 licence questions noted in the README.
+- **Integrate the teammate's feature** (repo `umaraliyev0101/CV_Hakathon_WIUT`) in its own Jira task. This session declined it as outside YAK-44. A GitHub token was pasted into the chat and should be revoked.
+- **API reference for integrators:** `docs/API.md` (REST + `/ws/live` JSON shapes).
+- **Demo-day notes:**
+  - pre-run the jury clip, and do not restart the server afterwards;
+  - don't run an upload while `/live` is open;
+  - keep `runs/verify/analyze_a/` as an offline fallback.
