@@ -1,6 +1,7 @@
 """Real HTTP smoke test of the Showroom Coach web API (the file-upload flow of the page, without a browser).
 
-    .venv/Scripts/python scripts/smoke_api.py http://127.0.0.1:8000 data/samples/meva_b_60s.mp4 [--preset short] [--timeout 600]
+    .venv/Scripts/python scripts/smoke_api.py http://127.0.0.1:8000 data/samples/meva_b_60s.mp4
+                                              [--preset short] [--timeout 600] [--budget SECONDS]
 
 Flow: GET /api/presets, POST /api/jobs (multipart), poll GET /api/jobs/{id} every second until needs_confirm,
 GET /people, pick the people with the longest presence as staff (top 1 when there are 4 people or fewer, else top 2;
@@ -8,7 +9,10 @@ the first is named "Demo"), POST /roles, poll until the annotated video is ready
 (with a Range request, expecting 206), events.csv, scorecard.csv, timeline.png and one person thumbnail.
 
 It prints every HTTP status, the timings and the counts, then "SMOKE OK" (exit 0) or "SMOKE FAILED: <reason>" (exit 1).
-Needs the server to be running already (run.bat / run.sh, or `showroom-coach serve`). Only httpx is required.
+With --budget SECONDS it also prints "BUDGET MET" or "BUDGET MISSED (x s > budget)" for the time from the start of the
+upload to needs_confirm, and a miss makes the run fail (exit 1) even when every other check passed.
+Needs the server to be running already (run.bat / run.sh, or `showroom-coach serve`). The only third-party package it
+uses is httpx, which is a main dependency of the project, so it runs in the venv that run.bat / run.sh build.
 """
 from __future__ import annotations
 
@@ -34,7 +38,7 @@ class SmokeFailed(Exception):
 
 def say(text: str = "") -> None:
     """Print as plain ASCII: server messages hold an ellipsis or an en dash that a Windows console may not show."""
-    text = text.replace("…", "...").replace("–", "-").replace("—", "-")
+    text = text.replace("\u2026", "...").replace("\u2013", "-").replace("\u2014", "-")
     print(text.encode("ascii", "replace").decode("ascii"), flush=True)
 
 
@@ -106,7 +110,7 @@ def choose_staff(people: list[dict]) -> list[int]:
 
 
 def csv_rows(text: str) -> list[list[str]]:
-    return list(csv.reader(io.StringIO(text.lstrip("﻿"))))          # the exports start with a BOM for Excel
+    return list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))          # the exports start with a BOM for Excel
 
 
 def run(args: argparse.Namespace) -> None:
@@ -145,6 +149,7 @@ def run(args: argparse.Namespace) -> None:
     say("3. perception and analysis (polling every second)")
     job = smoke.wait_job(job_id, "needs_confirm", lambda j: j["status"] == "needs_confirm")
     timings["to_needs_confirm"] = time.perf_counter() - t_job
+    timings["upload_to_needs_confirm"] = time.perf_counter() - t_up        # what --budget is checked against
     for w in job.get("warnings") or []:
         say(f"  warning: {w}")
 
@@ -216,9 +221,9 @@ def run(args: argparse.Namespace) -> None:
     timeline = smoke.request("GET", res["timeline_url"])
     if not timeline.content.startswith(b"\x89PNG"):
         raise SmokeFailed("timeline.png is not a PNG file")
-    thumb_url = people[0].get("thumb_url")
+    thumb_url = next((p["thumb_url"] for p in people if p.get("thumb_url")), None)      # first person that has one
     if not thumb_url:
-        raise SmokeFailed("the first person has no thumb_url")
+        raise SmokeFailed(f"none of the {len(people)} people has a thumb_url")
     thumb = smoke.request("GET", thumb_url)
     if not thumb.content.startswith(b"\xff\xd8"):
         raise SmokeFailed("the person thumbnail is not a JPEG file")
@@ -237,6 +242,14 @@ def run(args: argparse.Namespace) -> None:
     say(f"  roles round-trip           {timings['roles']:7.2f} s")
     say(f"  to video ready (from roles){timings['to_video_ready']:7.2f} s")
     say(f"  total                      {total:7.2f} s")
+    budget_missed = None
+    if args.budget is not None:
+        took = timings["upload_to_needs_confirm"]
+        if took <= args.budget:
+            say(f"  BUDGET MET (upload to needs_confirm {took:.1f} s <= {args.budget:g} s)")
+        else:
+            budget_missed = f"BUDGET MISSED ({took:.1f} s > {args.budget:g} s)"
+            say(f"  {budget_missed}")
     say("Counts")
     say(f"  people {len(people)} (staff {len(staff)}: {', '.join(map(str, staff))}), "
         f"persons in results {len(res.get('persons', []))}")
@@ -247,6 +260,8 @@ def run(args: argparse.Namespace) -> None:
     for w in res.get("warnings", []):
         say(f"  warning: {w}")
     say(f"  {len(smoke.statuses)} HTTP requests, all as expected")
+    if budget_missed:
+        raise SmokeFailed(budget_missed)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -261,9 +276,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--preset", default="short", help="threshold preset (default short)")
     p.add_argument("--timeout", type=float, default=600.0,
                    help="give up after this many seconds in total, polling included (default 600)")
+    p.add_argument("--budget", type=float, default=None, metavar="SECONDS",
+                   help="also require upload -> needs_confirm to take at most this many seconds: prints BUDGET MET "
+                        "or BUDGET MISSED and exits 1 on a miss (default: no budget)")
     args = p.parse_args(argv)
     if not args.timeout > 0:
         p.error("--timeout must be greater than 0")
+    if args.budget is not None and not args.budget > 0:
+        p.error("--budget must be greater than 0")
     try:
         run(args)
     except SmokeFailed as exc:
@@ -271,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except KeyboardInterrupt:
         say("SMOKE FAILED: interrupted")
+        return 1
+    except (httpx.InvalidURL, OSError) as exc:              # a malformed URL, or the video file cannot be read
+        say(f"SMOKE FAILED: {type(exc).__name__}: {exc}")
         return 1
     except (KeyError, TypeError, ValueError) as exc:        # a response that does not match the API contract
         say(f"SMOKE FAILED: unexpected response shape: {type(exc).__name__}: {exc}")

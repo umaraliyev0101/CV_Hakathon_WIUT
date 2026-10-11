@@ -1,0 +1,8 @@
+# Launchers must keep their line endings on every checkout (a CRLF bash shebang breaks, an LF batch file can misparse).
+run.sh text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Never touch the bytes of weights and videos (they are gitignored and never committed; this is a safety net).
+*.onnx binary
+*.mp4 binary

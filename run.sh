@@ -18,16 +18,22 @@ venv_python() {
   return 1
 }
 
-# A Python 3.11-3.13 for creating the venv (the package requires >=3.11,<3.14).
+# True when the interpreter $1 is Python 3.11-3.13 (the package requires >=3.11,<3.14).
+supported_python() {
+  "$1" -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 13) else 1)' >/dev/null 2>&1
+}
+
+# A Python for creating the venv. The explicit Windows 3.12 install is probed first (Git Bash), then python3.12, and so on.
 find_python() {
-  local c win=""
+  local c
+  local -a candidates=()
   if [ -n "${LOCALAPPDATA:-}" ] && command -v cygpath >/dev/null 2>&1; then
-    win="$(cygpath -u "$LOCALAPPDATA")/Programs/Python/Python312/python.exe"
+    candidates+=("$(cygpath -u "$LOCALAPPDATA")/Programs/Python/Python312/python.exe")
   fi
-  for c in python3.12 python3.13 python3.11 "$win" python3 python; do
-    [ -n "$c" ] || continue
+  candidates+=(python3.12 python3.13 python3.11 python3 python)
+  for c in "${candidates[@]}"; do
     command -v "$c" >/dev/null 2>&1 || continue
-    if "$c" -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 13) else 1)' >/dev/null 2>&1; then
+    if supported_python "$c"; then
       printf '%s\n' "$c"
       return 0
     fi
@@ -46,6 +52,14 @@ if ! VENV_PY="$(venv_python)"; then
     echo "ERROR: .venv was created but contains no python executable." >&2
     exit 1
   fi
+fi
+
+# An existing .venv is reused, so check its Python too: a venv built with 3.14 cannot install this package.
+if ! supported_python "$VENV_PY"; then
+  found="$("$VENV_PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo unknown)"
+  echo "ERROR: the .venv folder uses Python $found; Showroom Coach needs Python 3.11, 3.12 or 3.13." >&2
+  echo "Delete the .venv folder and run ./run.sh again: it will rebuild the folder with a supported Python." >&2
+  exit 1
 fi
 
 if ! "$VENV_PY" -c "import showroom_coach" >/dev/null 2>&1; then
