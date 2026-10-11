@@ -11,6 +11,7 @@ import csv
 import dataclasses
 import io
 import statistics
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -25,6 +26,8 @@ MAX_TIMESTAMP_CHARS = 40
 _SALES_FORMAT = "salesperson,timestamp,sold"
 _SOLD_TRUE = frozenset({"1", "true", "yes"})
 _SOLD_FALSE = frozenset({"0", "false", "no"})
+# Uzbek writes o' and g' with a modifier letter, a typographic quote, an acute or a grave; all count as one apostrophe.
+_APOSTROPHES = str.maketrans({chr(c): "'" for c in (0x2BB, 0x2BC, 0x2018, 0x2019, 0xB4, 0x60)})
 
 
 @dataclass
@@ -188,6 +191,13 @@ def _clean_name(value) -> str:
     return " ".join(str(value).split()) if isinstance(value, str) else ""
 
 
+def _match_key(value) -> str:
+    """A name as compared: apostrophe variants unified, NFKC (composed forms, full-width letters), spacing collapsed,
+    case folded. Only used for matching; names are reported as typed."""
+    text = unicodedata.normalize("NFKC", _clean_name(value).translate(_APOSTROPHES)).translate(_APOSTROPHES)
+    return _clean_name(text).casefold()
+
+
 def parse_sales_csv(text: str) -> SalesRows:
     """Rows of a sales CSV: a header with `salesperson` and `sold` (and optionally `timestamp`), then one row per
     lead or sale. Header names are case-insensitive, extra columns are ignored, and comma, semicolon or tab
@@ -206,7 +216,9 @@ def parse_sales_csv(text: str) -> SalesRows:
     delimiter = max(",;\t", key=first.count)
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     try:
-        header = next(r for r in reader if any(c.strip() for c in r))
+        header = next((r for r in reader if any(c.strip() for c in r)), None)
+        if header is None:                                  # only separators, e.g. a blank sheet saved as CSV
+            raise SalesCsvError(f"no header row found; the first line must be the header {_SALES_FORMAT}")
         cols = {c.strip().casefold(): i for i, c in enumerate(header)}
         if "salesperson" not in cols or "sold" not in cols:
             raise SalesCsvError(f"the first line must be the header {_SALES_FORMAT} "
@@ -234,13 +246,13 @@ def parse_sales_csv(text: str) -> SalesRows:
 def _staff_by_label(card: Scorecard, names: dict[int, str] | None) -> dict[str, int]:
     """Normalised label -> staff id, for the labels that point at exactly one salesperson.
 
-    A salesperson answers to their typed name (case and spacing ignored) and to `S<id>`, the label used in the
-    video. Two people with the same name answer to nobody by name, so their rows are reported as unmatched
+    A salesperson answers to their typed name (case, spacing, Unicode form and apostrophe style ignored) and to
+    `S<id>`, the label used in the video. Two people with the same name answer to nobody by name, so their rows are reported as unmatched
     rather than credited to the wrong person; their `S<id>` labels still work."""
     names = names or {}
     claims: dict[str, set[int]] = {}
     for c in card.staff:
-        for label in (_clean_name(names.get(c.staff) or c.name or "").casefold(), f"s{c.staff}"):
+        for label in (_match_key(names.get(c.staff) or c.name or ""), f"s{c.staff}"):
             if label:
                 claims.setdefault(label, set()).add(c.staff)
     return {label: next(iter(ids)) for label, ids in claims.items() if len(ids) == 1}
@@ -261,15 +273,17 @@ def sales_conversion(card: Scorecard, rows: list[dict], names: dict[int, str]) -
     (`sold / customers_engaged`, None when nobody was engaged).
 
     `rows` are ``{"salesperson", "timestamp", "sold"}`` dicts (`parse_sales_csv`; `sold` may also be a raw 1/0/yes/no
-    string). A row belongs to the salesperson whose name it matches, ignoring case and spacing, or whose label is
-    `S<id>`. A salesperson with no row at all gets None for both: the CSV says nothing about them, which is not the
-    same as no sales. Rows of people who are not staff in `card` are ignored here (`unmatched_sales` lists them).
+    string). A row belongs to the salesperson whose name it matches, ignoring case, spacing, Unicode form (NFKC) and
+    the style of apostrophe (o', a modifier letter, a typographic quote or a grave accent), or whose label is
+    `S<id>`. A salesperson with no row at all gets None for both: the CSV says nothing about them, which is not
+    the same as no sales. Rows of people who are not staff in `card` are ignored here (`unmatched_sales` lists
+    them).
     Sales are not tied to the camera's engagements, so `conversion` can exceed 1; it is reported as computed.
     """
     owner = _staff_by_label(card, names)
     sold: dict[int, int] = {}
     for name, flag in _readable_rows(rows):
-        sid = owner.get(name.casefold())
+        sid = owner.get(_match_key(name))
         if sid is not None:
             sold[sid] = sold.get(sid, 0) + int(flag)
     staff = []
@@ -286,6 +300,7 @@ def unmatched_sales(card: Scorecard, rows: list[dict], names: dict[int, str]) ->
     owner = _staff_by_label(card, names)
     out: dict[str, str] = {}
     for name, _ in _readable_rows(rows):
-        if name.casefold() not in owner:
-            out.setdefault(name.casefold(), name)
+        key = _match_key(name)
+        if key not in owner:
+            out.setdefault(key, name)
     return list(out.values())

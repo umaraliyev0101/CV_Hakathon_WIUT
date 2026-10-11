@@ -6,6 +6,8 @@ Pure-function tests use hand-built scorecards; the API tests run on the fake per
 import csv
 import dataclasses
 import io
+import random
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -79,6 +81,39 @@ def test_name_comes_from_names_when_the_card_has_none():
     card = _scorecard(_card(1, None, 2))
     out = sales_conversion(card, [row("Aziz", True)], {1: "Aziz"})
     assert out.staff[0].sold == 1
+
+
+MARKS = [chr(0x2BB), chr(0x2BC), chr(0x2018), chr(0x2019), chr(0xB4), "`", "'"]    # Uzbek apostrophe variants
+
+
+def test_uzbek_apostrophe_variants_all_match_the_same_name():
+    card = _scorecard(_card(1, "O'tkir", 2))
+    rows = [row(f"O{m}tkir", True) for m in MARKS]
+    assert sales_conversion(card, rows, {1: "O'tkir"}).staff[0].sold == len(MARKS)
+    assert unmatched_sales(card, rows, {1: "O'tkir"}) == []
+
+
+@pytest.mark.parametrize("typed", MARKS)
+def test_staff_name_typed_with_any_apostrophe_matches_the_csv_spelling(typed):
+    card = _scorecard(_card(1, f"G{typed}ulom", 2))
+    rows = [row("G'ulom", True), row(f"G{chr(0x2019)}ulom", True), row(f"G{chr(0x2BB)}ULOM", True)]
+    assert sales_conversion(card, rows, {1: f"G{typed}ulom"}).staff[0].sold == 3
+
+
+def test_names_match_across_unicode_normal_forms_and_widths():
+    fullwidth = "".join(chr(ord(c) + 0xFEE0) for c in "Aziz")                          # compatibility characters
+    zoe = "Zo" + chr(0xEB)                                                             # precomposed diaeresis
+    card = _scorecard(_card(1, "Aziz", 1), _card(2, zoe, 1))
+    rows = [row(fullwidth, True), row("Zoe" + chr(0x308), True), row("ZOE" + chr(0x308), True), row("zoe", True)]
+    out = sales_conversion(card, rows, {1: "Aziz", 2: zoe})
+    assert [c.sold for c in out.staff] == [1, 2]                                       # NFKC: composed == decomposed
+    assert unmatched_sales(card, rows, {1: "Aziz", 2: zoe}) == ["zoe"]                 # plain "zoe" is another name
+
+
+def test_matching_normalises_only_for_comparison_and_reports_names_as_typed():
+    card = _scorecard(_card(1, "Aziz", 1))
+    typed = "Karim" + chr(0x2019) + "s"
+    assert unmatched_sales(card, [row(typed, True)], {1: "Aziz"}) == [typed]
 
 
 @pytest.mark.parametrize("flag", [True, 1, "1", "true", "TRUE", "Yes", " yes ", "True"])
@@ -223,6 +258,41 @@ def test_parse_oversized_cell_is_a_clean_error():
         parse_sales_csv("salesperson,timestamp,sold\n" + "A" * 200_000 + ",t,1\n")
 
 
+DELIMITER_ONLY = [",,,\n", ";;;\r\n", " , \n,,\n", ",\n\n,\n", "\t\t\t\n,\n", ",,,", ";\n;\n;\n", " ; ; \r\n;;\r\n"]
+
+
+@pytest.mark.parametrize("text", DELIMITER_ONLY)
+def test_parse_delimiter_only_file_is_a_clean_no_header_error(text):
+    """A blank spreadsheet exported as CSV is only separators: no header row, never a bare StopIteration."""
+    with pytest.raises(SalesCsvError, match="header"):
+        parse_sales_csv(text)
+
+
+def test_parse_only_ever_raises_sales_csv_error():
+    odd = ['"', '"unterminated\n', "salesperson", "salesperson,sold", "\r\n\r\n", "\x0b\x0c", "a b,c\n",
+           '"",""\n', 'salesperson,sold\n"""', ",\n,\n,\n", "\n\n\n"]
+    rng = random.Random(44)
+    alphabet = [",", ";", "\t", "\r", "\n", " ", '"', "'", "a", "S", "1", "\x0b", " ", "salesperson", "sold"]
+    odd += ["".join(rng.choice(alphabet) for _ in range(rng.randint(0, 30))) for _ in range(500)]
+    for text in odd:
+        try:
+            rows = parse_sales_csv(text)
+        except SalesCsvError:
+            continue                                  # a clean, user-facing refusal
+        assert isinstance(rows, list) and rows.skipped >= 0, repr(text)
+
+
+def test_the_shipped_sample_csv_parses_and_is_labelled_synthetic():
+    path = Path(__file__).resolve().parents[1] / "docs" / "sample_sales.csv"
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert lines[0] == "salesperson,timestamp,sold,note"                   # a bare header: no comment line above it
+    assert all(ln.endswith(",SYNTHETIC sample") for ln in lines[1:])
+    rows = parse_sales_csv(text)
+    assert len(rows) == 12 and rows.skipped == 0
+    assert {r["salesperson"] for r in rows} == {"Aziz", "Bek", "S2"} and any(r["sold"] for r in rows)
+
+
 def test_module_exports():
     assert {"sales_conversion", "unmatched_sales", "parse_sales_csv", "SalesCsvError", "MAX_SALES_ROWS"} <= set(
         metrics.__all__)
@@ -363,6 +433,16 @@ def test_bad_csv_is_a_400_and_keeps_the_earlier_sales(job):
     r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("sales.csv", b"\xff\xfe\x00bad", "text/csv")})
     assert r.status_code == 400 and "UTF-8" in r.json()["detail"]
     assert c.get(f"/api/jobs/{jid}/results").json()["sales"]["rows"] == 5
+
+
+@pytest.mark.parametrize("text", DELIMITER_ONLY)
+def test_delimiter_only_csv_is_a_400_not_a_500(job, text):
+    c, jid = job
+    c.post(f"/api/jobs/{jid}/sales", files=csv_file(API_CSV))
+    r = c.post(f"/api/jobs/{jid}/sales", files=csv_file(text))
+    assert r.status_code == 400, (text, r.status_code, r.text)
+    assert "header" in r.json()["detail"] and "salesperson" in r.json()["detail"]
+    assert c.get(f"/api/jobs/{jid}/results").json()["sales"]["rows"] == 5                # the earlier sales are kept
 
 
 def test_missing_file_field_is_a_400(job):

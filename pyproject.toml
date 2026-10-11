@@ -34,7 +34,7 @@ showroom-coach = "showroom_coach.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-showroom_coach = ["app/static/*"]
+showroom_coach = ["app/static/*", "app/static/mock/*.json", "app/static/mock/*.csv", "app/static/mock/thumbs/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

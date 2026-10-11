@@ -182,7 +182,8 @@ On the results page, "Add sales CSV (optional)" takes a file with one row per le
 `conversion` (sold divided by customers engaged) in the scorecard and in `scorecard.csv`. A row belongs to the staff
 member with that name (typed on the confirm page; case and spacing are ignored) or `S<number>`, the label used in the
 video; names that match nobody are listed and ignored. [`docs/sample_sales.csv`](docs/sample_sales.csv) is **SYNTHETIC
-sample data** (invented names, dates and sales) that only shows the format. Sales are not tied to the engagements the
+sample data** (invented names, dates and sales; every row says so in an extra `note` column, which is ignored) that only
+shows the format. Sales are not tied to the engagements the
 camera saw, so on a short clip the conversion can be above 100%; it is shown as computed.
 
 ### Tests
@@ -327,14 +328,18 @@ Built for the WIUT Hackathon 2026 Computer Vision final (Jira YAK-44). The code 
    staff-suggestion accuracy and greet-time error for real. Replace the hand-set role weights only if data supports it.
 2. **Real numbers into the ROI model** in [docs/PITCH_NOTES.md](docs/PITCH_NOTES.md): every input there is an
    assumption until Royal Motors supplies its own.
-3. **Join sales data**: an uploaded sales CSV (salesperson, timestamp, sold) to show engaged-to-sold conversion per
-   salesperson.
+3. **Join sales data**: done. An uploaded sales CSV (salesperson, timestamp, sold) shows sold and engaged-to-sold
+   conversion per salesperson (see "Sales CSV (optional)" under Quickstart). Still open: tie each sale to the specific
+   engagement the camera saw, instead of dividing totals.
 4. **Zones**: cars detected on a keyframe become zones, with dwell time per car; desk and counter zones as a staff signal.
 5. **Calibration in the UI**: click four floor points to replace the pinhole assumption.
 6. **Uzbek and Russian interface.**
 7. **More speed**: batching and quantisation first; a small GPU later if a showroom has one.
 8. **Multi-camera** tracking, and CRM/DMS integration, both out of scope for the hackathon.
-9. **Packaging**: container image, signed installer, and the FFmpeg licence decision from note 1 above.
+9. **Packaging**: the container image is written (`Dockerfile`, `.dockerignore`) but not built, and the deploy script
+   `scripts/deploy_example.sh` is an example that was never run; Docker was not running during the hackathon. Still
+   open: building and testing the image, a signed installer, and the FFmpeg licence decision from note 1 above (the
+   image contains that binary).
 
 ## Repo layout
 
@@ -344,6 +349,8 @@ PROGRESS.md             progress log: measured numbers and every decision
 CLAUDE.md               project rules for the AI assistant (local only, permissive licences, privacy)
 pyproject.toml          package metadata and dependencies; pytest settings
 run.bat, run.sh         one-click launchers (create venv, install, fetch models, serve)
+Dockerfile              container image: python:3.12-slim, models fetched at build (written, not built)
+.dockerignore           keeps .venv, data, models, runs, jobs and .git out of the image
 src/showroom_coach/
   sources.py            video reading and sampling
   perception/           detector, tracker, pose, appearance embedder, the per-video cache, benchmark
@@ -361,10 +368,12 @@ src/showroom_coach/
   models.py, config.py  model registry and downloads; thresholds, presets, paths
   cli.py                the showroom-coach command
 tests/                  unit and integration tests (slow ones are marked)
-scripts/                live_file_client.py (file-fed live test), webcam_grab.py
+scripts/                live_file_client.py (file-fed live test), webcam_grab.py,
+                        deploy_example.sh (on-premise docker example; NOT RUN)
 docs/
   PITCH_NOTES.md        deck outline, SKAIVISION comparison, ROI model
   EVAL.md               evaluation report (MEVA numbers and how to reproduce them)
+  sample_sales.csv      SYNTHETIC sample sales CSV (format demo for the optional sales upload)
   superpowers/          design spec and plan
 models/MANIFEST.json    every weight file with URL, sha256, licence (the weights themselves are git-ignored)
 data/sources.csv        every dataset item with licence and attribution (the data itself is git-ignored)

@@ -3,7 +3,13 @@
 # localhost or over HTTPS, so put a TLS reverse proxy in front of this when it runs on another computer.
 #
 #   docker build -t showroom-coach .
-#   docker run -p 8000:8000 -v showroom-data:/data showroom-coach      # http://localhost:8000
+#   docker run -p 127.0.0.1:8000:8000 -v showroom-data:/data showroom-coach      # http://localhost:8000
+#
+# Licence decision needed before building or distributing this image: it contains the FFmpeg executable bundled in
+# imageio-ffmpeg, which is a GPL-3.0-or-later build (libx264, libx265, libxvid; README, licences, note 1). It runs as a
+# separate process and is not linked into this code, but shipping the image ships that binary, so the GPL source-offer
+# terms and H.264 patent licensing apply to whoever distributes it. Alternatives: an LGPL FFmpeg build, or have the
+# customer run `pip install` themselves. Keeping the image on one's own machines is not distribution.
 #
 # CPU only (onnxruntime, no GPU). The three models the app uses are downloaded while the image is built, so the
 # build needs internet and about 50 MB of disk for them; the running container needs no network. Everything the
