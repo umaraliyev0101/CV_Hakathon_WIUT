@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    536
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "e1",
+      "name": "Far hallway end",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.42,
+          0.28
+        ],
+        [
+          0.53,
+          0.28
+        ],
+        [
+          0.53,
+          0.46
+        ],
+        [
+          0.42,
+          0.46
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e2",
+      "name": "Far right doorway",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.53,
+          0.33
+        ],
+        [
+          0.59,
+          0.33
+        ],
+        [
+          0.59,
+          0.46
+        ],
+        [
+          0.53,
+          0.46
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e3",
+      "name": "Right wall door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.63,
+          0.33
+        ],
+        [
+          0.68,
+          0.33
+        ],
+        [
+          0.68,
+          0.58
+        ],
+        [
+          0.63,
+          0.58
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o1",
+      "name": "Hallway far",
+      "kind": "other",
+      "polygon": [
+        [
+          0.42,
+          0.46
+        ],
+        [
+          0.62,
+          0.46
+        ],
+        [
+          0.68,
+          0.62
+        ],
+        [
+          0.43,
+          0.62
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o2",
+      "name": "Hallway mid",
+      "kind": "other",
+      "polygon": [
+        [
+          0.43,
+          0.62
+        ],
+        [
+          0.68,
+          0.62
+        ],
+        [
+          0.76,
+          0.82
+        ],
+        [
+          0.45,
+          0.82
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o3",
+      "name": "Hallway near",
+      "kind": "other",
+      "polygon": [
+        [
+          0.45,
+          0.82
+        ],
+        [
+          0.76,
+          0.82
+        ],
+        [
+          0.88,
+          1.0
+        ],
+        [
+          0.45,
+          1.0
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Coach: live camera</title>
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 22 23 10' stroke='%231B2430' stroke-width='3'/%3E%3Ccircle cx='9' cy='22' r='7' fill='%23FF8C00'/%3E%3Ccircle cx='23' cy='10' r='7' fill='%231478E6'/%3E%3C/svg%3E">
+<script>
+  // Asset base, same trick as index.html. The backend serves this page at "/live" and this folder at "/static/",
+  // so relative URLs (style.css, live.css, live.js) need <base href="/static/"> there. Opened in place (any plain
+  // file server, e.g. http://localhost:8765/live.html) they already resolve, so no <base>. Note that a <base> turns
+  // a bare "#main" link into /static/#main, so the skip link below is wired up in live.js instead.
+  (function () {
+    var onBackend = location.pathname === '/live' || location.pathname === '/live/';
+    if (onBackend) document.write('<base href="/static/">');
+    document.write('<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="live.css">');
+    window.__loadLive = function () { document.write('<script src="live.js"><\/script>'); };
+  })();
+</script>
+</head>
+<body>
+<a class="skip" href="#main" id="skip">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top__bar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" focusable="false">
+        <path d="M9 22 23 10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="9" cy="22" r="7" fill="#FF8C00"/>
+        <circle cx="23" cy="10" r="7" fill="#1478E6"/>
+      </svg>
+      <span class="brand__name">Showroom Coach</span>
+    </div>
+
+    <div class="top__tools">
+      <a class="btn btn--quiet" href="/">
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false"><path d="M10 15V5m0 0L5.5 9.5M10 5l4.5 4.5M4 16h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Upload a clip
+      </a>
+    </div>
+  </div>
+
+  <div class="banner" role="note">
+    <div class="wrap banner__in">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M10 1.8 3.5 4.4v5c0 4 2.7 7 6.5 8.8 3.8-1.8 6.5-4.8 6.5-8.8v-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m7 10 2.1 2.1L13.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="banner__text">Coaching support only — not an automatic judgement of staff (Uzbekistan AI law ZRU-1115). Faces are blurred; processing stays on this computer. Staff must be informed that analytics is in use.</span>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap" tabindex="-1">
+  <div class="view live">
+    <div class="live__head">
+      <div>
+        <h1 class="display display--md" id="live-title" tabindex="-1">Live camera</h1>
+        <p class="lede live__lede" id="liveLede">Point a camera at the sales floor and press Start. Each person is a number, never a face: faces are blurred on screen and nothing is recorded.</p>
+        <p class="live__demo" id="demoFlag" hidden>Demo mode: playing a video file instead of the camera.</p>
+      </div>
+      <div class="live__controls">
+        <div class="field">
+          <label for="preset">Thresholds</label>
+          <select id="preset" disabled><option>Loading…</option></select>
+        </div>
+        <button type="button" class="btn btn--primary btn--lg" id="btnStart">Start camera</button>
+      </div>
+    </div>
+    <dl class="facts" id="presetFacts"></dl>
+
+    <div class="live__grid">
+      <div class="live__main">
+        <div class="stage live__stage" id="stage">
+          <canvas id="view" width="960" height="540" aria-label="Live camera with faces blurred. Click a person to switch them between staff and customer."></canvas>
+          <div class="stage__msg live__msg" id="stageMsg" role="status">
+            <strong id="stageTitle">The camera is off</strong>
+            <p id="stageText">Press Start camera. The browser will ask for permission the first time.</p>
+          </div>
+          <div class="live__chip" id="connChip" role="status" aria-live="polite" data-state="off"><i aria-hidden="true"></i><span id="connText">Camera off</span></div>
+          <div class="live__hud" id="hud" aria-live="off" hidden>
+            <span title="Frames the server processed per second of wall time, over the last 10 frames"><b id="statFps">0.0</b> fps processed</span>
+            <span><b id="statShown">0.0</b> shown</span>
+            <span><b id="statPeople">0</b> <span id="statPeopleWord">people</span></span>
+          </div>
+        </div>
+        <video id="cam" class="live__video" style="display:none" muted playsinline aria-hidden="true" tabindex="-1"></video>
+
+        <ul class="legend live__legend" aria-label="Legend">
+          <li><i class="sw sw--engaged"></i>Staff</li>
+          <li><i class="sw sw--waiting"></i>Customer</li>
+          <li><i class="live__line" aria-hidden="true"></i>Talking together</li>
+          <li><i class="live__timer" aria-hidden="true">0:42</i>How long a customer has waited (red: past the alert time)</li>
+        </ul>
+
+        <section class="panel" aria-labelledby="people-title">
+          <h2 id="people-title" class="panel__title">People on screen <span class="count" id="peopleCount"></span></h2>
+          <p class="muted">Wrong colour? Click the person in the picture, or their button here, to switch them between staff and customer.</p>
+          <div class="live__people" id="peopleList"><p class="live__empty">Nobody in view yet.</p></div>
+        </section>
+      </div>
+
+      <aside class="live__side" aria-label="Live results">
+        <div class="tiles" id="liveTiles"></div>
+
+        <section class="panel alerts" aria-labelledby="live-alerts-title">
+          <h2 id="live-alerts-title" class="panel__title">Alerts <span class="count" id="alertCount"></span></h2>
+          <ol class="alerts__list live__alerts" id="liveAlerts" aria-live="polite"><li class="alerts__empty">No alerts yet.</li></ol>
+        </section>
+
+        <section class="panel" aria-labelledby="feed-title">
+          <h2 id="feed-title" class="panel__title">Events <span class="count" id="feedCount"></span></h2>
+          <ol class="live__feed" id="feed"><li class="alerts__empty">Events appear here as they happen, newest first.</li></ol>
+        </section>
+
+        <section class="panel" aria-labelledby="live-sc-title">
+          <h2 id="live-sc-title" class="panel__title">Salespeople</h2>
+          <div id="liveScorecard"><p class="alerts__empty">Nobody is marked as staff yet. Click a person to mark them.</p></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="notice">Showroom Coach needs JavaScript. Turn it on in your browser and reload the page.</p></noscript>
+<script>__loadLive();</script>
+</body>
+</html>

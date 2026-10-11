@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170" width="120" height="170">
+<defs><filter id="b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+<filter id="s"><feGaussianBlur stdDeviation="1.1"/></filter></defs>
+<rect width="120" height="170" fill="#d9dee5"/>
+<g filter="url(#s)"><path d="M18 170 C18 122 38 104 60 104 C82 104 102 122 102 170Z" fill="#1d2b4a"/>
+<rect x="52" y="84" width="16" height="24" rx="6" fill="#f0cfb0"/></g>
+<ellipse cx="60" cy="58" rx="21" ry="26" fill="#f0cfb0" filter="url(#b)"/>
+<path d="M38 50 C38 28 82 28 82 50 C76 40 46 40 38 50Z" fill="#3a2e2a" filter="url(#s)"/>
+</svg>

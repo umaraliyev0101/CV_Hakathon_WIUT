@@ -1,0 +1,133 @@
+{
+  "clip": "wm-bangalore-04",
+  "labeller": "ai-agent, unreviewed",
+  "fps_sampled": 1,
+  "zones_file": "labels/zones/wm-bangalore-04.json",
+  "notes": "Hand-held, crowded. About 15 spectators stand behind the barrier (feet above the zone, y<0.55); they are NOT labelled individually and are excluded from the zone. Ids assigned by appearance: v1 striped shirt photographing the car; v2 dark hoodie and white sneakers beside the car; v3 floral shirt (t=32-35); v4 grey hoodie at right edge; v5 white kurta and cream crocs at right edge from t=41; v6 camo shirt passing the lens (t=20-26); v8 black jacket at right edge, feet out of frame. Camera pans between t=14 and t=36, so frame positions shift; stops are judged relative to the car.",
+  "visits": [
+    {
+      "id": 1,
+      "t_in": 0,
+      "t_out": 30,
+      "role": "customer"
+    },
+    {
+      "id": 2,
+      "t_in": 0,
+      "t_out": 61,
+      "role": "customer"
+    },
+    {
+      "id": 3,
+      "t_in": 32,
+      "t_out": 35,
+      "role": "customer"
+    },
+    {
+      "id": 4,
+      "t_in": 34,
+      "t_out": 39,
+      "role": "customer"
+    },
+    {
+      "id": 5,
+      "t_in": 41,
+      "t_out": 61,
+      "role": "customer"
+    },
+    {
+      "id": 6,
+      "t_in": 20,
+      "t_out": 26,
+      "role": "customer"
+    },
+    {
+      "id": 8,
+      "t_in": 0,
+      "t_out": 19,
+      "role": "customer"
+    }
+  ],
+  "zone_visits": [
+    {
+      "visit_id": 1,
+      "zone_id": "car-1",
+      "t_in": 0,
+      "t_out": 30
+    },
+    {
+      "visit_id": 2,
+      "zone_id": "car-1",
+      "t_in": 0,
+      "t_out": 61
+    },
+    {
+      "visit_id": 3,
+      "zone_id": "car-1",
+      "t_in": 32,
+      "t_out": 35
+    },
+    {
+      "visit_id": 4,
+      "zone_id": "car-1",
+      "t_in": 34,
+      "t_out": 39
+    },
+    {
+      "visit_id": 5,
+      "zone_id": "car-1",
+      "t_in": 41,
+      "t_out": 61
+    },
+    {
+      "visit_id": 6,
+      "zone_id": "car-1",
+      "t_in": 20,
+      "t_out": 26
+    },
+    {
+      "visit_id": 8,
+      "zone_id": "car-1",
+      "t_in": 0,
+      "t_out": 19
+    }
+  ],
+  "stops": [
+    {
+      "visit_id": 1,
+      "zone_id": "car-1",
+      "t_start": 0,
+      "t_end": 19
+    },
+    {
+      "visit_id": 1,
+      "zone_id": "car-1",
+      "t_start": 24,
+      "t_end": 29
+    },
+    {
+      "visit_id": 2,
+      "zone_id": "car-1",
+      "t_start": 0,
+      "t_end": 61
+    },
+    {
+      "visit_id": 3,
+      "zone_id": "car-1",
+      "t_start": 32,
+      "t_end": 35
+    },
+    {
+      "visit_id": 5,
+      "zone_id": "car-1",
+      "t_start": 41,
+      "t_end": 61
+    },
+    {
+      "visit_id": 8,
+      "zone_id": "car-1",
+      "t_start": 0,
+      "t_end": 19
+    }
+  ]
+}

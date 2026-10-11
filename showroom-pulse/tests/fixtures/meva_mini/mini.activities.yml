@@ -1,0 +1,5 @@
+- { meta: "mini" }
+- { meta: { team: "Kitware" } }
+- { meta: "person_exits_scene_through_structure 1 instances" }
+- { act: { act2: {person_exits_scene_through_structure: 1.0}, id2: 813, timespan: [{tsr0: [674, 723]}], src_status: janitor, actors: [{id1: 718954285527769780, timespan: [{tsr0: [674, 723]}]}] } }
+- { act: { act2: {person_enters_scene_through_structure: 1.0}, id2: 814, timespan: [{tsr0: [675, 700]}], src_status: good, actors: [{id1: 9143980220328846590, timespan: [{tsr0: [675, 700]}]}] } }

@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+runs/
+uploads/
+# data and weights stay local; only their manifests are committed
+data/*
+!data/sources.csv
+!data/TODO_DOWNLOADS.md
+models/*
+!models/MANIFEST.json
+*.mp4
+*.avi
+*.mov
+*.mpg
+*.onnx
+*.pt
+*.pth
+*.npz
+jobs/
+*.egg-info/
+.coverage
+.superpowers/
+.playwright-mcp/

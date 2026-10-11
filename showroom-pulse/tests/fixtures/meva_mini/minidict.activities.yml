@@ -1,0 +1,2 @@
+- {'meta': 'person_enters_vehicle 1 instances'}
+- {'act': {'act2': {'person_enters_vehicle': 1.0}, 'actors': [{'id1': 17, 'timespan': [{'tsr0': [1626, 1676]}]}, {'id1': 16, 'timespan': [{'tsr0': [1630, 1676]}]}], 'id2': 14, 'src_status': 'good', 'timespan': [{'tsr0': [1626, 1676]}]}}

@@ -1,0 +1,4 @@
+staff,name,greets,median_time_to_greet,customers_engaged,engaged_total_s,engaged_median_s,missed_while_free,walkouts_while_free
+1,Aziz,2,32.0,2,27.8,13.9,2,1
+4,,1,3.0,2,31.8,15.9,1,0
+8,,2,4.5,2,27.0,13.5,0,0

@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    536
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "e1",
+      "name": "Left double door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.43,
+          0.4
+        ],
+        [
+          0.57,
+          0.4
+        ],
+        [
+          0.57,
+          0.7
+        ],
+        [
+          0.43,
+          0.7
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e2",
+      "name": "Right double door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.58,
+          0.46
+        ],
+        [
+          0.76,
+          0.46
+        ],
+        [
+          0.76,
+          0.82
+        ],
+        [
+          0.58,
+          0.82
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o1",
+      "name": "Landing mats",
+      "kind": "other",
+      "polygon": [
+        [
+          0.36,
+          0.68
+        ],
+        [
+          0.62,
+          0.7
+        ],
+        [
+          0.74,
+          0.91
+        ],
+        [
+          0.52,
+          0.92
+        ],
+        [
+          0.36,
+          0.78
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o2",
+      "name": "Stairs left",
+      "kind": "other",
+      "polygon": [
+        [
+          0.0,
+          0.82
+        ],
+        [
+          0.45,
+          0.8
+        ],
+        [
+          0.5,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

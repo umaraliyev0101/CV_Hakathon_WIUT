@@ -1,0 +1,71 @@
+{
+  "models": [
+    {
+      "name": "yolox_nano",
+      "file": "yolox_nano/yolox_nano.onnx",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.onnx",
+      "sha256": "c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d",
+      "bytes": 3659407,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "source_page": "https://github.com/Megvii-BaseDetection/YOLOX",
+      "note": "person detector; input 416x416"
+    },
+    {
+      "name": "yolox_tiny",
+      "file": "yolox_tiny/yolox_tiny.onnx",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx",
+      "sha256": "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7",
+      "bytes": 20219662,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "source_page": "https://github.com/Megvii-BaseDetection/YOLOX",
+      "note": "person detector; input 416x416"
+    },
+    {
+      "name": "yolox_s",
+      "file": "yolox_s/yolox_s.onnx",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx",
+      "sha256": "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063",
+      "bytes": 35858002,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "source_page": "https://github.com/Megvii-BaseDetection/YOLOX",
+      "note": "person detector; input 640x640"
+    },
+    {
+      "name": "rtmpose_s",
+      "file": "rtmpose_s/rtmpose_s.onnx",
+      "url": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.zip",
+      "sha256": "9aeb635b83f86aea45cf45d85798f7eba1a162de8e0d721c44e54fe5eebaf47d",
+      "bytes": 21890172,
+      "licence": "Apache-2.0",
+      "trained_on": "Body7 (COCO, AIC, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18)",
+      "source_page": "https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose",
+      "archive_member": "end2end.onnx",
+      "note": "17-keypoint COCO pose; input 192x256 (WxH)"
+    },
+    {
+      "name": "dinov2_small",
+      "file": "dinov2_small/dinov2_small.onnx",
+      "url": "https://huggingface.co/Xenova/dinov2-small/resolve/main/onnx/model_quantized.onnx",
+      "sha256": "3afdc8bc63b50558d6e5770f5b799bb82455c2311183a2de43803f343a29d917",
+      "bytes": 24451943,
+      "licence": "Apache-2.0",
+      "trained_on": "LVD-142M (self-supervised, Meta)",
+      "source_page": "https://huggingface.co/Xenova/dinov2-small",
+      "note": "appearance embedding for outfit similarity; int8-quantized ONNX export"
+    },
+    {
+      "name": "rfdetr_nano",
+      "file": "rfdetr_nano/rfdetr_nano.onnx",
+      "url": "https://huggingface.co/saifkhichi96/opendetect/resolve/main/rfdetr/rfdetr_n_v142_384x384.onnx",
+      "sha256": "aceebff282d046fae831217136c4c0ce91fb28a6b834dfd48f3a3f46fddc1d9e",
+      "bytes": 112616995,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "source_page": "https://huggingface.co/saifkhichi96/opendetect",
+      "note": "ONNX export by a third party of Roboflow RF-DETR (Apache-2.0); input 384x384; benchmark candidate only"
+    }
+  ]
+}

@@ -8,10 +8,13 @@ deck/build/qa/
 deck/build/qa.html
 deck/build/deck.html
 # synthetic pipeline: assets, renders and envs stay out of git
-assets/
-data/
+/assets/
+/data/
 .venv/
 .pytest_cache/
 # detector weights / exports (regenerate with models/export_onnx.py)
-models/*.onnx
-models/*.pth
+/models/*.onnx
+/models/*.pth
+
+# browser-automation scratch (Playwright MCP snapshots)
+.playwright-mcp/

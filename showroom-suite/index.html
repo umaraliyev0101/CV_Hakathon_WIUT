@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Suite</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='11' cy='16' r='8' fill='%231478E6'/%3E%3Ccircle cx='21' cy='16' r='8' fill='%23FF8C00' fill-opacity='.85'/%3E%3C/svg%3E">
+<!--
+  Showroom Suite demo page (YAK-45). Shows Showroom Coach (salespeople) and Showroom Pulse (customers) side by side.
+  Each app runs on its own server; this page only embeds them, so it works from any host:
+    - defaults: same host as this page, Coach on :8000, Pulse on :8001 (localhost when opened as a file);
+    - change them in the top bar, or pass ?coach=http://host:8000&pulse=http://host:8001 in the URL.
+  No build step, no external requests.
+-->
+<style>
+  :root { --bg: #f4f6f9; --fg: #1b2430; --muted: #5b6573; --card: #ffffff; --line: #d9dee5;
+          --coach: #1478e6; --pulse: #ff8c00; --ok: #2e7d32; --bad: #c62828; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #10151c; --fg: #e8edf3; --muted: #9aa5b3; --card: #18202a;
+                                     --line: #2c3542; --coach: #5aa6ff; --pulse: #ffa940; --ok: #66bb6a; --bad: #ff6b6b; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg);
+         font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px;
+         background: var(--card); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 700; font-size: 16px; margin-right: auto; white-space: nowrap; }
+  .brand small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .bar label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .bar input { width: 220px; max-width: 60vw; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+               background: var(--bg); color: var(--fg); font: inherit; }
+  .bar input:invalid { border-color: var(--bad); }
+  button, .btn { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+                 background: var(--card); color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; }
+  button.primary { background: var(--fg); color: var(--card); border-color: var(--fg); }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; min-height: 0; }
+  .panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--card);
+           border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .panel header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 3px solid var(--accent); }
+  .panel h2 { margin: 0; font-size: 14px; letter-spacing: .02em; }
+  .panel h2 span { color: var(--muted); font-weight: 400; }
+  .panel .tools { margin-left: auto; display: flex; gap: 6px; }
+  .panel .tools button, .panel .tools .btn { padding: 3px 9px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  .state { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  iframe { flex: 1; width: 100%; border: 0; background: var(--bg); min-height: 0; }
+  #coach { --accent: var(--coach); } #pulse { --accent: var(--pulse); }
+  body.focus-coach main, body.focus-pulse main { grid-template-columns: 1fr; }
+  body.focus-coach #pulse, body.focus-pulse #coach { display: none; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-auto-rows: minmax(70vh, 1fr); }
+    .bar input { width: 100%; max-width: none; }
+    .bar label { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<form class="bar" id="servers">
+  <div class="brand">Showroom Suite <small>salespeople + customers, one camera</small></div>
+  <label>Coach <input id="coachUrl" type="url" required placeholder="http://server:8000"></label>
+  <label>Pulse <input id="pulseUrl" type="url" required placeholder="http://server:8001"></label>
+  <button class="primary" type="submit">Apply</button>
+</form>
+<main>
+  <section class="panel" id="coach">
+    <header>
+      <span class="dot" id="coachDot" title="server status"></span>
+      <h2>SALESPEOPLE <span>Showroom Coach</span></h2>
+      <span class="state" id="coachState"></span>
+      <div class="tools">
+        <button type="button" data-reload="coach" title="Reload this panel">&#x21bb;</button>
+        <a class="btn" id="coachOpen" target="_blank" rel="noopener" title="Open in a new tab">&#x2197;</a>
+        <button type="button" data-focus="coach" title="Enlarge / restore">&#x2922;</button>
+      </div>
+    </header>
+    <iframe id="coachFrame" title="Showroom Coach" allow="camera; fullscreen" src="about:blank"></iframe>
+  </section>
+  <section class="panel" id="pulse">
+    <header>
+      <span class="dot" id="pulseDot" title="server status"></span>
+      <h2>CUSTOMERS <span>Showroom Pulse</span></h2>
+      <span class="state" id="pulseState"></span>
+      <div class="tools">
+        <button type="button" data-reload="pulse" title="Reload this panel">&#x21bb;</button>
+        <a class="btn" id="pulseOpen" target="_blank" rel="noopener" title="Open in a new tab">&#x2197;</a>
+        <button type="button" data-focus="pulse" title="Enlarge / restore">&#x2922;</button>
+      </div>
+    </header>
+    <iframe id="pulseFrame" title="Showroom Pulse" allow="camera; fullscreen" src="about:blank"></iframe>
+  </section>
+</main>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const APPS = { coach: 8000, pulse: 8001 };
+const host = location.hostname || 'localhost';
+const scheme = location.protocol === 'https:' ? 'https:' : 'http:';
+
+function load(key) { try { return localStorage.getItem('suite.' + key); } catch { return null; } }
+function save(key, v) { try { localStorage.setItem('suite.' + key, v); } catch { /* storage unavailable */ } }
+function clean(u) { return String(u || '').trim().replace(/\/+$/, ''); }
+
+// URL query wins (shareable demo links), then the last value used in this browser, then same host + default port.
+const query = new URLSearchParams(location.search);
+const urls = {};
+for (const [app, port] of Object.entries(APPS)) {
+  urls[app] = clean(query.get(app) || load(app) || `${scheme}//${host}:${port}`);
+  $(app + 'Url').value = urls[app];
+}
+
+// A no-cors request resolves for any reachable server and rejects when nothing answers.
+async function check(app) {
+  const dot = $(app + 'Dot'), state = $(app + 'State');
+  dot.className = 'dot'; state.textContent = 'connecting…';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    await fetch(urls[app] + '/', { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+    dot.className = 'dot ok'; state.textContent = urls[app];
+  } catch {
+    dot.className = 'dot bad'; state.textContent = `not reachable: ${urls[app]}`;
+  } finally { clearTimeout(timer); }
+}
+
+function show(app) {
+  $(app + 'Frame').src = urls[app] + '/';
+  $(app + 'Open').href = urls[app] + '/';
+  check(app);
+}
+
+$('servers').addEventListener('submit', (e) => {
+  e.preventDefault();
+  for (const app of Object.keys(APPS)) {
+    const v = clean($(app + 'Url').value);
+    if (v !== urls[app] || $(app + 'Frame').src === 'about:blank') { urls[app] = v; save(app, v); show(app); }
+  }
+});
+document.addEventListener('click', (e) => {
+  const r = e.target.closest('[data-reload]'), f = e.target.closest('[data-focus]');
+  if (r) show(r.dataset.reload);
+  if (f) {
+    const cls = 'focus-' + f.dataset.focus, on = !document.body.classList.contains(cls);
+    document.body.classList.remove('focus-coach', 'focus-pulse');
+    if (on) document.body.classList.add(cls);
+  }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('focus-coach', 'focus-pulse'); });
+
+for (const app of Object.keys(APPS)) show(app);
+</script>
+</body>
+</html>

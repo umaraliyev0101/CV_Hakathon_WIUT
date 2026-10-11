@@ -1,0 +1,94 @@
+{
+  "models": [
+    {
+      "name": "dinov2_small",
+      "url": "https://huggingface.co/Xenova/dinov2-small/resolve/main/onnx/model.onnx",
+      "file": "dinov2_small/model.onnx",
+      "sha256": "83141175ec78b4ff9a2bb58a4c7c264ba0054d1c2e122e5a8114b79a8d4179ea",
+      "bytes": 88459888,
+      "licence": "Apache-2.0 (facebook/dinov2-small; ONNX export by Xenova)",
+      "trained_on": "LVD-142M",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "rfdetr_n",
+      "url": "https://huggingface.co/saifkhichi96/opendetect/resolve/main/rfdetr/rfdetr_n_v142_384x384.onnx",
+      "file": "rfdetr_n/rfdetr_n_v142_384x384.onnx",
+      "sha256": "aceebff282d046fae831217136c4c0ce91fb28a6b834dfd48f3a3f46fddc1d9e",
+      "bytes": 112616995,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017 (Objects365 pretrain)",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "rfdetr_s",
+      "url": "https://huggingface.co/saifkhichi96/opendetect/resolve/main/rfdetr/rfdetr_s_v142_512x512.onnx",
+      "file": "rfdetr_s/rfdetr_s_v142_512x512.onnx",
+      "sha256": "fcd3c3c4e0d3d5533ee9c3a174deb7f02dfe4b042b6fdd3d29040f3c6da7845e",
+      "bytes": 119619156,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017 (Objects365 pretrain)",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "rtmpose_m",
+      "url": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-body7_pt-body7_420e-256x192-e48f03d0_20230504.zip",
+      "file": "rtmpose_m/20230831/rtmpose_onnx/rtmpose-m_simcc-body7_pt-body7_420e-256x192-e48f03d0_20230504/end2end.onnx",
+      "sha256": "5c0a4bf67953e6d2ac43ce15e77dc9d5d354ae18430a47d2c5963a7bc5683e3c",
+      "bytes": 54330655,
+      "licence": "Apache-2.0",
+      "trained_on": "Body7 (COCO, AIC, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18)",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "rtmpose_s",
+      "url": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.zip",
+      "file": "rtmpose_s/20230831/rtmpose_onnx/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504/end2end.onnx",
+      "sha256": "9aeb635b83f86aea45cf45d85798f7eba1a162de8e0d721c44e54fe5eebaf47d",
+      "bytes": 21890172,
+      "licence": "Apache-2.0",
+      "trained_on": "Body7 (COCO, AIC, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18)",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "yolox_m",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_m.onnx",
+      "file": "yolox_m/yolox_m.onnx",
+      "sha256": "21ff6cfdeb53b013bac2249599e55f00bff3cfdfdab37ed7a4620818c1d15b3f",
+      "bytes": 101259744,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "yolox_nano",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.onnx",
+      "file": "yolox_nano/yolox_nano.onnx",
+      "sha256": "c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d",
+      "bytes": 3659407,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "yolox_s",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx",
+      "file": "yolox_s/yolox_s.onnx",
+      "sha256": "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063",
+      "bytes": 35858002,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "downloaded": "2026-10-11"
+    },
+    {
+      "name": "yolox_tiny",
+      "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx",
+      "file": "yolox_tiny/yolox_tiny.onnx",
+      "sha256": "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7",
+      "bytes": 20219662,
+      "licence": "Apache-2.0",
+      "trained_on": "COCO 2017",
+      "downloaded": "2026-10-11"
+    }
+  ]
+}

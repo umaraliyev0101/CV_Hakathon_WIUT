@@ -1,0 +1,17 @@
+# Keep the build context small and never send videos, weights, results or local state into an image.
+# (Patterns are relative to the context root; "**/" reaches into sub-folders.)
+.venv
+.git
+.superpowers
+.playwright-mcp
+.pytest_cache
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+build
+dist
+data
+models
+runs
+jobs
+uploads

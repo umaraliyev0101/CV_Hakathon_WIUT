@@ -1,0 +1,633 @@
+# Progress
+
+## Status
+
+All milestones M0-M8 are built (core, perception, report/CLI, web app, live mode, eval, docs, sat-in-car, floor calibration, printable report, sales join, UZ/RU UI, deploy files). The final whole-branch review fixes are applied (see Decisions, 2026-10-11 fix wave). The Morning summary at the end of this file was written after the final `bash scripts/verify.sh`.
+
+## Milestones
+
+### M3 / Task 15: report, scoring pipeline, CLI analyze, check_outputs
+- `pipeline.score` (cache only, no models), `write_outputs`, `analyze`; `report.build_report` writes every result file; `pulse analyze VIDEO --out DIR`; `scripts/check_outputs.py`; verify.sh runs MEVA dev clip (dealership) and `data/stock/wm-bangalore-04.mp4` (short) then checks outputs.
+- Privacy: all outputs blurred with every detection at that sampled t; the raw keyframe stays in the cache dir.
+
+### M0 / Task 1: skeleton
+- Added package `pulse` (src layout), datatypes, presets/config, minimal CLI, `scripts/verify.sh`,
+  data records. Tests: config, datatypes, slow ffmpeg smoke marker.
+
+### M0 / Task 2: models, MEVA parser, detector benchmark
+- Models downloaded to `models/<name>/` (gitignored); `models/MANIFEST.json` committed (sha256, bytes, licence). rtmlib subset vendored in `src/pulse/perception/vendor_rtmlib`; `rtmlib` pip package removed from the venv.
+- `pulse bench detectors` (CPUExecutionProvider only), dev clip `2018-03-11.16-35-01.16-40-00.school.G423`: 60 evenly sampled frames, 35 GT person boxes (height >= 20 px at 960 wide), IoU >= 0.5, score thr 0.3. Showroom images: `data/stock/keyframes/*.jpg` (3).
+
+| detector | person recall | cars per image (BLR-07 / BYD-t07 / BYD-t13) | ms/frame 960x540 (CPU) |
+|---|---|---|---|
+| yolox_nano | 0.343 | 4 / 1 / 2 | 9.9 |
+| yolox_tiny | 0.371 | 7 / 0 / 2 | 25.0 |
+| yolox_s | 0.629 | 6 / 1 / 1 | 82.2 |
+| yolox_m | 0.629 | 5 / 1 / 3 | 196.3 |
+| rfdetr_n | 0.514 | 5 / 1 / 5 | 88.8 |
+| rfdetr_s | 0.571 | 6 / 1 / 4 | 158.0 |
+
+Pose, 4 boxes on a 960x540 frame: rtmpose_s 32.5 ms, rtmpose_m 68.8 ms.
+
+Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within 5 points of the best AND which detects >=1 car|truck|motorcycle (score>=0.3) on every showroom image. If none qualifies: among detectors within 5 points of best recall, the one with the most vehicle detections (ties: fastest).
+
+**Chosen detector: `yolox_s` (rule met); pose `rtmpose_s`.** Raw numbers: `runs/bench/detectors.json` (gitignored). Caveat: only 35 GT boxes (sparse hallway clip), so recall differences of a few points are noise; the nano/tiny vs s/m gap (about 0.26) is large enough to trust. M0 only covers one scene; no showroom person GT exists.
+
+### M1: pure core (Tasks 3-11)
+- Geometry, timeline, zones, journey, roles, interest, stats, insights R1-R7, identity merge. Default suite: 140 passed, 2 deselected (slow). Decisions are logged below.
+
+### M2 / Task 13: embeddings, camera motion, perception cache
+- `pulse.pipeline.perceive` caches per video in `runs/cache/<key>/` (CPU, yolox_s + rtmpose_s + DINOv2-small, `sample_fps` 5, width 960).
+- Measured RTF (analysed seconds / perception seconds, includes embeddings and keyframe car detection):
+  - MEVA 10 s clip (60 s mark): RTF 1.49, perception 6.69 s, embed 0.43 s (6%).
+  - Full 300 s MEVA dev clip (G423): RTF 1.65, perception 181.6 s, embed 5.3 s (2.9%); 2197 obs, 69 embedded tracks, 51 persons, one stable segment, keyframe t=149.8 s, 0 vehicles (hallway). Cache kept at `runs/cache/` for later tasks.
+
+### M6 / Task 19A: MEVA caches, agent-drawn zones, entrance coverage
+- Perception caches for all six clips in `labels/split.json` (`runs/cache/`, CPU, yolox_s + rtmpose_s, 5 fps, 960 wide). `persons` = `identity.merge` with default config.
+
+| group | clip | perception_seconds | rtf | tracks | persons (merged) |
+|---|---|---|---|---|---|
+| dev | 03-11 G423 | 180.9 | 1.66 | 69 | 38 |
+| dev | 03-11 G420 | 169.6 | 1.77 | 69 | 56 |
+| test | 03-12 G423 | 202.2 | 1.48 | 89 | 54 |
+| test | 03-13 G421 | 341.9 | 0.88 | 321 | 162 |
+| test | 03-09 G419 | 161.5 | 1.86 | 65 | 50 |
+| test | 03-09 G299 | 325.3 | 0.92 | 334 | 143 |
+
+- Zones: `labels/zones/<clip>.json`, labeller "ai-agent, unreviewed", drawn from a face-blurred keyframe at 150 s (kept under `runs/` only) and checked on a blurred overlay. Dev clips: entrance zones also compared to GT foot points (G423 and G420 only). Test clips: drawn from the keyframe only, never adjusted after the coverage run.
+- Entrance coverage (`.venv/bin/python scripts/zone_coverage.py`; GT enter first frame / exit last frame, foot point in an `entrance` zone, target >= 70%):
+  - dev: G423 03-11 123/124 = 99.2%, G420 44/44 = 100.0%, total 167/168 = 99.4% (no tuning rounds needed after the first draw).
+  - test (reported once, not tuned): G423 03-12 140/142 = 98.6%, G421 52/53 = 98.1%, G419 31/48 = 64.6% (below target; stairwell camera where people come up the stairs and the upper flight is not covered), G299 42/46 = 91.3%; total 265/289 = 91.7%.
+
+### M6 / Task 19B: metrics, `pulse eval`, speed bench, dev tuning
+- New: `pulse.eval.metrics` (MOT via motmetrics, count error, occupancy MAE, track matching, dwell/journey pairs, event timing), `pulse.eval.run_eval` (`pulse eval --out docs/EVAL.md`, deterministic, per-clip results memoised in `runs/eval/` keyed by code+config+zones+annotations+cache), `pulse.eval.scenarios` (R1-R7 inputs shared by `tests/test_insights.py` and EVAL.md), `pulse bench speed`, `scripts/tune_merge.py`, `stats.entry_exit_events`. `scripts/verify.sh` runs `pulse eval` before the git steps (verify.sh itself was NOT run tonight: webcam exception).
+- Dev tuning (post-cache knobs only: `merge_sim_thr`, `merge_max_speed`; dev clips G423 03-11 + G420 03-11; test clips never loaded by the tuner). Objective declared before the first run (revised twice afterwards, see below): J = mean of (entry/exit error / 10%, occupancy MAE / 0.5, dwell median % / 10%, (1 - journey accuracy) / 0.2), pooled over dev; keep defaults unless J improves >= 5% at an interior grid point of `merge_sim_thr`. Two earlier runs were discarded: (1) J capped at 3 per term and (2) uncapped, both with a bug in the pooled count error (it computed |err - GT| / GT instead of err / GT), which made J fall monotonically down to `merge_sim_thr` 0.2 (merge nearly everyone); the bug was found while reading the EVAL.md per-clip figures (59.3% where 50/123 = 40.7% was expected), fixed, with a regression test, and the whole grid re-run. The table below is the corrected run (the only one that counts); defaults at the time were 0.75 / 0.25:
+
+| trial | sim_thr | max_speed | persons | entry/exit err % | occ MAE | dwell med % | journey acc | IDF1 merged | entries ours/GT | J |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0.2 | 0.1 | 48 | 70.7 | 1.70 | 40.7 | 60.0% | 25.8% | 34 / 104 | 4.133 |
+| 2 | 0.2 | 0.25 | 46 | 70.1 | 1.69 | 40.7 | 60.0% | 26.2% | 34 / 104 | 4.114 |
+| 3 | 0.2 | 0.5 | 45 | 70.1 | 1.68 | 40.7 | 60.0% | 25.6% | 34 / 104 | 4.110 |
+| 4 | 0.3 | 0.1 | 50 | 68.9 | 1.68 | 40.7 | 60.0% | 25.9% | 36 / 104 | 4.081 |
+| 5 | 0.3 | 0.25 | 48 | 68.3 | 1.67 | 40.7 | 60.0% | 26.3% | 36 / 104 | 4.061 |
+| 6 | 0.3 | 0.5 | 47 | 68.3 | 1.66 | 40.7 | 60.0% | 25.7% | 36 / 104 | 4.057 |
+| 7 | 0.4 | 0.1 | 54 | 66.5 | 1.65 | 40.7 | 60.0% | 26.0% | 38 / 104 | 4.007 |
+| 8 | 0.4 | 0.25 | 51 | 65.9 | 1.65 | 40.7 | 60.0% | 26.4% | 38 / 104 | 3.990 |
+| 9 | 0.4 | 0.5 | 50 | 65.9 | 1.65 | 40.7 | 60.0% | 25.7% | 38 / 104 | 3.988 |
+| 10 | 0.5 | 0.1 | 56 | 64.7 | 1.63 | 40.7 | 60.0% | 26.1% | 40 / 104 | 3.952 |
+| 11 | 0.5 | 0.25 | 53 | 64.1 | 1.64 | 40.7 | 60.0% | 26.6% | 40 / 104 | 3.938 |
+| 12 | 0.5 | 0.5 | 53 | 64.1 | 1.63 | 40.7 | 60.0% | 26.0% | 40 / 104 | 3.936 |
+| 13 | 0.55 | 0.1 | 62 | 59.9 | 1.58 | 40.7 | 60.0% | 27.0% | 45 / 104 | 3.805 |
+| 14 | 0.55 | 0.25 | 59 | 59.3 | 1.58 | 40.7 | 60.0% | 27.6% | 45 / 104 | 3.792 |
+| 15 | 0.55 | 0.5 | 59 | 59.3 | 1.58 | 40.7 | 60.0% | 27.0% | 45 / 104 | 3.790 |
+| 16 | 0.6 | 0.1 | 65 | 57.5 | 1.57 | 40.7 | 60.0% | 27.2% | 47 / 104 | 3.739 |
+| 17 | 0.6 | 0.25 | 64 | 56.9 | 1.56 | 40.7 | 60.0% | 27.8% | 47 / 104 | 3.723 |
+| 18 | 0.6 | 0.5 | 64 | 56.9 | 1.56 | 40.7 | 60.0% | 27.2% | 47 / 104 | 3.721 |
+| 19 | 0.65 | 0.1 | 73 | 52.1 | 1.47 | 40.7 | 60.0% | 27.6% | 53 / 104 | 3.558 |
+| 20 | 0.65 | 0.25 | 72 | 51.5 | 1.47 | 40.7 | 60.0% | 28.2% | 53 / 104 | 3.542 |
+| 21 | 0.65 | 0.5 | 72 | 51.5 | 1.47 | 40.7 | 60.0% | 27.5% | 53 / 104 | 3.539 |
+| 22 | 0.7 | 0.1 | 84 | 43.7 | 1.36 | 40.7 | 60.0% | 28.5% | 62 / 104 | 3.291 |
+| 23 | 0.7 | 0.25 | 82 | 44.3 | 1.38 | 40.7 | 60.0% | 29.3% | 60 / 104 | 3.316 |
+| 24 | 0.7 | 0.5 | 82 | 44.3 | 1.38 | 40.7 | 60.0% | 29.3% | 60 / 104 | 3.316 |
+| 25 | 0.75 | 0.1 | 94 | 35.9 | 1.30 | 40.7 | 60.0% | 30.1% | 70 / 104 | 3.065 |
+| 26 | 0.75 | 0.25 | 94 | 35.3 | 1.30 | 40.7 | 60.0% | 31.2% | 70 / 104 | 3.050 |
+| 27 | 0.75 | 0.5 | 94 | 35.3 | 1.30 | 40.7 | 60.0% | 31.2% | 70 / 104 | 3.050 |
+| 28 | 0.8 | 0.1 | 108 | 24.6 | 1.16 | 40.7 | 60.0% | 33.0% | 80 / 104 | 2.715 |
+| 29 | 0.8 | 0.25 | 107 | 24.6 | 1.16 | 40.7 | 60.0% | 32.1% | 80 / 104 | 2.714 |
+| 30 | 0.8 | 0.5 | 107 | 24.6 | 1.16 | 40.7 | 60.0% | 32.1% | 80 / 104 | 2.714 |
+| 31 | 0.85 | 0.1 | 123 | 10.2 | 1.06 | 40.7 | 60.0% | 34.5% | 94 / 104 | 2.305 |
+| 32 | 0.85 | 0.25 | 121 | 10.8 | 1.07 | 40.7 | 60.0% | 33.0% | 93 / 104 | 2.324 |
+| 33 | 0.85 | 0.5 | 121 | 10.8 | 1.07 | 40.7 | 60.0% | 33.0% | 93 / 104 | 2.324 |
+| 34 | 0.9 | 0.1 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 35 | 0.9 | 0.25 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 36 | 0.9 | 0.5 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 37 | 0.95 | 0.1 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 38 | 0.95 | 0.25 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 39 | 0.95 | 0.5 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 40 | 1.01 | 0.1 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 41 | 1.01 | 0.25 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 42 | 1.01 | 0.5 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+
+- Result: best J 2.111 (sim 0.90, any speed; ties go to the default speed 0.25) vs default 3.050 (-30.8%, interior optimum: 0.95 and above are worse). Frozen: `merge_sim_thr` 0.75 -> 0.9, `merge_max_speed` 0.25 unchanged (insensitive at every sim). Dev journey accuracy (60.0%) and dwell median (40.7%) did not move at all across the grid; only counts and occupancy respond to the merge. Caveat: two dev clips, count-based objective; with appearance embeddings the 0.75 merge joined different people in these uniform-clothing hallways (entries 70/104 at 0.75, 104/104 at 0.9), which is plausible but not verifiable with per-activity GT. `identity.reattach` (live mode) uses the same knob, so live re-attach is now stricter; live smoke still passes after the change (SMOKE LIVE OK, 5.01 fps paced).
+- What was run when (honest account; test numbers were NOT unseen during tuning): (1) before any tuning, a draft script ran `evaluate` on all six clips (dev + test) at the then-default 0.75, first with one-to-one matching, then with many-to-one (switched after seeing 5 of 132 dev GT tracks matched; the test match rates were printed in the same output); (2) the first full `pulse eval` (dev + test, 0.75) was generated and read in full, including test numbers, with the buggy count-error formula, which is how the bug was found; (3) the dev-only grids (`scripts/tune_merge.py`, never loads test clips; objective = dev numbers only) were run, the bug was fixed, the corrected grid chosen and `merge_sim_thr` frozen at 0.9; (4) after the freeze `pulse eval` was run repeatedly (test at 0.9), and only rendering/caching code changed (no metric or config change). So "tuned on dev only" is true of the objective and of the tuner's inputs, but test numbers at 0.75 had been seen before the freeze; the tuning outcome is the same under every version of the rule, but the claim "test scored once" is withdrawn.
+- Results (docs/EVAL.md, section Targets): file-mode RTF is 1.54x on the quiet 60 s excerpt but 0.88x (G421) and 0.92x (G299) on the crowded full 5-min clips, so that target is only partly met; live fps met; entry/exit, occupancy, dwell and journey targets are missed on test (values in EVAL.md). Dwell and journey metrics are computed inside short per-activity GT tracks with many-to-one matching and are invariant to the identity merge by construction (identical across all 42 trials), so they do not measure whole-visit journeys.
+
+### M6 / Task 20: stock-clip labels and stop precision/recall (M6 closed)
+
+- Done: hand-drawn car zones (`labels/zones/wm-bangalore-04.json`, `-07.json`) and 1 s labels (`labels/wm-bangalore-04.json`, `-07.json`; `labeller: ai-agent, unreviewed`, `fps_sampled: 1`), `src/pulse/eval/stops.py` (`precision_recall`, 8 unit tests in `tests/test_stops_eval.py`, RED then GREEN), and a Stops section in `pulse eval` (memoised per clip under `runs/eval/stops-*`, reads the perception cache only; EVAL.md stays byte-identical across runs).
+- Method: frames sampled at 1 s, face-blurred with the cached detections and viewed as 2x2 contact sheets (saved only under `runs/labelling/`). The labels and zones were written before the pipeline's stop output for these clips was computed or looked at; nothing was tuned afterwards. `short` preset (`stop_time` 3 s), everyone a customer, tolerance +-2 s.
+- Result (docs/EVAL.md, Stops): pooled precision 2 / 2 = 100.0%, recall 3 / 6 = 50.0%. `wm-bangalore-04`: precision 2/2, recall 3/6; `wm-bangalore-07`: no GT stop and no predicted stop (both ratios n/a). Treat as an indication only: 6 GT stops, 2 predictions.
+- Labelling confidence (honest): `wm-bangalore-07` is high confidence for "nobody stands at a car" (the people are far away or seated at a neighbouring stand; the one man near the frame edge crouches outside the zone), low for the background walkers' times. `wm-bangalore-04` is medium to low: hand-held, camera pans and zooms during t=14-36, about 15 spectators behind the barrier were not individually labelled (and are outside the zone by construction), ids are assigned by clothing, feet are often out of frame (visit 8, black jacket at the right edge, is a judgement call), and the second stop of visit 1 (t=24-29, crouch then stand) is the least certain. Intervals are good to a few seconds at best.
+- Why recall is only 50%: the labelled stops at t=0-35 fall where the camera pans, and the pipeline keeps only samples that match the keyframe view (usable 24.2 s of 61.8 s); the three missed GT stops (visit 1 at 0-19 s and 24-29 s, visit 8 at 0-19 s) lie wholly in the dropped span. Found: visit 2 (hoodie), visit 5 (white kurta) and visit 3 (floral shirt, 32-35 s, only through the +-2 s tolerance because the first usable sample is t=36.8). That is the product behaviour (zones are only valid in a fixed view), so it was not changed.
+- Open problems: (1) the labels are unreviewed and tiny, so P/R can swing by tens of points; a human pass over `labels/` is the first thing to do in the morning. (2) Spectators behind a barrier are a realistic false-positive source for the next run on such footage; the zone shape (floor in front of the car) is what keeps them out. (3) No synthetic clips from teammate C (`data/synthetic/share/` is empty), so no dwell, journey or walk-out errors on showroom footage. (4) `bash scripts/verify.sh` was not run tonight (webcam step blocked while dark).
+
+### M7 / Task 21: README, PITCH_NOTES, INTEGRATION, run.sh (morning-summary prep)
+
+- Done: `README.md` (problem, measures, pipeline, quickstart, Results copied from EVAL.md, Privacy, full licence table, Limitations), `docs/PITCH_NOTES.md` (story, competitor table, ROI with every input marked ASSUMPTION, questions for Royal Motors, demo script), `docs/INTEGRATION.md` (merge plan plus table of every differing interface), `run.sh` (127.0.0.1, `--ws-max-size 4194304`), `tests/test_docs.py` (7 tests).
+- `./run.sh` check: server started in the background, `curl http://localhost:8000/` returned 200, server killed.
+- For the Morning summary (controller writes it): numbers to quote are in README Results (copied from EVAL.md): entry/exit 50.0% test (target 10%, missed), occupancy MAE 4.02 (0.5, missed), dwell 42.0% (10%, missed), journeys 52.5% (80%, missed), file RTF 1.55x excerpt but 0.88x/0.92x on crowded clips (partly), live 8.27 engine / 5.02 paced (met). Stops: 2/2 precision, 3/6 recall on two stock clips.
+- Team to-do (from the docs): (1) human review of `labels/` and `labels/zones/` (agent-made, unreviewed); (2) film staged showroom scenes and re-measure; (3) merge with Showroom Coach via INTEGRATION.md (check every row against Coach's real code, its spec was the only comparison source); (4) replace the ROI ASSUMPTION ranges with Royal Motors data; (5) run `bash scripts/verify.sh` with a working webcam (not run tonight: camera returned black frames); (6) deploy is out of scope so far.
+- Doc limits to know: competitor cells in PITCH_NOTES are desk research from the spec, not tested; INTEGRATION compares against Coach's spec, not its code; licence of the PyAV bundled FFmpeg libraries is not stated in package metadata (README says so).
+
+### M8 / Task 22: sat-in-car detection (stretch)
+
+- Done: `src/pulse/sat_in_car.py` (`detect`, `assign_zones`), `pipeline.sat_in_car_events` (stable observations only), per-car `sat_in_car` column (last in `per_car` dicts, `per_car.csv`, `check_outputs.py`, dashboard "Sat in car"), Config knobs `sat_*`, `tests/test_sat_in_car.py` (14 tests: both rules, must-not-fire cases) plus a report header test. EVAL.md "Sat in car (stretch)" section from `pulse eval` (deterministic, memoised under runs/eval).
+- Result: MEVA outdoor clip G436 (hospital drive loop, 150 MB, sha256 in `data/sources.csv`, decodes, blurred keyframe shows moving vehicles and tiny people): `person_enters_vehicle` recall 0/11 (same vehicle) and 0/11 (any car), 0 detected events. Not one GT vehicle lies on a keyframe car box (2 car detections only), so the static-car rules cannot match by construction: the clip is a poor proxy and the 0% says nothing about showroom accuracy. Reported as such in EVAL.md; no thresholds were tuned.
+- Rules as implemented: (a) >= 60% of the person box inside a car box, >= 2 of shoulders/hips confident and knees+ankles all below `kp_thr`, smoothed foot speed < 0.1 m/s, for >= 5 s (gaps <= 2 s bridged); (b) an observation segment (a person split at gaps > 2 s) ends with >= 60% inside a car box and any segment starts inside it within 60 s. Cars = keyframe boxes (showroom cars do not move); motorcycles excluded. Per-car count = distinct person ids with an event at that car's zone.
+
+### M8 / Task 23: floor calibration to top-down heatmap (stretch)
+
+- Done: optional `floor` in the zone file (`{"img": [[u,v]x4] normalised, "world": [[x,y]x4] metres}`), `zones.validate_floor/floor_homography/load_floor`, `save_zones(..., floor=)`; API `PUT zones` validates (422: not exactly 4 points, non-finite, img outside [0,1], |world| > 1000, collinear/coincident points, failed fit); `pipeline.score(..., floor=)` builds the homography at analysis-frame pixels and passes it to `build_people` (method `floor`, speeds/distances in real metres); `pipeline.analyze`/API score load it from the zone file (so `pulse analyze --zones` works); `report` writes `heatmap_topdown.png` (listed in `files`, validated by `check_outputs`) only when calibrated; zone editor "Calibrate floor" mode with X/Y inputs and a clear button. Tests: `tests/test_floor.py` (18) and `test_floor_calibration_api`.
+- Fix round 1: in floor mode speed = smoothed successive floor positions (metres) / dt (was floor Y misused as depth); `to_floor` returns NaN for w <= 0 (invalid, excluded); `validate_floor` requires both quads convex (no bow-ties; windings may differ because image y points down) with all w of the same sign; live mode does not use floor calibration (README, live page).
+- Not verified: the UI was syntax-checked (`node --check`) but not clicked through in a browser; the homography is only as good as the clicked points (floor points only, no lens-distortion correction).
+
+### M8 / Task 24: printable one-page HTML report (stretch)
+
+- Done: `src/pulse/report_html.py` (`render_html`) and `report.html` written by `build_report` (listed in `report.json` "files" as `report_html`): inline CSS with `@page A4` and `@media print`, banner, KPIs, warnings, per-car table, top 3 insights (title, evidence, action, confidence), the already-blurred `heatmap.png` as a base64 data URI, generated-from line with the clip name. Every dynamic string is HTML-escaped (zone names are user input). `check_outputs.py` validates it (parses, banner present, no script/link/iframe/form, no external src/href/url()). Dashboard "Printable report" link. Tests: `tests/test_report_html.py`.
+- Not verified: A4 single-page fit was not checked by printing to PDF in a browser; the layout targets it by size limits only.
+
+### M8 / Task 25: sales CSV join (stretch)
+
+- Done: `src/pulse/sales.py` (`parse_sales`, `parse_sales_bytes`, `apply_sales`, `SalesError`), `pipeline.score(..., sales=)` / `analyze(..., sales_path=)`, `pulse analyze --sales FILE` (exit 2 with reasons on a bad file), `POST /api/jobs/{id}/sales` (multipart, <= 1 MB, 422 with `reasons`; stored as `jobs/<id>/sales.csv`; re-scores from the cache when already scored, no detection), per-car `sold` and `attention_to_sales` appended after `sat_in_car` (per_car dicts, `per_car.csv`, `check_outputs.py`, dashboard, report.html when sales are present), dashboard upload control. Unmatched CSV car names become a report warning. `docs/sample_sales_SYNTHETIC.csv` + `docs/sample_sales_SYNTHETIC.md` (names match `labels/zones/wm-bangalore-07.json`). Tests: `tests/test_sales.py` plus two API tests.
+- Not verified: the dashboard upload control was syntax-checked (`node --check`) but not clicked through in a browser.
+
+### M8 / Task 26: Uzbek/Russian UI toggle (stretch)
+
+- Done: `static/i18n.js` (ES module, no deps) holds `en`, `uz` (Latin script) and `ru` dictionaries (~190 keys each), `t(key, vars)` with `{name}` interpolation (falls back to English, then the key), `setLang`, `onLangChange`, and an EN / O'Z / РУ switcher mounted into `#lang-switch` in the header of both pages. The choice is stored in `localStorage` (try/catch) and applied on load; `<html lang>` follows. Static markup uses `data-i18n` / `data-i18n-attr`; JS-built labels (dashboard, people gallery, zone editor, live page) call `t("literal.key")` and re-render on a language switch. Server-delivered text (insight titles/actions, report warnings, zone names, job status messages) is not translated; a note says so in the footer and the Recommendations card. The English banner line stays verbatim, with a translated line beneath it. Only `textContent`/`setAttribute` are used. Tests: `tests/test_i18n.py` (parses the dictionaries; key parity, non-empty values, same placeholders, Latin-only UZ, every used key exists, literal keys only, no unused keys, no innerHTML).
+- Not verified: not clicked through in a browser (JS syntax-checked with `node --check`; `t`/`setLang` exercised in node with stubbed `document`/`localStorage`, including throwing storage). Switching language while results are shown re-renders the dashboard, which reloads the annotated video element. "Unserved-interest" style terms and Russian/Uzbek wording are unreviewed.
+
+## Decisions
+
+- 2026-10-11: Pre-flight was not run by the owner; the agent created the repo, copied the spec/CLAUDE.md/prompt; `data/stock/` and `data/synthetic/share/` are empty.
+- 2026-10-11: rtmlib is vendored (subset) instead of pip-installed, because its wheel requires `opencv-python` + `opencv-contrib-python`, which clash with `opencv-python-headless`, and its multiclass YOLOX path drops scores (ByteTrack needs them).
+- 2026-10-11: `supervision` pinned `<0.31`: `ByteTrack` is deprecated since 0.28 and removed in 0.31.
+- 2026-10-11: No `docs/journal.md` logging gate (optional pre-flight step not run); PROGRESS.md is the log.
+- Owner instruction 2026-10-11 02:45: never ask questions; pick the recommended/spec-supported option and log it here.
+- Dev/test split fixed at plan time: dev = 2018-03-11.16-35-01.16-40-00.school.G423, 2018-03-11.12-00-00.12-05-00.school.G420; test = 2018-03-12.11-05-01.11-10-01.school.G423, 2018-03-13.17-10-00.17-15-00.school.G421, 2018-03-09.10-40-00.10-45-00.school.G419, 2018-03-09.10-15-00.10-20-00.school.G299.
+- MEVA: 6 indoor clips downloaded to data/meva/ (CC BY 4.0, Corona et al., WACV 2021); see data/meva/CLIPS.md.
+- data/stock/ and data/synthetic/share/ empty at start; agent will look for a commercially licensed showroom clip by script (not Pexels).
+- 2026-10-11: roles reasons (controller ruling R3): a feature yields a reason only when its normalised value >= 0.25; top 3 such features by w*norm. Needed so a customer with presence 0.1 has `reasons == []`.
+
+- 2026-10-11 (Task 19A): zone coverage uses each actor's GT box nearest to the activity's first (enter) / last (exit) frame; entrance zones are generous (door face plus threshold) because people are at door level at those frames. G419 test coverage 64.6% is reported as is (no test tuning).
+
+- 2026-10-11 (Task 19B): MEVA geom tracks are per activity (median 6 sampled frames = 1.2 s on the first dev clip; 132 GT ids for ~62 people), so `match_persons` has `one_to_one` (Hungarian, brief) and a many-to-one mode (each GT track takes its best predicted person); `pulse eval` uses many-to-one, scores overlap as sum IoU / n_gt (min 0.3), and compares dwell/journeys only inside the GT track's time window (our person's samples in that window through the same `journey.build`). One-to-one matched only 5 of 132 GT tracks on the first dev clip.
+- 2026-10-11 (Task 19B): GT entry/exit counts use the same window as the entry/exit rule (spec 4.5: people already present in the first `leave_after` s are excluded; exits must end >= `leave_after` s before the end); all-activity counts are shown alongside. Pooled count error = sum |ours - GT| / sum GT over entries and exits and clips (no cancelling). Timing: greedy one-to-one nearest match within 5 s.
+- 2026-10-11 (Task 19B): eval scores everyone as customer by calling `stats.compute` with empty roles/episodes/assist directly on `build_people` output (equivalent to `score(..., overrides=all customer)` for entries/exits/occupancy/journeys, but skips the O(n^2) role interactions). MOTA/IDF1 over all GT person boxes (no size filter); `motmetrics.distances.iou_matrix` breaks on numpy 2 (`np.asfarray`), so the IoU distance matrix is computed in `metrics.py`.
+- 2026-10-11 (Task 19B): journey accuracy skips matched pairs where both sequences are empty; zone dwell % and seconds are over pairs with GT dwell > 0 (pairs with only predicted dwell are counted as `ours only`).
+- 2026-10-11 (Task 19B): `tests/test_insights.py` helpers/inputs moved to `pulse.eval.scenarios` (assertions unchanged) so EVAL.md runs the very same inputs; `pulse eval` returns 1 if a clip, KPF, zones file or `runs/bench/{speed,live_smoke,detectors}.json` is missing, and `runs/bench/speed.json` is produced by `pulse bench speed` (not part of verify.sh; ~80 s) and also snapshots `live_smoke.json`, because verify.sh re-runs the live smoke before `pulse eval` and a changing fps would otherwise make docs/EVAL.md differ run to run.
+- 2026-10-11 (Task 19B): CoreML engine step rate (optional, separate row) measured on the first 60 excerpt frames: about 33-34 fps on frames with 1-4 people vs about 8 fps CPU (exact values in EVAL.md). Accuracy under CoreML was not checked.
+- 2026-10-11 (Task 26): UZ/RU UI strings machine-written, need review by a native speaker. Uzbek uses the Latin script; server-generated text stays English (noted in the UI). `scripts/verify.sh` not run (webcam exception; owner instruction for tonight).
+
+## Open problems
+
+- Webcam gate depends on light and the lens cover: on this MacBook the FaceTime camera returned black frames, so the real-webcam step of the chain only passes in a lit room with the lid open.
+- Docker image was never built (no daemon); `deploy.sh` was never run.
+- Agent-made labels and zones (`labels/`) are unreviewed by a human.
+- UZ and RU UI strings are machine-written and need a native speaker.
+- The calibration UI ("Calibrate floor") and the printable A4 report were not clicked through by a human in a browser.
+- Accuracy targets were missed on the MEVA test set; every miss is reported in `docs/EVAL.md`.
+- 2026-10-11 (Task 2): detector = `yolox_s` per the spec section 5 rule (numbers under M0). `Config.detector` default changed from yolox_tiny to yolox_s.
+- 2026-10-11 (Task 2): slow test uses MEVA dev frame 700, not 300: frame 300 of the dev clip has no GT person (first appears ~621); frame 700 has a GT person (CLIPS.md).
+- 2026-10-11 (Task 2): `labels/split.json` created now (dev = G423 03-11 + G420; test = other four) so `meva_dev_clip` can read it.
+- 2026-10-11 (Task 2): fixtures named `mini.*` (flow dialect) and `minidict.*` (quoted dict dialect); `pulse bench detectors --showroom` accepts several images.
+- 2026-10-11 (Task 3): `position_m` full mode uses the mean of confident ankles (same as the foot point) for height; falls back to box if hips/shoulders are inverted. `faces` returns None when facing is unknown or the two positions coincide. `facing_dir` torso height with missing hips = vertical extent of confident keypoints / 3 (the brief's "box/3" has no box argument).
+- 2026-10-11 (Task 5): build_timeline dedups per (person, timestamp) rather than (person, frame_idx): the brief's test reuses frame_idx 0..4 for two tracks at different times and expects 10 samples. Invalid positions -> pos_m=None, dist_method="invalid"; speed uses own Z, else the person's median valid Z, else None; filter_stable uses t0 <= t < t1 (last segment includes t1), samples outside all segments are kept.
+- 2026-10-11: Task 7 interest: assistance/episode runs use per-(customer,staff) near-times bridged at gap <= 1.0 s; open_alerts uses the customer's last visit per car zone and only samples within that visit.
+- 2026-10-11 (Task 8): stats per_car 'unserved'/'deep_interest' count distinct customers per car; peak_t is None when there are no customers; heatmap/paths use customers from `persons` (missing role = customer); hold_rate None when a car has no visitors.
+- 2026-10-11 (Task 9): insights: R1 m = all episodes at the car (episodes are deep-interest), window = 60-s bucket of unserved t_start; R5 run length = t_last - t_first; R7 gap compared with 1e-9 tolerance so 0.20 fires despite float error; moments only filled for R1/R2 (episode-based), other rules have none.
+- 2026-10-11 (Task 11): identity merge chain rule: clusters A and B join via candidate (a, b) only if a is A's latest-ending track, b is B's earliest-starting track, and no track of A overlaps any track of B by > 0.2 s, so each person stays a time-ordered chain. Cosine on L2-normalised embeddings; None/zero embeddings never merge. Singleton tracks become Persons; ids 1..n by first_t (ties by smallest track id). `summarize` skips non-finite foot points. `reattach` uses gap = now - lost.t_end for both the leave_after limit and spatial plausibility.
+- 2026-10-11 (Task 12): iter_frames stops at t >= max_duration (exclusive); sources slower than sample_fps skip duplicate targets; VideoInfo has an extra `fps_assumed` flag (fps 0/NaN -> 25). probe() decodes one frame. meva_10s fixture loads scripts/make_clip.py via importlib (scripts is not a package). Engine timings are rolling means over the last 50 frames.
+- 2026-10-11 (Task 12): Tracker passes `frame_rate=30` (not sample_fps as the brief says) to sv.ByteTrack: supervision computes max_time_lost = int(frame_rate/30*lost_track_buffer), so frame_rate=5 turned the 10-frame buffer into 1 frame and a 3-frame gap lost the id (brief test failed). With 30, the buffer is exactly int(track_buffer_s*sample_fps) sampled frames.
+- 2026-10-11 (Task 13): crops per track = 3 (controller ruling, brief said 5), score >= 0.5, one candidate per second (thinned to 12), picked evenly; tracks < 1.0 s get HSV-only embeddings padded with a zero DINO part so all vectors have equal length (such a vector can never reach merge_sim_thr against a full one: cosine <= 0.71). Crops stored 112x112, not full frames.
+- 2026-10-11 (Task 13): camera-motion cut test uses a 64-bin grayscale histogram correlation (< 0.5), since only grays are kept (brief says HSV histogram). Cut displacement is reported as 1.0. Segment t1 = start of the next segment (contiguous cover). Keyframe = middle frame of the longest stable run; re-read afterwards with iter_frames. The raw keyframe is only written to the cache dir.
+- 2026-10-11 (Task 13): `PerceptionCache` has an extra `keyframe` field (raw BGR, saved but not loaded; use `keyframe_path`). `cache.save` writes to a temp dir and renames; `exists` requires all five data files. `video_key` = sha1(file sha1 + sample_fps, max_width, max_duration_s, detector, pose_model).
+- 2026-10-11 (Task 13 fix round 1, controller ruling): the zero-padded HSV-only scheme is removed. Every track with >= 1 crop gets the full HSV+DINOv2 embedding (<= 3 crops; if no crop reaches score 0.5 its best-score crop is used); a track with no crop has no embedding (never merged). DINOv2 unavailable -> HSV-only for all tracks. `PerceptionEngine.reset()` is called at the start of each perceive; missing/corrupt video raises VideoError before any hashing or cache dir; cache temp dir via tempfile.mkdtemp; Embedder uses the repo-relative models dir and the engine's providers; non-stable segments have same_view=False.
+- 2026-10-11 (Task 14): Coach-compatible wrapper is named `render_timeline(video, timeline, events, out, cfg)` (Coach's `render(video, timeline, events, out)`); note for INTEGRATION.md. `render(..., observations_by_t=)` blurs faces on frames lacking overlays; frames with neither get zone outlines only (zones from the first overlay) and cannot be blurred. Output frames cropped to even dimensions (macro_block_size=2). Face min side = 0.12 x person-box width applied to the keypoint box before 0.6x padding. Contact-sheet tiles are 320 px wide; zone label uses "|" instead of the middle dot (cv2 Hershey fonts are ASCII only).
+- 2026-10-11 (Task 14 fix round 1): `render` and `contact_sheet` take `observations_by_t` as a REQUIRED argument (privacy fail-closed; caller passes every sampled frame's detections; blur covers detected persons only). `render_timeline` derives it from timeline samples. render writes `<out>.part.mp4` then os.replace.
+- 2026-10-11 (Task 15): `build_report` takes extra kwargs `video=None, render_video=False` (thumbnails, contact sheets and the mp4 need frames). Without a video those are skipped and `check_outputs` only checks what `report.json["files"]` lists. Alert overlay = customer in a car-zone visit inside an unserved episode with dwell >= alert_after. Visit/zone stats use the stable-filtered timeline; overlays use the full timeline. `analysed_share` = stable same-view seconds / analysed duration. Reports store the video basename only.
+- 2026-10-11 (Task 15 fix 1): keyframe re-read uses cfg.max_width and any keyframe image is resized to the analysis frame (aspect mismatch -> grey, never unblurred); keyframe blur uses the exact sampled-t detections (nearest within half a period, with a warning); store stats use the UNFILTERED timeline (journeys/assist/episodes stay stable-only); build_report cleans only files it owns before writing.
+- 2026-10-11 (Task 15 fix 2): cache v2 stores every raw person detection (score >= min(0.2, det_score_thr)) in raw_dets.npz; the tracker still only gets detections above det_score_thr. All blurring uses the union of tracked obs at t and t +- 1 sample plus raw detections. RTF after rebuild unchanged: MEVA dev 1.66 (perception 180.9 s), stock clip 0.75 (82.1 s).
+- 2026-10-11 (Task 16): `perceive` takes an optional `embedder` (default unchanged); the app passes `engine.embedder` when the engine has one (test stubs use an HSV-only Embedder). `engine_factory` is called with no args (or with the cfg if it declares a parameter). After perception the worker writes preview outputs (keyframe, blurred thumbnails, people.json) with automatic zones; `results` stay 404 until the first `score`. `score` writes JSON/CSV/thumbnails synchronously; the annotated video is rendered in the worker (`video_state` in job status) and discarded if zones changed meanwhile. `roles` `skip: true` clears overrides (suggested roles only); `people[].role` is computed live as override > imported > suggested. `export.csv` = per_car.csv. User zones/roles live outside `out/` so report regeneration never deletes them. pytest ignores starlette's TestClient/httpx deprecation warning via pyproject filterwarnings. smoke clip = MEVA dev clip 40 s to 60 s (the 15 s window has only ~1 s of people).
+- 2026-10-11 (Task 16 fix 1): job status warnings = perception-time warnings + latest analysis warnings (refreshed per score); reads of report.json take job.lock and all app-side JSON writes are tmp+os.replace; people role fallback = suggested role; oversized uploads rejected from Content-Length by middleware; ApiError lives in app/jobs.py.
+- 2026-10-11 (Task 17): frontend is plain ES modules in app/static (no build, no CDN); job id lives in the URL hash so reload resumes. Editing zones/roles from results re-scores directly. The "Roles skipped: everyone counted as a customer" warning is added client-side (sessionStorage flag) as the brief asks, but the backend's `skip` keeps suggested roles (Task 16), so the wording is inaccurate when staff were suggested. test_static also checks every `/api/...` string in the JS against app routes.
+- 2026-10-11 (Task 17 fix 1, controller ruling, spec 3 binding): `PUT roles {"skip": true}` now sets `job.roles_skipped` (persisted in job.json, exposed in GET /api/jobs/{id}, cleared by any non-skip PUT roles). While set, scoring ignores suggestions, imported roles and overrides (everyone customer) and appends "Roles skipped: everyone counted as a customer" to the report warnings (so it is in report.json and exports). The UI shows it from report warnings, not sessionStorage. This supersedes the Task 16 note that skip keeps suggested roles. The gallery now PUTs the full override set (everyone whose role differs from the suggestion), since PUT replaces.
+- 2026-10-11 (Task 18): live `t` is the server monotonic clock (seconds since connect), never client time. One live session at a time (a second connection gets an error and close 1013; the client retries with backoff). Live owns its own engine (lazy, via `engine_factory`). Reader keeps only the newest unprocessed frame (`dropped` counts the rest); steps run in `asyncio.to_thread`. Journeys are rebuilt only for persons seen in the last `leave_after` s; timeline tails (3 s) are rebuilt per step so speeds stay smoothed. `load_zones` accepts only existing files under `labels/zones/` or `jobs/` (resolved, so `..` and symlinks are rejected). Live person ids are per-session; re-attach uses HSV torso histograms only. Local preview pixelates each head region client-side. Zone drawing freezes the video on a still frame.
+- 2026-10-11 (Task 18, privacy decision): `scripts/webcam_grab.py` checks the RAW frame for blankness in memory only and saves ONLY a pixelated copy (24 px wide, nearest-neighbour upscale) to runs/verify/webcam.jpg, so the owner's face is never stored legibly.
+- 2026-10-11 (Task 18, live fps): paced 5 fps run processed 5.01 fps with 0 dropped (engine step ~98 ms); max sustainable fps 9.22 (see runs/bench/live_smoke.json). smoke window = MEVA dev clip from 40 s (person appears ~44 s and stays > 15 s).
+- 2026-10-11 (Task 18, open issue): on this MacBook the FaceTime camera returns black frames (mean 0.2, std 0.4 after 120 frames; OpenCV and ffmpeg agree), so `webcam_grab.py` correctly exits 1 and `verify.sh` stops at "webcam grab". Likely lens cover or missing Terminal camera permission; the gate was not weakened.
+- 2026-10-11 (Task 18 fix 1, security): HTTP requests need an allowed Host (localhost, 127.0.0.1, [::1], testserver, plus comma-separated `PULSE_ALLOWED_HOSTS` hostnames for a LAN demo) else 400; non-GET/HEAD/OPTIONS with a foreign Origin get 403. `/ws/live` closes 1008 before accept on a bad Host or an Origin whose host differs from Host (absent Origin allowed). Live limits: binary frame 2 MB, text 64 KB (error, closed 1009 after 5 in a row), 120 s idle receive, 10 s send; zones <= 50 and <= 200 points per polygon (also REST); `decode_jpeg` requires a JPEG SOI and rejects > 16 MP or > 8192 px per side from the SOF header before decoding; `load_zones` = .json <= 1 MB under REPO_ROOT/labels/zones or the jobs dir. Engine access is serialised with a lock and the live slot is released by a thread only after the last step finished. For Task 21 (run.sh): launch uvicorn with `--ws-max-size 4194304` (`main.WS_MAX_SIZE`).
+- 2026-10-11 (Task 20): stop matching is many-to-many (precision = predicted stops matching any GT stop / predicted; recall = GT stops matched by any predicted stop / GT), same zone and intervals overlapping within +-2 s; a zero denominator gives None, shown as n/a. Pooled numbers sum counts over clips. `precision_recall` counts only `stopped` ZoneVisits, so a person split over several tracks can match one GT stop more than once on the precision side.
+- 2026-10-11 (Task 20): the stops eval uses the `short` preset (the clips are short showroom clips, brief) while MEVA keeps `dealership`; it does not re-run perception (MissingInput with the reproduce command if the cache is absent). Perception for wm-bangalore-07 was run once for this task (the 04 cache existed). Unlabelled spectators and the left-hand cropped car in clip 07 are modelled deliberately: spectators are outside the zone, the left car gets its own zone (no stop).
+- 2026-10-11 (Task 20 fix 1): Stops table leads with counts and Wilson 95% intervals (no bold on small-n ratios); recall is shown over all GT stops and over GT stops with >= stop_time inside usable (stable, same-view) time; a one-to-one greedy-by-overlap table sits beside the many-to-many one. Pooled: many-to-many P 2/2, recall 3/6 (usable-window 2/2); one-to-one recall 2/6 (usable-window 2/2). All-GT recall on wm-bangalore-04 mostly measures the camera-motion filter. `labelled_clips()` only takes JSON with `labeller` and `stops`.
+- 2026-10-11 (Task 21): `run.sh` falls back to `python3.12` on PATH when `/opt/homebrew/bin/python3.12` is missing; the ffmpeg binary bundled by imageio-ffmpeg reports GPL-2.0-or-later (`--enable-gpl`), documented in the README as a separate executable. PyAV is listed as a transitive supervision dependency (nothing in src or scripts imports `av`). `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (Task 22): sat-in-car uses keyframe car boxes for the whole clip (valid for showrooms, not for the outdoor MEVA proxy) and only observations in stable camera segments. Rule (b) counts the disappearing person; a different person starting at the car later is the reappearance. A missing speed (single-sample track) disqualifies rule (a). New Config fields change `repr(cfg)`, so runs/eval memo keys were recomputed once; perception cache keys are unaffected. The eval matches a GT activity when an event overlaps [start-5 s, end+5 s] and its car box overlaps the GT vehicle box by >= 50% of the smaller box; `any car` is also shown. `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (Task 22 fix 1): rule (b) now needs the last second of the ending segment torso-only AND slow (< 0.1 m/s) with the end not at a frame edge, and the first second of the starting segment torso-only (applied to every reappearing track, not only the same person), so walking behind a car or a re-ID fragment with visible legs does not fire. Rule (a) skips observations whose box bottom is within `edge_margin` of the frame bottom (`detect(..., frame_size=None)`, passed by the pipeline) and needs the person box top inside the car box's vertical extent. Per-car `sat_in_car` counts customers only; events with no car zone (`zone_id` None) are not counted anywhere. KNOWN LIMITS (also in EVAL.md): validated on synthetic boxes only; "inside" is image-plane overlap, so a person in front of or behind a car can still overlap it.
+- 2026-10-11 (Task 23): validation rejects any three collinear points (stricter than "the 4 points are not collinear") for both image and world sets, since a homography needs a proper quadrilateral. The top-down map uses stable-segment customer samples only (staff excluded), a 40x40 histogram over the calibration bounding box plus a 10% margin; it is a pure matplotlib plot (no video pixels, so no blur). The floor survives in `zones.json` of the report. A partly filled calibration blocks "Looks right" with a message instead of silently dropping it. `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (Tasks 24-25): `report.html` is rendered from the finished report dict plus the on-disk (blurred) heatmap.png, so it can never contain a raw frame. The synthetic sales sample is labelled by file name and a sibling .md (a comment row would break the fixed header). Oversized sales uploads get 413 (same as roles import), malformed ones 422 with reasons. Per-car `sold`/`attention_to_sales` are always present and None without sales; a car whose total sold is 0 has `sold` 0 and ratio None. `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (Task 23 fix 1): the brief's "same winding as the world quad" is implemented as "both quads convex in matching point order", not equal orientation: image y points down while floor y normally does not, so the legitimate calibration is mirrored. `floor_homography` flips the matrix sign so w > 0 on the calibration side; live mode ignores calibration by design. `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (final-review fix wave, visitor rule): `Config.min_visit_s = 1.0`, fixed by definition ("a visitor is a customer seen for at least one second"), not swept. The reviewer had already seen the demo clip numbers (wm-bangalore-07: 16 persons, 12 seen <= 0.4 s). Applies to visitors, median visit, browse/assisted/funnel, groups, visits list, per-car stop-rate denominator and unsure; occupancy, waiting, crowding, peak and entry/exit events still use every non-staff person. Gate: `pulse eval --out X` was byte-identical to the committed `docs/EVAL.md` after the change (the rule does not touch any evaluated path); the only later EVAL edit is the "about 1 s" -> "about 1.2 s" wording. The people gallery hides persons under 1 s and shows "N short fragments hidden".
+- 2026-10-11 (fix wave, live privacy): the live page never shows the raw `<video>` (CSS `visibility:hidden`); it shows the exact frame the server analysed with detected heads pixelated from that frame's overlay (about 5 fps, black before the first overlay). The preview is only as good as the detector: a missed person is not pixelated.
+
+## M8 stretch: Tasks 27-28
+- 2026-10-11 (Task 27): `Dockerfile` + `.dockerignore` written (python:3.12-slim, libglib2.0-0 only, non-root uid 10001, volumes /app/models and /app/jobs, HEALTHCHECK /api/health, uvicorn on 0.0.0.0 with `--ws-max-size 4194304`, `PULSE_ALLOWED_HOSTS` default localhost,127.0.0.1). NOT BUILT: the Docker CLI is installed but the daemon is unavailable (docker.sock missing), so the image was never built or run; treat it as untested. It uses an editable install (`pip install --no-cache-dir -e .`) instead of plain `pip install .` because `REPO_ROOT` and `embed.MODELS_DIR` resolve models/ and labels/ via `parents[3]` of the source file, which a site-packages install would point outside /app. Models stay out of the image (size + licence records). README "Docker" section added.
+- 2026-10-11 (Task 28): `scripts/deploy.sh` written, NOT RUN (header "NOT RUN — local-only hackathon rule"). Refuses without `--i-know-this-deploys`, on non-Linux, and when not root. Only `bash -n` and static string checks (tests/test_deploy_files.py) were run; the script itself was never executed. nginx config is printed as notes, not installed.
+
+## Morning summary (2026-10-11, written 07:50 Tashkent by the orchestrating agent)
+
+### State in one paragraph
+Every milestone M0–M8 is built and committed locally (no remote). Each of the 28 plan tasks went through an implementer, a task review (spec + quality) and, where needed, fix rounds with scoped re-reviews; a final whole-branch review (Opus) found no Critical issue and its fix wave was re-reviewed as ready. The full verification chain `bash scripts/verify.sh` ran end to end (last at commit 569e9fc, output below) and exited 0 with every step exiting 0, including the real webcam grab (once the room was lit). `./run.sh` serves the app and `curl -sf -o /dev/null -w "%{http_code}" http://localhost:8000/` prints `200`. Tests: 435 default + 12 slow, all passing.
+
+### What works
+- Upload flow (web): upload → progress → auto car zones (editable polygons, desk/entrance/lounge, optional 4-point floor calibration) → staff gallery (suggested roles with reasons, one-click flip, skip = everyone customer) → dashboard (KPIs, per-car table, heatmap, journey flow, occupancy/waiting charts, recommendations R1–R7 with evidence/confidence/clip moments/contact sheets, annotated H.264 video, JSON/CSV export, printable one-page report, sales-CSV join). Editing zones or roles re-scores from the cache with no re-detection (asserted in tests and smoke_api).
+- CLI: `pulse analyze`, `pulse eval`, `pulse bench`.
+- Live mode: webcam → WebSocket → same engine; overlays, dwell timers, occupancy, unserved-interest alert, click-to-toggle role; Host/Origin-guarded; the page shows only the processed frame with detected heads pixelated.
+- Privacy: every written image (keyframe, heatmap, thumbnails, contact sheets, annotated video, report.html) blurs every detected person (raw detections ≥ 0.2 plus tracked boxes ± one frame); no face recognition / demographics / cross-visit re-ID; webcam check stores only a 24-px pixelated frame; jobs deleted after 24 h at app start.
+- Evaluation on MEVA (CC BY 4.0) with agent-drawn zones, deterministic `docs/EVAL.md`.
+- Stretch: sat-in-car rules, floor calibration + top-down heatmap, printable report, sales CSV join, UZ/RU UI toggle, Dockerfile, deploy script (written, NOT run).
+
+### What does not work / caveats (honest)
+- Accuracy targets are MISSED on the MEVA test clips (school hallways, not showrooms; sparse GT): entry/exit count error 50.0%, occupancy MAE 4.02, zone dwell median error 42.0% (1.80 s), journey accuracy 52.5%. Dev numbers: 3.6% / 1.00 / 40.7% / 60.0%. Test numbers were visible during tuning (disclosed in EVAL.md); the tuner itself only used dev clips.
+- File-mode speed: 1.52× real time on a 60 s 720p excerpt, but 0.88× and 0.92× on the two crowded 5-min test clips (partly met). Live: engine 8.02 fps with 1–4 people, smoke 5.01 fps paced / 9.63 max (met). Speed was re-measured at 08:05 on the final code (`pulse bench speed`, git rev recorded in runs/bench/speed.json) and EVAL.md regenerated; only the speed rows changed.
+- Stops on agent-labelled stock clips: precision 2/2 (95% CI 34–100%), recall 3/6 all GT stops / 2/2 in usable time — tiny, unreviewed sample.
+- Sat-in-car: only synthetic tests; the outdoor MEVA proxy (G436) is unusable (0/11) — not a measure of the rules.
+- Hand-held/cut stock footage loses zone statistics on moving segments (e.g. 39–52% of a clip analysed).
+- `merge_sim_thr` was tuned to 0.9 on 2 dev clips (counts objective) → little identity merging; visit KPIs therefore count only customers seen ≥ 1 s (`min_visit_s`, fixed by definition; EVAL unchanged).
+- Webcam step needs a lit room with the lid open (black frames overnight).
+- Docker image never built (no daemon); deploy script never run (by rule).
+- UZ/RU UI strings machine-written; calibration UI and printable A4 not clicked through by a human.
+
+### Measured numbers (source: docs/EVAL.md; reproduce with the commands listed there)
+| metric | target | test | dev | met |
+|---|---|---|---|---|
+| entry/exit count error | ≤ 10% | 50.0% | 3.6% | NO |
+| occupancy MAE | ≤ 0.5 | 4.02 | 1.00 | NO |
+| zone dwell median error (dealership) | ≤ 10% | 42.0% (1.80 s) | 40.7% (1.60 s) | NO |
+| journey accuracy | ≥ 80% | 52.5% | 60.0% | NO |
+| file-mode RTF (CPU, 5 fps) | ≥ 1× | 1.52× excerpt; full clips 0.88–1.86× | – | partly |
+| live fps (CPU) | ≥ 5 | 8.02 engine; 5.01 paced / 9.63 max | – | yes |
+Other: MOTA negative on every clip (MEVA annotates only activity participants); test IDF1 19.7% raw / 19.5% merged. Detector benchmark (M0): yolox_s chosen (person recall 0.629, 82 ms/frame CPU). CoreML engine step ≈ 32 fps (optional, separate).
+
+### Decisions taken alone (full list under "## Decisions" above; the most consequential)
+- Pre-flight was not run, so the agent created the repo and fetched open data itself; demo clips from Wikimedia Commons (CC BY-SA 4.0 / CC BY 3.0) because data/stock/ was empty and Pexels blocks scripts.
+- rtmlib vendored (opencv conflict + dropped scores); supervision pinned < 0.31; detector yolox_s by the spec §5 benchmark rule; pose rtmpose_s.
+- ByteTrack `frame_rate=30` quirk; full HSV+DINOv2 embeddings for every track with a crop.
+- Privacy hardening beyond the plan: blur from raw detections + neighbouring tracked boxes (after an automated security scan), fail-closed `observations_by_t`, live page never shows the raw camera, Host/Origin guard, decode-bomb and WebSocket limits.
+- "Skip" in the staff step = everyone counted as customer (spec §3), with a warning.
+- Dev/test split fixed at plan time; dev-only tuning restricted to the two post-cache merge knobs; merge_sim_thr 0.75 → 0.9.
+- Visit KPIs count customers seen ≥ 1 s (`min_visit_s = 1.0`), applied after the final review; EVAL byte-identical (gate).
+- Post-review gate sweep (07:55): `tests/test_embed.py` had a conditional `pytest.skip` when the DINOv2 model is missing (not caught by the `mark.skip|xfail|.only(` grep); changed to `pytest.fail` with a download hint in 4eac694 — assertions unchanged; no other skip/skipif/importorskip/xfail/.only in tests/.
+- Test-integrity review of the whole history (08:10): no test file was ever deleted; three test functions disappeared and each was replaced by a stronger one — `test_run_eval_writes_all_sections_deterministically` split into `test_run_eval_writes_all_sections` + `test_evaluation_is_deterministic_without_the_memo` (0212ba0); `test_rescore_does_not_run_models` kept its name but now forces every model path to raise (1da875d); `test_keyframe_without_exact_detections_warns` went with the deliberately removed half-period fallback and was replaced by `test_keyframe_blurred_from_neighbouring_sample_when_no_obs_at_its_t` and `test_raw_only_detection_is_blurred_everywhere` (374b29b). No mock library is used; the 8 `monkeypatch.setattr` calls only force failures or redirect constants (ROOT, MAX_UPLOAD); model-layer stubs are injected through constructor arguments (dependency injection), never by patching the code under test.
+- verify.sh was not run by implementers while the camera was dark (to avoid looping on an environmental failure); this let two slow-test regressions through until the 07:05 run — fixed in 3a9c0a3.
+
+### Where Showroom Pulse's shared interfaces may differ from Showroom Coach
+See the full table in `docs/INTEGRATION.md`. Highlights: dataclasses live in `pulse/datatypes.py`; Coach's `render(video, timeline, events, out)` is `render_timeline(..., cfg)` here and `render(...)` requires `observations_by_t`; `roles.suggest(persons, interactions, cfg)` uses the reduced feature set and a reason threshold; `identity.merge` uses `max_gap_s = leave_after` and `merge_sim_thr = 0.9`; `geometry.position_m` returns `PosEstimate` with an "invalid" method; perception cache v2 layout (incl. raw_dets.npz); rtmlib vendored rather than pip-installed; detector yolox_s; ByteTrack frame_rate quirk; zone polygons normalised to [0,1]; `/ws/live` message schema and Host/Origin guard; roles.json import format.
+
+### Team to-do
+1. Review the agent-made labels and zones (`labels/`, all marked "ai-agent, unreviewed").
+2. Film staged showroom scenes (staff + customers; one fixed camera + one phone), label a dev and a test clip, re-run `pulse eval`; replace or add Pexels clips (e.g. pexels.com/video/7154222) in `data/stock/`.
+3. Merge with Showroom Coach following `docs/INTEGRATION.md` (one engine + cache, shared roles.json, two tabs).
+4. Put real Royal Motors numbers into the ROI model in `docs/PITCH_NOTES.md` (every input is marked ASSUMPTION).
+5. Deploy: `scripts/deploy.sh` (written, NOT run) or the Dockerfile (not built yet).
+6. Before the jury: native-speaker check of UZ/RU; click through "Calibrate floor" and the printable report once; demo with the Short preset; name zones in Latin script.
+
+### Resume commands
+```bash
+cd ~/Projects/showroom-pulse
+./run.sh                                   # web app at http://localhost:8000
+bash scripts/verify.sh                     # full chain (needs a lit room for the webcam step)
+.venv/bin/pulse analyze data/stock/wm-bangalore-07.mp4 --out runs/demo --preset short --zones labels/zones/wm-bangalore-07.json
+.venv/bin/pulse eval --out docs/EVAL.md    # regenerates EVAL.md from cached runs (deterministic)
+```
+
+### Last full verify.sh output (commit 569e9fc, 2026-10-11 08:09 Tashkent)
+This is the last full run of the chain. It ran on commit 569e9fc; the only change after it is the commit that records this output in PROGRESS.md (documentation only, no code, tests or data). Earlier full runs at d74e3aa (07:45), f245d1c (07:49) and 17cb96e (08:01) also printed VERIFY OK; 569e9fc differs from 17cb96e only by the re-measured speed rows in docs/EVAL.md and the matching numbers in README.md, docs/PITCH_NOTES.md and PROGRESS.md.
+```
+
+=== [verify] pytest (default) ===
+$ .venv/bin/python -m pytest -q
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 49%]
+........................................................................ [ 66%]
+........................................................................ [ 82%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+435 passed, 12 deselected in 13.26s
+=== [verify] pytest (default) -> exit 0 ===
+
+=== [verify] pytest (slow) ===
+$ .venv/bin/python -m pytest -q -m slow
+....
+TIMINGS ms {'det': 74.7, 'track': 0.6, 'pose': 36.9} persons-obs 97 frames 50
+.....
+META {'rtf': 1.5592351888202818, 'perception_seconds': 6.413400667006499, 'embed_seconds': 0.4197296250058571, 'n_samples': 50}
+...                                                             [100%]
+12 passed, 435 deselected in 75.49s (0:01:15)
+=== [verify] pytest (slow) -> exit 0 ===
+
+=== [verify] analyze MEVA dev clip ===
+$ .venv/bin/pulse analyze data/meva/videos/2018-03-11.16-35-01.16-40-00.school.G423.r13.avi --out runs/verify/meva --preset dealership
+visitors: 55  staff: 0  insights: 0  RTF: 1.7x
+  warning: No zones: draw zones to get per-car statistics
+  warning: 10 track fragments shorter than 1 s were not counted as visitors
+  warning: 1 people with an uncertain role were counted as customers
+outputs: runs/verify/meva
+=== [verify] analyze MEVA dev clip -> exit 0 ===
+
+=== [verify] analyze showroom clip ===
+$ .venv/bin/pulse analyze data/stock/wm-bangalore-04.mp4 --out runs/verify/stock --preset short
+visitors: 75  staff: 3  insights: 0  RTF: 0.8x
+  warning: Only 39% of the clip analysed (camera moving or cut)
+  warning: 23 track fragments shorter than 1 s were not counted as visitors
+  warning: 14 people with an uncertain role were counted as customers
+outputs: runs/verify/stock
+=== [verify] analyze showroom clip -> exit 0 ===
+
+=== [verify] check outputs ===
+$ .venv/bin/python scripts/check_outputs.py runs/verify/meva runs/verify/stock
+OK report.json
+OK stats.json
+OK insights.json
+OK zones.json
+OK roles.json
+OK people.json
+OK visits.csv
+OK per_car.csv
+OK occupancy.csv
+OK heatmap.png
+OK occupancy.svg
+OK waiting.svg
+OK journey_flow.json
+OK keyframe.jpg
+OK report.html
+OK thumbs/person_1.jpg
+OK thumbs/person_10.jpg
+OK thumbs/person_11.jpg
+OK thumbs/person_12.jpg
+OK thumbs/person_13.jpg
+OK thumbs/person_14.jpg
+OK thumbs/person_15.jpg
+OK thumbs/person_16.jpg
+OK thumbs/person_17.jpg
+OK thumbs/person_18.jpg
+OK thumbs/person_19.jpg
+OK thumbs/person_2.jpg
+OK thumbs/person_20.jpg
+OK thumbs/person_21.jpg
+OK thumbs/person_22.jpg
+OK thumbs/person_23.jpg
+OK thumbs/person_24.jpg
+OK thumbs/person_25.jpg
+OK thumbs/person_26.jpg
+OK thumbs/person_27.jpg
+OK thumbs/person_28.jpg
+OK thumbs/person_29.jpg
+OK thumbs/person_3.jpg
+OK thumbs/person_30.jpg
+OK thumbs/person_31.jpg
+OK thumbs/person_32.jpg
+OK thumbs/person_33.jpg
+OK thumbs/person_34.jpg
+OK thumbs/person_35.jpg
+OK thumbs/person_36.jpg
+OK thumbs/person_37.jpg
+OK thumbs/person_38.jpg
+OK thumbs/person_39.jpg
+OK thumbs/person_4.jpg
+OK thumbs/person_40.jpg
+OK thumbs/person_41.jpg
+OK thumbs/person_42.jpg
+OK thumbs/person_43.jpg
+OK thumbs/person_44.jpg
+OK thumbs/person_45.jpg
+OK thumbs/person_46.jpg
+OK thumbs/person_47.jpg
+OK thumbs/person_48.jpg
+OK thumbs/person_49.jpg
+OK thumbs/person_5.jpg
+OK thumbs/person_50.jpg
+OK thumbs/person_51.jpg
+OK thumbs/person_52.jpg
+OK thumbs/person_53.jpg
+OK thumbs/person_54.jpg
+OK thumbs/person_55.jpg
+OK thumbs/person_56.jpg
+OK thumbs/person_57.jpg
+OK thumbs/person_58.jpg
+OK thumbs/person_59.jpg
+OK thumbs/person_6.jpg
+OK thumbs/person_60.jpg
+OK thumbs/person_61.jpg
+OK thumbs/person_62.jpg
+OK thumbs/person_63.jpg
+OK thumbs/person_64.jpg
+OK thumbs/person_65.jpg
+OK thumbs/person_7.jpg
+OK thumbs/person_8.jpg
+OK thumbs/person_9.jpg
+OK annotated.mp4
+OK report.json
+OK stats.json
+OK insights.json
+OK zones.json
+OK roles.json
+OK people.json
+OK visits.csv
+OK per_car.csv
+OK occupancy.csv
+OK heatmap.png
+OK occupancy.svg
+OK waiting.svg
+OK journey_flow.json
+OK keyframe.jpg
+OK report.html
+OK thumbs/person_1.jpg
+OK thumbs/person_10.jpg
+OK thumbs/person_100.jpg
+OK thumbs/person_101.jpg
+OK thumbs/person_11.jpg
+OK thumbs/person_12.jpg
+OK thumbs/person_13.jpg
+OK thumbs/person_14.jpg
+OK thumbs/person_15.jpg
+OK thumbs/person_16.jpg
+OK thumbs/person_17.jpg
+OK thumbs/person_18.jpg
+OK thumbs/person_19.jpg
+OK thumbs/person_2.jpg
+OK thumbs/person_20.jpg
+OK thumbs/person_21.jpg
+OK thumbs/person_22.jpg
+OK thumbs/person_23.jpg
+OK thumbs/person_24.jpg
+OK thumbs/person_25.jpg
+OK thumbs/person_26.jpg
+OK thumbs/person_27.jpg
+OK thumbs/person_28.jpg
+OK thumbs/person_29.jpg
+OK thumbs/person_3.jpg
+OK thumbs/person_30.jpg
+OK thumbs/person_31.jpg
+OK thumbs/person_32.jpg
+OK thumbs/person_33.jpg
+OK thumbs/person_34.jpg
+OK thumbs/person_35.jpg
+OK thumbs/person_36.jpg
+OK thumbs/person_37.jpg
+OK thumbs/person_38.jpg
+OK thumbs/person_39.jpg
+OK thumbs/person_4.jpg
+OK thumbs/person_40.jpg
+OK thumbs/person_41.jpg
+OK thumbs/person_42.jpg
+OK thumbs/person_43.jpg
+OK thumbs/person_44.jpg
+OK thumbs/person_45.jpg
+OK thumbs/person_46.jpg
+OK thumbs/person_47.jpg
+OK thumbs/person_48.jpg
+OK thumbs/person_49.jpg
+OK thumbs/person_5.jpg
+OK thumbs/person_50.jpg
+OK thumbs/person_51.jpg
+OK thumbs/person_52.jpg
+OK thumbs/person_53.jpg
+OK thumbs/person_54.jpg
+OK thumbs/person_55.jpg
+OK thumbs/person_56.jpg
+OK thumbs/person_57.jpg
+OK thumbs/person_58.jpg
+OK thumbs/person_59.jpg
+OK thumbs/person_6.jpg
+OK thumbs/person_60.jpg
+OK thumbs/person_61.jpg
+OK thumbs/person_62.jpg
+OK thumbs/person_63.jpg
+OK thumbs/person_64.jpg
+OK thumbs/person_65.jpg
+OK thumbs/person_66.jpg
+OK thumbs/person_67.jpg
+OK thumbs/person_68.jpg
+OK thumbs/person_69.jpg
+OK thumbs/person_7.jpg
+OK thumbs/person_70.jpg
+OK thumbs/person_71.jpg
+OK thumbs/person_72.jpg
+OK thumbs/person_73.jpg
+OK thumbs/person_74.jpg
+OK thumbs/person_75.jpg
+OK thumbs/person_76.jpg
+OK thumbs/person_77.jpg
+OK thumbs/person_78.jpg
+OK thumbs/person_79.jpg
+OK thumbs/person_8.jpg
+OK thumbs/person_80.jpg
+OK thumbs/person_81.jpg
+OK thumbs/person_82.jpg
+OK thumbs/person_83.jpg
+OK thumbs/person_84.jpg
+OK thumbs/person_85.jpg
+OK thumbs/person_86.jpg
+OK thumbs/person_87.jpg
+OK thumbs/person_88.jpg
+OK thumbs/person_89.jpg
+OK thumbs/person_9.jpg
+OK thumbs/person_90.jpg
+OK thumbs/person_91.jpg
+OK thumbs/person_92.jpg
+OK thumbs/person_93.jpg
+OK thumbs/person_94.jpg
+OK thumbs/person_95.jpg
+OK thumbs/person_96.jpg
+OK thumbs/person_97.jpg
+OK thumbs/person_98.jpg
+OK thumbs/person_99.jpg
+OK annotated.mp4
+=== [verify] check outputs -> exit 0 ===
+
+=== [verify] smoke API ===
+$ .venv/bin/python scripts/smoke_api.py
+[smoke_api] health
+[smoke_api] upload meva_20s.mp4
+[smoke_api]   job 8d3cb964ee5d4743bd1dfa563eaf1389
+[smoke_api] poll until ready_for_zones
+[smoke_api]   state=perceiving progress=0.00 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.05 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.10 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.14 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.19 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.24 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.28 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.33 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.38 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.43 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.47 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.52 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.57 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.62 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.67 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.71 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.76 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.81 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.85 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.90 Detecting and tracking people
+[smoke_api]   state=perceiving progress=0.96 Preparing preview
+[smoke_api] GET zones (auto)
+[smoke_api]   0 auto zone(s)
+[smoke_api] PUT zones: Car: Demo + Desk
+[smoke_api] GET people
+[smoke_api]   4 people, first: 1 suggested=customer
+[smoke_api] PUT roles: first person -> staff
+[smoke_api] POST score (with background video render)
+[smoke_api]   visitors=3 staff=1 per_car=[('Car: Demo', 3)]
+[smoke_api] wait for annotated video
+[smoke_api] PUT zones: move the car rectangle, POST score again
+[smoke_api]   per_car=[('Car: Demo', 0)]
+[smoke_api] assert no re-detection
+SMOKE API OK
+=== [verify] smoke API -> exit 0 ===
+
+=== [verify] smoke live ===
+$ .venv/bin/python scripts/smoke_live.py
+/Users/diyorbekumaraliyev/Projects/showroom-pulse/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[smoke_live] 150 JPEG frames ready; streaming 30 s at 5 fps (real time)
+[smoke_live] people_max=3 dwell_max=11.2s alert_overlays=22 dropped=0; first alert: Customer at Car: Demo for 8 s, no staff nearby
+[smoke_live] engine step mean 95 ms
+[smoke_live] measuring maximum sustainable fps for 10 s
+processed fps: 5.01
+max sustainable fps: 10.34
+SMOKE LIVE OK
+=== [verify] smoke live -> exit 0 ===
+
+=== [verify] webcam grab ===
+$ .venv/bin/python scripts/webcam_grab.py
+frame 1920x1080 mean=118.8 std=56.2
+saved pixelated (24px) copy to runs/verify/webcam.jpg; the raw frame was not stored
+WEBCAM OK
+=== [verify] webcam grab -> exit 0 ===
+
+=== [verify] eval ===
+$ .venv/bin/pulse eval --out docs/EVAL.md
+[eval] dev 2018-03-11.16-35-01.16-40-00.school.G423
+[eval] dev 2018-03-11.12-00-00.12-05-00.school.G420
+[eval] test 2018-03-12.11-05-01.11-10-01.school.G423
+[eval] test 2018-03-13.17-10-00.17-15-00.school.G421
+[eval] test 2018-03-09.10-40-00.10-45-00.school.G419
+[eval] test 2018-03-09.10-15-00.10-20-00.school.G299
+wrote docs/EVAL.md
+=== [verify] eval -> exit 0 ===
+
+=== [verify] git status clean ===
+$ bash -c out=$(git status --short); echo "$out"; test -z "$out"
+
+=== [verify] git status clean -> exit 0 ===
+
+=== [verify] no git remote ===
+$ bash -c out=$(git remote -v); echo "$out"; test -z "$out"
+
+=== [verify] no git remote -> exit 0 ===
+
+VERIFY OK
+verify.sh exit code: 0
+```
