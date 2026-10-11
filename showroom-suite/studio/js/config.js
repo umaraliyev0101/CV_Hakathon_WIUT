@@ -12,6 +12,7 @@ window.SUITE_CONFIG = {
     sessions: false,  // Replays: upload + session list
     team: false,      // Team: scorecards + staff suggestions (Coach)
     visitors: false,  // Visitors: heatmap, zones, routes (Pulse)
+    demand: false,    // Demand: funnel, busy hours, car demand, campaign lift (marketing)
     insights: false,  // Insights: findings that combine both
   },
 

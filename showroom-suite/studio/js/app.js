@@ -14,7 +14,7 @@
 
   // ---- source chips -------------------------------------------------------------------------
   const SOURCE_TEXT = {
-    floor: "Coach + Pulse", sessions: "Coach + Pulse", team: "Coach", visitors: "Pulse", insights: "Coach + Pulse",
+    floor: "Coach + Pulse", sessions: "Coach + Pulse", team: "Coach", visitors: "Pulse", demand: "Pulse + Coach", insights: "Coach + Pulse",
   };
   function paintSource(section, st) {
     document.querySelectorAll(`[data-source="${section}"]`).forEach((el) => {
@@ -34,7 +34,7 @@
   }
 
   // ---- routing ------------------------------------------------------------------------------
-  const VIEWS = ["live", "replays", "team", "visitors", "insights"];
+  const VIEWS = ["live", "replays", "team", "visitors", "demand", "insights"];
   const loaded = {};
   function route() {
     const name = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "live";
@@ -43,6 +43,7 @@
     document.querySelectorAll(".nav a[aria-current]").forEach((a) => a.setAttribute("aria-current", "page"));
     if (!loaded[name]) { loaded[name] = true; LOADERS[name](); }
     if (name === "visitors" && visitorsData) requestAnimationFrame(drawVisitorsHeat);
+    if (name === "demand" && demandData) requestAnimationFrame(drawDemand);
   }
   window.addEventListener("hashchange", route);
 
@@ -232,6 +233,39 @@
     requestAnimationFrame(drawVisitorsHeat);
   }
 
+  // ---- demand -------------------------------------------------------------------------------
+  // Each chart's "next step" is written from the computed numbers, so it stays true when live data arrives.
+  let demandData = null;
+  function drawDemand() {
+    const d = demandData, Ch = window.Charts;
+    $("#demand-period").textContent = d.period;
+
+    const f = Ch.funnel($("#c-funnel"), d.funnel);
+    $("#c-funnel .act").textContent = `${f.lost} visitors (${Ch.pct(f.worstLoss)}) stopped between “${f.from.label.toLowerCase()}” and “${f.to.label.toLowerCase()}”. ${f.to.fix || ""}`;
+
+    const h = Ch.hours($("#c-hours"), d.hours);
+    const dayTotals = d.hours.values.map((r) => r.reduce((a, b) => a + b, 0));
+    const week = dayTotals.reduce((a, b) => a + b, 0);
+    const topDay = dayTotals.indexOf(Math.max(...dayTotals));
+    const fullDay = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+    $("#c-hours .act").textContent = `${fullDay[d.hours.days[topDay]] || d.hours.days[topDay]} brings ${Ch.pct(dayTotals[topDay] / week)} of the week's visitors, peaking at ${h.peakHour}:00 with ${h.peakValue.toFixed(1)} per hour. End paid ads the evening before, run test-drive events from ${h.peakHour - 2}:00 to ${h.peakHour + 2}:00, and add one floater salesperson for that window.`;
+
+    const sc = Ch.demandScatter($("#c-demand"), d.models);
+    const many = sc.neglected.length > 1;
+    $("#c-demand .act").textContent = sc.neglected.length
+      ? `${sc.neglected.map((m) => m.label).join(" and ")} ${many ? "pull" : "pulls"} above-median interest, but only ${sc.neglected.map((m) => Ch.pct(m.approached)).join(" / ")} of those visitors get approached. Fix floor coverage there before advertising ${many ? "them" : "it"}, or the extra traffic walks out unserved.`
+      : `Every high-interest car is well covered. Put ad money behind the model with the most interest: ${[...d.models].sort((a, b) => b.considered - a.considered)[0].label}.`;
+
+    const cl = Ch.campaign($("#c-campaign"), d.campaign);
+    $("#c-campaign .act").textContent = cl.lift - cl.control > 0.1
+      ? `The campaign brought people to the car: ${d.campaign.model} rose ${Ch.signed(cl.lift)} while the rest of the floor moved ${Ch.signed(cl.control)}. Keep it running, and keep a salesperson by the ${d.campaign.model} while it does.`
+      : `No clear effect yet: ${d.campaign.model} moved ${Ch.signed(cl.lift)} while the rest of the floor moved ${Ch.signed(cl.control)}. Change the creative or the offer before adding budget.`;
+  }
+  async function renderDemand() {
+    demandData = await D.getDemand();
+    requestAnimationFrame(drawDemand);
+  }
+
   // ---- insights -----------------------------------------------------------------------------
   async function renderInsights() {
     const list = await D.getInsights();
@@ -249,9 +283,17 @@
     replays: renderSessions,
     team: renderTeam,
     visitors: renderVisitors,
+    demand: renderDemand,
     insights: renderInsights,
   };
 
-  window.addEventListener("resize", () => { if (visitorsData && !$("#view-visitors").hidden) drawVisitorsHeat(); });
+  let resizeT;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => {
+      if (visitorsData && !$("#view-visitors").hidden) drawVisitorsHeat();
+      if (demandData && !$("#view-demand").hidden) drawDemand();
+    }, 120);
+  });
   route();
 })();
