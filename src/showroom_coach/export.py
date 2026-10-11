@@ -2,7 +2,8 @@
 
 ``results.json`` is the web API's results object (``Analysis.to_dict()``) plus whatever the web layer adds (URLs,
 video status). It is written as plain ASCII JSON (non-ASCII names are ``\\uXXXX`` escapes), so any reader can open
-it whatever its default encoding is. The CSVs are UTF-8 with a header row and no byte-order mark.
+it whatever its default encoding is. The CSVs are UTF-8 with a header row and a byte-order mark (``utf-8-sig``), which
+is what makes Excel on Windows show Cyrillic and Uzbek names correctly; read them with ``encoding="utf-8-sig"``.
 
 ``scorecard.csv`` has one row per salesperson and a final ``STORE`` row. The first nine columns are the staff card;
 the last six are store-only and blank on staff rows. On the STORE row only the two staff columns that mean the same
@@ -116,13 +117,15 @@ def _csv_bytes(header: tuple[str, ...], rows: list[list[str]]) -> bytes:
     w = csv.writer(buf)
     w.writerow(header)
     w.writerows(rows)
-    return buf.getvalue().encode("utf-8")
+    return buf.getvalue().encode("utf-8-sig")
 
 
 def write_events_csv(an: Analysis, path) -> Path:
-    """One row per event, in event order. Columns: type,t,t_end,customer,staff,staff_name,detail."""
+    """One row per event, in event order. Columns: type,t,t_end,customer,staff,staff_name,detail.
+    ``staff_name`` is the typed name, or "S<pid>" (the label used in the video) when none was typed."""
     rows = [[e.type, _num(e.t), _num(e.t_end), _num(e.customer), _num(e.staff),
-             _text(an.names.get(e.staff)) if e.staff is not None else "", _detail(e.data)] for e in an.events]
+             _text(an.names.get(e.staff) or f"S{e.staff}") if e.staff is not None else "", _detail(e.data)]
+            for e in an.events]
     return _write_atomic(path, _csv_bytes(EVENT_COLUMNS, rows))
 
 

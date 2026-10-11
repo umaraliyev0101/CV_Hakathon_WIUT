@@ -21,9 +21,9 @@ def test_write_all(meet_video, tmp_path):
     files = write_all(an, tmp_path)
     data = json.loads(files["results.json"].read_text())
     assert data["names"]["1"] == "Aziz" and "scorecard" in data
-    rows = list(csv.DictReader(open(files["scorecard.csv"], newline="")))
+    rows = list(csv.DictReader(open(files["scorecard.csv"], newline="", encoding="utf-8-sig")))
     assert rows[-1]["staff"] == "STORE" and rows[0]["name"] == "Aziz"
-    ev = list(csv.DictReader(open(files["events.csv"], newline="")))
+    ev = list(csv.DictReader(open(files["events.csv"], newline="", encoding="utf-8-sig")))
     assert {"type", "t", "customer", "staff"} <= set(ev[0])
 
 
@@ -56,7 +56,7 @@ def _analysis(names=None, events=EVENTS) -> Analysis:
 
 
 def _rows(path):
-    with open(path, newline="", encoding="utf-8") as f:
+    with open(path, newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -91,7 +91,7 @@ def test_events_csv_columns_and_rows(tmp_path):
     an = _analysis()
     path = write_events_csv(an, tmp_path / "e.csv")
     assert path == tmp_path / "e.csv"
-    with open(path, newline="", encoding="utf-8") as f:
+    with open(path, newline="", encoding="utf-8-sig") as f:
         assert next(csv.reader(f)) == ["type", "t", "t_end", "customer", "staff", "staff_name", "detail"]
     rows = _rows(path)
     assert [r["type"] for r in rows] == [e.type for e in an.events]
@@ -105,6 +105,25 @@ def test_events_csv_columns_and_rows(tmp_path):
     assert next(r for r in rows if r["type"] == "wait_alert")["detail"] == "wait_s=10.2"       # an empty list is left out
 
 
+def test_events_csv_names_unnamed_staff_by_their_label(tmp_path):
+    an = _analysis(names={})                                   # nobody typed a name
+    rows = _rows(write_events_csv(an, tmp_path / "e.csv"))
+    greet = next(r for r in rows if r["type"] == "greet")
+    assert (greet["staff"], greet["staff_name"]) == ("1", "S1")
+    assert all(r["staff_name"] == "" for r in rows if r["staff"] == "")           # no staff on the row, no name
+    assert _rows(write_scorecard_csv(an, tmp_path / "s.csv"))[0]["name"] == ""    # the scorecard keeps a blank name
+
+
+def test_csvs_start_with_a_byte_order_mark_so_excel_reads_utf8_but_json_does_not(tmp_path):
+    files = write_all(_analysis({1: "Zo\u00eb \u0425\u0430\u0431\u0438\u0431 o\u2019g\u2019li"}), tmp_path)
+    for name in ("events.csv", "scorecard.csv"):
+        raw = files[name].read_bytes()
+        assert raw.startswith(b"\xef\xbb\xbf") and not raw.startswith(b"\xef\xbb\xbf\xef\xbb\xbf")
+        assert raw.decode("utf-8-sig").split(",")[0] in ("type", "staff")           # a clean first header cell
+    assert _rows(files["scorecard.csv"])[0]["name"] == "Zo\u00eb \u0425\u0430\u0431\u0438\u0431 o\u2019g\u2019li"
+    assert not files["results.json"].read_bytes().startswith(b"\xef\xbb\xbf")     # JSON must not have one
+
+
 def test_events_csv_lists_are_joined_not_python_reprs_and_floats_rounded(tmp_path):
     an = _analysis(events=[Event("wait_alert", 12.0, customer=2, data={"wait_s": 12.3456, "free_staff": [1, 3]})])
     row = _rows(write_events_csv(an, tmp_path / "e.csv"))[0]
@@ -114,7 +133,7 @@ def test_events_csv_lists_are_joined_not_python_reprs_and_floats_rounded(tmp_pat
 def test_scorecard_csv_columns_and_store_row(tmp_path):
     an = _analysis()
     path = write_scorecard_csv(an, tmp_path / "s.csv")
-    with open(path, newline="", encoding="utf-8") as f:
+    with open(path, newline="", encoding="utf-8-sig") as f:
         header = next(csv.reader(f))
     assert header == ["staff", "name", "greets", "median_time_to_greet", "customers_engaged", "engaged_total_s",
                       "engaged_median_s", "missed_while_free", "walkouts_while_free",
@@ -145,7 +164,7 @@ def test_none_values_become_blank_cells(tmp_path):
     rows = _rows(write_scorecard_csv(an, tmp_path / "s.csv"))
     assert rows[0]["name"] == "" and rows[0]["median_time_to_greet"] == "" and rows[0]["engaged_median_s"] == ""
     assert rows[-1]["greet_rate"] == "" and rows[-1]["median_time_to_greet"] == ""
-    assert "None" not in (tmp_path / "s.csv").read_text("utf-8")
+    assert "None" not in (tmp_path / "s.csv").read_text("utf-8-sig")
 
 
 def test_names_that_look_like_formulas_are_neutralised(tmp_path):
@@ -162,7 +181,7 @@ def test_empty_analysis_exports_without_errors(tmp_path, make_video):
     an = analyze(run_perception(v, fake_stack()), preset="short")
     files = write_all(an, tmp_path / "out")
     assert _rows(files["events.csv"]) == []
-    assert (tmp_path / "out" / "events.csv").read_text("utf-8").startswith("type,t,t_end,customer,staff,staff_name,detail")
+    assert (tmp_path / "out" / "events.csv").read_text("utf-8-sig").startswith("type,t,t_end,customer,staff,staff_name,detail")
     rows = _rows(files["scorecard.csv"])
     assert [r["staff"] for r in rows] == ["STORE"] and rows[0]["customers"] == "0" and rows[0]["greet_rate"] == ""
     assert "warnings" in json.loads(files["results.json"].read_text())
@@ -171,5 +190,5 @@ def test_empty_analysis_exports_without_errors(tmp_path, make_video):
 def test_write_all_replaces_existing_files(tmp_path):
     (tmp_path / "events.csv").write_text("old", "utf-8")
     write_all(_analysis(), tmp_path)
-    assert (tmp_path / "events.csv").read_text("utf-8").startswith("type,")
+    assert (tmp_path / "events.csv").read_text("utf-8-sig").startswith("type,")
     assert not [p for p in tmp_path.iterdir() if ".part" in p.name]

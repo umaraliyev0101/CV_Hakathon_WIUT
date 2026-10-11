@@ -30,7 +30,7 @@ import cv2
 import numpy as np
 
 from .export import atomic_replace
-from .sources import iter_frames, resize_max_width
+from .sources import VideoError, iter_frames
 
 if TYPE_CHECKING:
     from .analysis import Analysis
@@ -139,12 +139,29 @@ JPEG_QUALITY = 88
 _EPS = 1e-6
 
 
+def _probe_frame_count(path) -> int:
+    """How many frames a fresh decoder finds in the video at `path` (0 when it cannot be opened). The container's own
+    count is used; if it reports none the frames are counted by decoding."""
+    cap = cv2.VideoCapture(str(path))
+    try:
+        if not cap.isOpened():
+            return 0
+        n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        if n <= 0:
+            while cap.grab():
+                n += 1
+        return n
+    finally:
+        cap.release()
+
+
 class H264Writer:
     """Context manager writing BGR frames to an H.264 mp4 (libx264, yuv420p, faststart) that browsers can play.
 
     The video is encoded under a temporary name next to `path` and moved into place when the `with` block ends
     normally, so a half-written file is never served; on an error the temporary file is deleted and `path` is left as
-    it was. `size` is (width, height) and must match every frame. A block that wrote no frames raises ValueError.
+    it was. Before that move the file is opened with a decoder and must hold at least `frames written - 1` frames,
+    otherwise OSError (a truncated encode is never put in place). `size` is (width, height) and must match every frame. A block that wrote no frames raises ValueError.
     """
 
     def __init__(self, path, size: tuple[int, int], fps: float):
@@ -191,6 +208,9 @@ class H264Writer:
                     raise ValueError("no frames were written")
                 if not self._tmp.is_file() or self._tmp.stat().st_size == 0:
                     raise OSError("ffmpeg did not produce a video")
+                got = _probe_frame_count(self._tmp)
+                if got < self.frames - 1:
+                    raise OSError(f"the encoded video has only {got} of {self.frames} frames")
                 atomic_replace(self._tmp, self.path)
         finally:
             self._tmp.unlink(missing_ok=True)
@@ -784,24 +804,27 @@ def _caption_bar(text: str, width: int) -> np.ndarray:
 
 
 def _grab_frames(video_path, res: PerceptionResult, targets: list[float]) -> dict[float, tuple[float, np.ndarray]]:
-    """The decoded frame nearest to each target time, in one pass over the source (stopping once the last target is
-    behind us): {target: (actual time, frame)}. A target past the end gets the last frame."""
-    video, step = res.video, 1.0 / SHEET_SAMPLE_FPS
-    best: dict[float, tuple[float, float, np.ndarray]] = {}
-    last = None
+    """The decoded frame nearest in time to each target, in one pass over the source: {target: (actual time, frame)}.
+
+    Frames arrive in time order, so once a frame at or after a target has been seen the nearest one is known (it is
+    that frame or the one before it) and the target is finished; the pass ends when every target is. There is no
+    distance limit: on a 2 fps source a target 0.2 s from a frame still gets that frame, and a target past the end of
+    the clip gets the last frame, which is then the nearest. Targets may come in any order."""
+    video = res.video
+    best: dict[float, tuple[float, float, np.ndarray]] = {}        # target -> (distance, time, frame) so far
+    open_targets = sorted(set(targets))                              # targets still waiting for a frame at or after them
     with contextlib.closing(iter_frames(video_path, SHEET_SAMPLE_FPS, video.width, video.max_seconds)) as frames:
         for _, t, frame in frames:
-            last = (t, frame)
-            for target in targets:
+            for target in open_targets:
                 d = abs(t - target)
-                if d <= step + _EPS and (target not in best or d < best[target][0] - _EPS):
+                if target not in best or d < best[target][0] - _EPS:   # a tie keeps the earlier frame
                     best[target] = (d, t, frame)
-            if len(best) == len(targets) and t > targets[-1] + step:
+            open_targets = [tg for tg in open_targets if t < tg - _EPS]
+            if not open_targets:
                 break
-    if last is None:
+    if not best:
         raise ValueError("the video has no frames")
-    return {tg: (best[tg][1], best[tg][2]) if tg in best else last for tg in targets}
-
+    return {tg: (best[tg][1], best[tg][2]) for tg in targets}
 
 
 def contact_sheets(video_path, res: PerceptionResult, an: Analysis, out_dir, max_events: int = 12) -> list[Path]:
@@ -889,30 +912,32 @@ def _cut_thumbnails(res: PerceptionResult, an: Analysis, people: list, out_dir: 
     for pid, i in best.items():
         by_frame.setdefault(int(res.obs_frame[i]), []).append(pid)
     out: dict[int, str] = {}
-    cap = cv2.VideoCapture(str(res.video.path))
+    wanted = {int(res.src_frame_idx[fi]): fi for fi in by_frame}     # source frame index -> sampled frame index
+    todo = set(wanted)
     try:
-        if not cap.isOpened():
-            log.warning("cannot open %s to cut thumbnails", res.video.path)
-            return out
-        for fi, pids in sorted(by_frame.items()):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, float(res.src_frame_idx[fi]))
-            ok, raw = cap.read()
-            if not ok or raw is None:
-                log.warning("cannot read frame %d of %s for thumbnails", int(res.src_frame_idx[fi]), res.video.path)
-                continue
-            frame = resize_max_width(raw, res.video.width)
-            raw_boxes = np.asarray(res.raw_bbox, np.float64).reshape(-1, 4)[res.raw_frame == fi]
-            here = np.flatnonzero(res.obs_frame == fi)
-            boxes = [tuple(b) for b in raw_boxes] + [tuple(res.obs_bbox[i]) for i in here]
-            kpts = [None] * len(raw_boxes) + [res.obs_kpts[i] for i in here]
-            blurred = blur_faces(frame, boxes, kpts)             # everyone in the frame, not just this person
-            for pid in pids:
-                crop = person_crop(blurred, res.obs_bbox[best[pid]])
-                if crop is not None and crop.size:
-                    out[pid] = f"{pid}.jpg"
-                    _write_jpeg(out_dir / out[pid], _shrink(crop))
-    finally:
-        cap.release()
+        # The same decode as the perception pass (same sampling rule), matched on the source frame index, so the blur
+        # boxes always belong to the picture they are applied to. There is no seeking.
+        video = res.video
+        with contextlib.closing(iter_frames(video.path, video.sample_fps, video.width, video.max_seconds)) as frames:
+            for src_i, _, frame in frames:
+                if src_i not in todo:
+                    continue
+                todo.discard(src_i)
+                fi = wanted[src_i]
+                raw_boxes = np.asarray(res.raw_bbox, np.float64).reshape(-1, 4)[res.raw_frame == fi]
+                here = np.flatnonzero(res.obs_frame == fi)
+                boxes = [tuple(b) for b in raw_boxes] + [tuple(res.obs_bbox[i]) for i in here]
+                kpts = [None] * len(raw_boxes) + [res.obs_kpts[i] for i in here]
+                blurred = blur_faces(frame, boxes, kpts)         # everyone in the frame, not just this person
+                for pid in by_frame[fi]:
+                    crop = person_crop(blurred, res.obs_bbox[best[pid]])
+                    if crop is not None and crop.size:
+                        out[pid] = f"{pid}.jpg"
+                        _write_jpeg(out_dir / out[pid], _shrink(crop))
+                if not todo:
+                    break
+    except VideoError as exc:
+        log.warning("cannot read %s to cut thumbnails: %s", res.video.path, exc)
     for p in people:
         if p.pid not in out:
             log.warning("no thumbnail for person %d", p.pid)

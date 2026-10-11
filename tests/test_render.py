@@ -257,6 +257,49 @@ def test_h264_writer_failure_leaves_nothing_behind(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_h264_writer_refuses_to_publish_a_truncated_encode(tmp_path, monkeypatch):
+    import imageio_ffmpeg
+
+    real = imageio_ffmpeg.write_frames
+
+    def encoder_that_loses_frames(*args, **kwargs):          # only the first 5 of the frames sent reach the file
+        inner = real(*args, **kwargs)
+        inner.send(None)
+        n = 0
+        try:
+            while True:
+                data = yield
+                n += 1
+                if n <= 5:
+                    inner.send(data)
+        finally:
+            inner.close()
+
+    out = tmp_path / "w.mp4"
+    out.write_bytes(b"old")
+    monkeypatch.setattr(imageio_ffmpeg, "write_frames", encoder_that_loses_frames)
+    with pytest.raises(OSError, match=r"5 of 20 frames"):
+        with H264Writer(out, (64, 48), 10) as w:
+            for i in range(20):
+                w.write(np.full((48, 64, 3), i * 10, np.uint8))
+    assert out.read_bytes() == b"old" and [p.name for p in tmp_path.iterdir()] == ["w.mp4"]
+
+
+def test_h264_writer_tolerates_one_frame_fewer_than_written(tmp_path, monkeypatch):
+    out = tmp_path / "w.mp4"
+    monkeypatch.setattr(render, "_probe_frame_count", lambda path: 19)
+    with H264Writer(out, (64, 48), 10) as w:
+        for i in range(20):
+            w.write(np.full((48, 64, 3), i * 10, np.uint8))
+    assert out.is_file()
+    monkeypatch.setattr(render, "_probe_frame_count", lambda path: 18)
+    with pytest.raises(OSError):
+        with H264Writer(tmp_path / "x.mp4", (64, 48), 10) as w:
+            for i in range(20):
+                w.write(np.full((48, 64, 3), i * 10, np.uint8))
+    assert not (tmp_path / "x.mp4").exists()
+
+
 def test_h264_writer_rejects_a_wrong_frame_and_an_empty_video(tmp_path):
     with pytest.raises(ValueError):
         with H264Writer(tmp_path / "w.mp4", (64, 48), 10) as w:
@@ -574,6 +617,61 @@ def test_contact_sheet_layout_and_caption(textured, tmp_path):
     assert render._caption(an.events[0], render._EventIndex(an.events, 4.0, {1: "Aziz"})) ==         "Greet at 0:02: C1 greeted by Aziz after 7 s"
 
 
+def _blue_left_edge(img_bgr):
+    """Column of the left-most strongly blue pixel (the person's fill), or None."""
+    blue = (img_bgr[..., 0] > 200) & (img_bgr[..., 1] < 60) & (img_bgr[..., 2] < 60)
+    cols = np.flatnonzero(blue.any(axis=0))
+    return int(cols[0]) if len(cols) else None
+
+
+@pytest.fixture(scope="module")
+def slow_clip(tmp_path_factory):
+    """10 s at only 2 fps (frames at 0, 0.5, ..., 9.5 s), 640x360; the blue person's left edge is 50 + 50 t px."""
+    path = tmp_path_factory.mktemp("slow") / "slow.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 2.0, SIZE)
+    assert writer.isOpened()
+    for i in range(20):
+        frame = np.full((SIZE[1], SIZE[0], 3), GREY, np.uint8)
+        x1 = int(round(50 + 50 * i / 2.0))
+        frame[100:320, x1:x1 + 80] = BLUE
+        writer.write(frame)
+    writer.release()
+    res = run_perception(path, fake_stack())
+    return path, res, analyze(res, "short")
+
+
+def test_grab_frames_returns_the_nearest_frame_even_when_the_source_is_slow(slow_clip):
+    path, res, _ = slow_clip
+    targets = [0.0, 2.2, 4.7, 9.9]                     # the source has frames only every 0.5 s: no frame is "near" 2.2
+    got = render._grab_frames(path, res, targets)
+    assert {tg: got[tg][0] for tg in targets} == {0.0: 0.0, 2.2: 2.0, 4.7: 4.5, 9.9: 9.5}
+    assert render._grab_frames(path, res, [2.25])[2.25][0] in (2.0, 2.5)     # the review's repro (it returned t = 9.5)
+    for tg in targets:
+        t, frame = got[tg]
+        assert _blue_left_edge(frame) == pytest.approx(50 + 50 * t, abs=2)          # and it really is that moment's picture
+
+
+def test_grab_frames_is_independent_of_the_order_of_the_targets_and_stops_early(textured, monkeypatch):
+    path, res, _ = textured                             # 4 s at 30 fps, decoded at 10 fps = 40 frames
+    seen = []
+    real = render.iter_frames
+    monkeypatch.setattr(render, "iter_frames", lambda *a, **k: (seen.append(1) or f for f in real(*a, **k)))
+    got = render._grab_frames(path, res, [1.0, 0.5])
+    assert {tg: got[tg][0] for tg in (0.5, 1.0)} == pytest.approx({0.5: 0.5, 1.0: 1.0}, abs=1 / 30)
+    assert len(seen) <= 14                              # it stopped one frame after the last target, not at the end
+
+
+def test_contact_sheet_panels_of_a_slow_source_show_the_right_moments(slow_clip, tmp_path):
+    path, res, an = slow_clip
+    an = dataclasses.replace(an, events=[Event("wait_alert", 4.2, customer=1, data={"wait_s": 12.0, "free_staff": []})])
+    (sheet,) = contact_sheets(path, res, an, tmp_path / "s")
+    img = cv2.imread(str(sheet))
+    panel_w, scale = img.shape[1] // 3, 240 / SIZE[1]
+    for k, t in enumerate((2.0, 4.0, 6.0)):          # the frames nearest t-2 = 2.2, t = 4.2 and t+2 = 6.2 (not the last frame)
+        edge = _blue_left_edge(img[:240, k * panel_w:(k + 1) * panel_w])
+        assert edge == pytest.approx((50 + 50 * t) * scale, abs=4), (k, edge)
+
+
 def test_contact_sheet_captions_for_every_type():
     idx = render._EventIndex([], 60.0, {3: "Aziz"})
     cap = lambda e: render._caption(e, idx)
@@ -622,6 +720,48 @@ def test_save_thumbnails_cuts_missing_ones_from_the_video(meet, meet_video, tmp_
         assert img is not None and 20 < img.shape[0] <= 160 and img.shape[1] < img.shape[0]
     mix = cv2.imread(str(tmp_path / "people" / "1.jpg")).reshape(-1, 3).mean(axis=0)
     assert mix[0] > mix[2]                                                     # person 1 is the blue one
+
+
+def _write_ramp_clip(path, seconds=3.0, fps=10):
+    """Background grey level 20 + 8 i on source frame i; one blue person box that grows, so the best observation is the
+    last tracked frame and its crop's corner shows which frame was cut."""
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), float(fps), SIZE)
+    assert writer.isOpened()
+    for i in range(int(round(seconds * fps))):
+        frame = np.full((SIZE[1], SIZE[0], 3), 20 + 8 * i, np.uint8)
+        frame[60:60 + 100 + 3 * i, 300:370] = BLUE
+        writer.write(frame)
+    writer.release()
+    return path
+
+
+def test_fallback_thumbnail_is_cut_from_the_frame_the_observation_came_from(tmp_path, monkeypatch):
+    path = _write_ramp_clip(tmp_path / "ramp.avi")
+    res = run_perception(path, fake_stack())
+    res = dataclasses.replace(res, crops_dir=None)
+    an = analyze(res, "short")
+    idx = np.flatnonzero(an.obs_pid == 1)
+    b = res.obs_bbox[idx]
+    best = idx[np.argmax((b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1]) * res.obs_score[idx])]
+    src_i = int(res.src_frame_idx[res.obs_frame[best]])
+    assert src_i > 10                                            # a late frame: a seek that is off shows in the grey level
+    calls = []
+    real = render.iter_frames
+    monkeypatch.setattr(render, "iter_frames", lambda *a, **k: calls.append(1) or real(*a, **k))
+    assert save_thumbnails(res, an, tmp_path / "people") == {1: "1.jpg"}
+    assert calls, "thumbnails must be cut by decoding sequentially, not by seeking"
+    thumb = cv2.imread(str(tmp_path / "people" / "1.jpg"))
+    assert float(thumb[1:4, 1:4].mean()) == pytest.approx(20 + 8 * src_i, abs=4)    # the padding around the box is background
+
+
+def test_fallback_thumbnail_is_skipped_when_the_frame_is_not_there(tmp_path, caplog):
+    path = _write_ramp_clip(tmp_path / "ramp.avi")
+    res = run_perception(path, fake_stack())
+    an = analyze(res, "short")
+    res = dataclasses.replace(res, crops_dir=None, src_frame_idx=res.src_frame_idx + 1000)     # no such source frames
+    with caplog.at_level("WARNING", logger="showroom_coach.render"):
+        assert save_thumbnails(res, an, tmp_path / "people") == {}
+    assert "person 1" in caplog.text and not list((tmp_path / "people").glob("*.jpg"))
 
 
 def test_save_thumbnails_skips_people_it_cannot_cut(meet, tmp_path):
