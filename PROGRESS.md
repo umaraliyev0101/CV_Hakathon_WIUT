@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 1-2 done (skeleton; models, MEVA parser, detector benchmark). M1 (pure core, Tasks 3-11) done. M3 (Task 15: report, score, `pulse analyze`, check_outputs) done. See Milestones.
+All milestones M0-M8 are built (core, perception, report/CLI, web app, live mode, eval, docs, sat-in-car, floor calibration, printable report, sales join, UZ/RU UI, deploy files). The final whole-branch review fixes are applied (see Decisions, 2026-10-11 fix wave). The Morning summary is written by the controller after the final `bash scripts/verify.sh`.
 
 ## Milestones
 
@@ -180,7 +180,12 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 
 ## Open problems
 
-- None yet.
+- Webcam gate depends on light and the lens cover: on this MacBook the FaceTime camera returned black frames, so the real-webcam step of the chain only passes in a lit room with the lid open.
+- Docker image was never built (no daemon); `deploy.sh` was never run.
+- Agent-made labels and zones (`labels/`) are unreviewed by a human.
+- UZ and RU UI strings are machine-written and need a native speaker.
+- The calibration UI ("Calibrate floor") and the printable A4 report were not clicked through by a human in a browser.
+- Accuracy targets were missed on the MEVA test set; every miss is reported in `docs/EVAL.md`.
 - 2026-10-11 (Task 2): detector = `yolox_s` per the spec section 5 rule (numbers under M0). `Config.detector` default changed from yolox_tiny to yolox_s.
 - 2026-10-11 (Task 2): slow test uses MEVA dev frame 700, not 300: frame 300 of the dev clip has no GT person (first appears ~621); frame 700 has a GT person (CLIPS.md).
 - 2026-10-11 (Task 2): `labels/split.json` created now (dev = G423 03-11 + G420; test = other four) so `meva_dev_clip` can read it.
@@ -220,6 +225,8 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11 (Task 23): validation rejects any three collinear points (stricter than "the 4 points are not collinear") for both image and world sets, since a homography needs a proper quadrilateral. The top-down map uses stable-segment customer samples only (staff excluded), a 40x40 histogram over the calibration bounding box plus a 10% margin; it is a pure matplotlib plot (no video pixels, so no blur). The floor survives in `zones.json` of the report. A partly filled calibration blocks "Looks right" with a message instead of silently dropping it. `scripts/verify.sh` not run (webcam exception).
 - 2026-10-11 (Tasks 24-25): `report.html` is rendered from the finished report dict plus the on-disk (blurred) heatmap.png, so it can never contain a raw frame. The synthetic sales sample is labelled by file name and a sibling .md (a comment row would break the fixed header). Oversized sales uploads get 413 (same as roles import), malformed ones 422 with reasons. Per-car `sold`/`attention_to_sales` are always present and None without sales; a car whose total sold is 0 has `sold` 0 and ratio None. `scripts/verify.sh` not run (webcam exception).
 - 2026-10-11 (Task 23 fix 1): the brief's "same winding as the world quad" is implemented as "both quads convex in matching point order", not equal orientation: image y points down while floor y normally does not, so the legitimate calibration is mirrored. `floor_homography` flips the matrix sign so w > 0 on the calibration side; live mode ignores calibration by design. `scripts/verify.sh` not run (webcam exception).
+- 2026-10-11 (final-review fix wave, visitor rule): `Config.min_visit_s = 1.0`, fixed by definition ("a visitor is a customer seen for at least one second"), not swept. The reviewer had already seen the demo clip numbers (wm-bangalore-07: 16 persons, 12 seen <= 0.4 s). Applies to visitors, median visit, browse/assisted/funnel, groups, visits list, per-car stop-rate denominator and unsure; occupancy, waiting, crowding, peak and entry/exit events still use every non-staff person. Gate: `pulse eval --out X` was byte-identical to the committed `docs/EVAL.md` after the change (the rule does not touch any evaluated path); the only later EVAL edit is the "about 1 s" -> "about 1.2 s" wording. The people gallery hides persons under 1 s and shows "N short fragments hidden".
+- 2026-10-11 (fix wave, live privacy): the live page never shows the raw `<video>` (CSS `visibility:hidden`); it shows the exact frame the server analysed with detected heads pixelated from that frame's overlay (about 5 fps, black before the first overlay). The preview is only as good as the detector: a missed person is not pixelated.
 
 ## M8 stretch: Tasks 27-28
 - 2026-10-11 (Task 27): `Dockerfile` + `.dockerignore` written (python:3.12-slim, libglib2.0-0 only, non-root uid 10001, volumes /app/models and /app/jobs, HEALTHCHECK /api/health, uvicorn on 0.0.0.0 with `--ws-max-size 4194304`, `PULSE_ALLOWED_HOSTS` default localhost,127.0.0.1). NOT BUILT: the Docker CLI is installed but the daemon is unavailable (docker.sock missing), so the image was never built or run; treat it as untested. It uses an editable install (`pip install --no-cache-dir -e .`) instead of plain `pip install .` because `REPO_ROOT` and `embed.MODELS_DIR` resolve models/ and labels/ via `parents[3]` of the source file, which a site-packages install would point outside /app. Models stay out of the image (size + licence records). README "Docker" section added.

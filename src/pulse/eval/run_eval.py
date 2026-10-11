@@ -651,7 +651,7 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict,
       "code as our output, so dwell, journeys and occupancy differ only through perception and tracking. "
       "Zones are the agent-drawn, unreviewed `labels/zones/<clip>.json`.")
     w("- **Person matching:** MEVA tracks are annotated per activity, so a GT \"person\" is a short snippet "
-      "(median about 1 s on the first dev clip) of someone we may track for much longer. Each GT track is "
+      "(median about 1.2 s on the first dev clip) of someone we may track for much longer. Each GT track is "
       "therefore matched independently to the predicted person with the best overlap (overlap = sum of box "
       "IoU over the GT track's sample times / its number of samples, minimum 0.3; several GT tracks may "
       "share one predicted person). Dwell and journeys are compared inside the GT track's own time "

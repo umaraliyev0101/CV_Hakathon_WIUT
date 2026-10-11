@@ -6,7 +6,7 @@ data.
 
 ## The customer-side story
 
-A BYD or Toyota showroom on a Saturday: twelve people walk in, six stop at the Song Plus, three stay
+Illustrative scenario (invented numbers): a BYD or Toyota showroom on a Saturday: twelve people walk in, six stop at the Song Plus, three stay
 more than a minute, and nobody walks over to them because both salespeople are at the desk. Nobody
 records it. The dealer's report says "42 test drives, 11 sold", and has no way to know that the
 interest was there and went unserved.
@@ -58,7 +58,7 @@ footage is measure it.
 
 Formula (annual, per showroom):
 
-`value = missed-interest episodes per month x conversion uplift x margin per car x 12`
+`value = episodes/month x share served x conversion uplift x margin x 12`
 
 Every input below is an **ASSUMPTION**; none is measured, none comes from Royal Motors. The ranges are
 placeholders chosen to show orders of magnitude, not benchmarks.
@@ -69,7 +69,7 @@ placeholders chosen to show orders of magnitude, not benchmarks.
 | Share that would have been served after acting on the recommendations | How many of those could realistically get a salesperson | ASSUMPTION: 30-60% | Pilot: change staffing for 2 weeks, re-measure the unserved share |
 | Conversion rate of a served deep-interest customer to a sale | Purchase probability once served | ASSUMPTION: 3-8% | Dealer CRM: test drives and sales per served enquiry |
 | Conversion rate of an unserved deep-interest customer | Baseline without contact | ASSUMPTION: 0.5-2% | Dealer CRM / walk-in leads vs sales |
-| Conversion uplift | Served minus unserved conversion | ASSUMPTION: 2-6 percentage points | Derived from the two rows above |
+| Conversion uplift | Served minus unserved conversion | ASSUMPTION: placeholder 2-6 percentage points (the two rows above allow 1-7.5 pp) | Derived from the two rows above |
 | Margin per car | Gross margin on one car sold | ASSUMPTION: USD 1,500-4,000 (Toyota/BYD) | Royal Motors finance (per model) |
 | Cost | Software is local and open; the real cost is camera setup and staff time | ASSUMPTION: near zero hardware, 1 analyst day per month | Dealer IT |
 

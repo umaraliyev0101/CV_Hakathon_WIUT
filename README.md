@@ -15,7 +15,9 @@ salesperson served, and when?**
 
 ## What it measures
 
-- Footfall, groups, occupancy over time, peak occupancy, visit length.
+- Footfall, groups, occupancy over time, peak occupancy, visit length. A visitor is a customer
+  observed for at least 1 s; shorter track fragments are counted separately and shown as a warning.
+  Occupancy, waiting, crowding and entries/exits still use every tracked person.
 - Per car: visitors who stopped, stop rate, median and total dwell, repeat visits, deep-interest
   visitors, share of that interest that got no salesperson, attention rank.
 - Customer journeys (zone sequences such as Entrance, Car A, Car C, Desk) and the funnel
@@ -26,6 +28,8 @@ salesperson served, and when?**
   size, and links to the clip moments and contact sheets. Nothing acts on its own.
 - Staff are separated from customers by auto-suggest plus one click (an imported `roles.json` from
   Showroom Coach also works). Staff are excluded from customer statistics.
+- A printable one-page report (`report.html`, A4) and an optional sales-CSV join (sold counts and
+  attention-to-sales per car).
 
 ## How it works
 
@@ -118,7 +122,7 @@ as measured; no target or threshold was lowered.** Why, in plain terms (details 
   invariant to the identity merge by construction and cannot detect merge errors. The zones used
   are agent-drawn and unreviewed.
 - *Speed.* The 1.55x figure is a quiet 60 s excerpt; crowded 5-minute clips run below real time on
-  this CPU configuration (G421 0.88x, G299 0.92x). Live mode meets 5 fps with at most 4 people in view.
+  this CPU configuration (G421 0.88x, G299 0.92x). The live engine runs 8.3 fps on frames with 1-4 people; the end-to-end WebSocket smoke ran 5.0 fps paced with at most 2 people in view.
 - *Tracking.* Pooled test IDF1 is 19.7% (raw tracks) and 19.5% (merged persons); the merge does not
   improve IDF1 at the tuned threshold. GT ids are per activity, which penalises merging.
 - *Showroom-domain evidence is thin.* The only showroom-like numbers are stop precision 2/2 and
@@ -143,7 +147,11 @@ banner reads: "Anonymous, aggregated analytics; decision support only."
   zone keyframe). The blur covers every *detected* person: raw detections down to score 0.2 plus the
   tracked boxes of the frame and one sampled frame either side. **A person the detector misses
   entirely cannot be blurred**, so share rendered outputs with that in mind. The raw keyframe stays
-  only inside the local perception cache directory (`runs/cache/`).
+  only inside the local perception cache: `runs/cache/` for the CLI, `jobs/<id>/cache/` for the web
+  app (deleted with the job after 24 h).
+- **The live preview never shows the raw camera feed.** It shows the exact frame the server just
+  analysed with every detected head pixelated; before the first result the preview is black. As with
+  the other outputs, a person the detector misses is not pixelated.
 - **The webcam check stores only a pixelated frame** (24 px wide, upscaled), so the operator's face is
   never stored legibly. **Live mode stores no frames**: JPEGs are decoded in memory, analysed and discarded.
 - **On-premise.** Everything runs on the local machine; the server binds 127.0.0.1 and rejects
@@ -224,9 +232,8 @@ Notes on the data rows:
 - **Floor calibration** (zone editor, "Calibrate floor": 4 clicked floor points with real X/Y in metres)
   gives metric positions, speeds and a top-down heatmap in file mode only; live mode ignores it. Accuracy
   depends on the clicked points and ignores lens distortion; points above the horizon are marked invalid.
-- **Not built:** printable report, sales-CSV join (stretch items).
-- **The perception cache is unblurred local data** (`runs/cache/` keeps the raw keyframe); protect the
+- **The perception cache is unblurred local data** (`runs/cache/` for the CLI and `jobs/<id>/cache/` for the web app keep the raw keyframe); protect the
   machine accordingly.
-- **Webcam check not run in the final verification chain tonight:** the FaceTime camera returned black
-  frames (lens cover or missing permission); the gate was not weakened and live mode was tested through
-  a file-fed WebSocket.
+- **Webcam check:** the verification chain includes a real webcam grab; see PROGRESS.md for the latest run.
+  Zone names in the annotated video are drawn in ASCII (Cyrillic is transliterated); name zones in
+  Latin script for readable labels.
