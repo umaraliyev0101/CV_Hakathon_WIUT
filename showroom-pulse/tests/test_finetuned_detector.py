@@ -154,3 +154,23 @@ def test_real_onnx_loads_through_the_custom_path():
     assert d.name == f"rfdetr_ft-{finetuned.short_sha(REAL_FT)}"
     out = d.detect(np.zeros((240, 320, 3), np.uint8), ("person",))
     assert isinstance(out, list)
+
+
+# --- our real fine-tuned head: person is column 0 (class_names=["person"]), not COCO id 1 -------------------------
+
+_FT = Path(__file__).resolve().parents[2] / "models" / "showroom_detector_ft.onnx"
+_CLIP = Path(__file__).resolve().parents[2] / "deploy" / "demo" / "s004_handoff_cam1_evening_dim.mp4"
+
+
+@pytest.mark.skipif(not (_FT.is_file() and _CLIP.is_file()), reason="fine-tuned weights or demo clip not present")
+def test_real_finetuned_weights_find_people():
+    import cv2
+    from pulse.config import get_config
+    from pulse.perception.detect import Detector
+    cap = cv2.VideoCapture(str(_CLIP))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 300)
+    ok, frame = cap.read()
+    assert ok
+    det = Detector.finetuned(get_config(), _FT)
+    assert len(det.detect(frame, ("person",))) >= 2            # three people are in this frame
+    assert det.detect(frame, ("car",)) == []                   # a person-only head never reports cars

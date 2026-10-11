@@ -50,7 +50,9 @@ class Detector:
         if path is not None:
             path = finetuned.require_file(Path(path))
             self.name, self.kind, size = name, "rfdetr", None
+            self.finetuned_head = True
         else:
+            self.finetuned_head = False
             path = Path(ensure_model(name, models_dir))
             # the fallback chain may have substituted another model: trust the folder name
             self.name = path.parent.name if path.parent.name in REGISTRY else name
@@ -133,7 +135,11 @@ class Detector:
         logits = outs.get("labels", outs.get("logits")) if ("labels" in outs or "logits" in outs) \
             else list(outs.values())[1]
         probs = _sigmoid(logits[0])                       # [Q, C]
-        cid = {COCO_IDS[COCO80.index(c)]: c for c in classes}
+        if getattr(self, "finetuned_head", False):
+            # our fine-tuned person-only head numbers classes from 0 (column 0 = person), unlike COCO ids
+            cid = {0: "person"} if "person" in classes else {}
+        else:
+            cid = {COCO_IDS[COCO80.index(c)]: c for c in classes}
         H, W = img.shape[:2]
         res = []
         k = min(300, probs.size)
