@@ -1,0 +1,36 @@
+{
+  "dealership": {
+    "label": "Dealership (SKAIVISION thresholds)",
+    "thresholds": {
+      "greet_dist": 1.5,
+      "greet_time": 5.0,
+      "engage_dist": 2.0,
+      "engage_time": 120.0,
+      "gap_tol": 3.0,
+      "wait_alert": 60.0,
+      "leave_after": 10.0,
+      "party_arrive": 5.0,
+      "party_dist": 1.5,
+      "party_window": 30.0,
+      "facing_max_deg": 60.0,
+      "edge_leave": 1.0
+    }
+  },
+  "short": {
+    "label": "Short clip (10–60 s)",
+    "thresholds": {
+      "greet_dist": 1.5,
+      "greet_time": 2.0,
+      "engage_dist": 2.0,
+      "engage_time": 8.0,
+      "gap_tol": 1.5,
+      "wait_alert": 10.0,
+      "leave_after": 3.0,
+      "party_arrive": 5.0,
+      "party_dist": 1.5,
+      "party_window": 10.0,
+      "facing_max_deg": 60.0,
+      "edge_leave": 1.0
+    }
+  }
+}

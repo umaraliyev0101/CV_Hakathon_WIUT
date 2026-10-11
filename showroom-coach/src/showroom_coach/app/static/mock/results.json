@@ -1,0 +1,781 @@
+{
+  "preset": "short",
+  "duration": 60.0,
+  "thresholds": {
+    "greet_dist": 1.5,
+    "greet_time": 2.0,
+    "engage_dist": 2.0,
+    "engage_time": 8.0,
+    "gap_tol": 1.5,
+    "wait_alert": 10.0,
+    "leave_after": 3.0,
+    "party_arrive": 5.0,
+    "party_dist": 1.5,
+    "party_window": 10.0,
+    "facing_max_deg": 60.0,
+    "edge_leave": 1.0
+  },
+  "persons": [
+    {
+      "pid": 1,
+      "track_ids": [
+        3,
+        4
+      ],
+      "t_first": 0.0,
+      "t_last": 59.8,
+      "n_obs": 287,
+      "thumb": "1.svg"
+    },
+    {
+      "pid": 2,
+      "track_ids": [
+        6
+      ],
+      "t_first": 0.0,
+      "t_last": 21.0,
+      "n_obs": 100,
+      "thumb": "2.svg"
+    },
+    {
+      "pid": 3,
+      "track_ids": [
+        9,
+        10
+      ],
+      "t_first": 10.0,
+      "t_last": 36.2,
+      "n_obs": 125,
+      "thumb": "3.svg"
+    },
+    {
+      "pid": 4,
+      "track_ids": [
+        12
+      ],
+      "t_first": 0.0,
+      "t_last": 59.8,
+      "n_obs": 287,
+      "thumb": "4.svg"
+    },
+    {
+      "pid": 5,
+      "track_ids": [
+        15,
+        16
+      ],
+      "t_first": 14.0,
+      "t_last": 59.8,
+      "n_obs": 219,
+      "thumb": "5.svg"
+    },
+    {
+      "pid": 6,
+      "track_ids": [
+        18
+      ],
+      "t_first": 20.0,
+      "t_last": 31.0,
+      "n_obs": 52,
+      "thumb": "6.svg"
+    },
+    {
+      "pid": 7,
+      "track_ids": [
+        21,
+        22
+      ],
+      "t_first": 25.0,
+      "t_last": 50.4,
+      "n_obs": 121,
+      "thumb": "7.svg"
+    },
+    {
+      "pid": 8,
+      "track_ids": [
+        24
+      ],
+      "t_first": 12.0,
+      "t_last": 59.8,
+      "n_obs": 229,
+      "thumb": "8.svg"
+    },
+    {
+      "pid": 9,
+      "track_ids": [
+        27,
+        28
+      ],
+      "t_first": 40.0,
+      "t_last": 59.8,
+      "n_obs": 95,
+      "thumb": "9.svg"
+    }
+  ],
+  "suggestions": {
+    "1": {
+      "pid": 1,
+      "role": "staff",
+      "confidence": 0.88,
+      "reasons": [
+        "same outfit as 2 others",
+        "talked to 4 people",
+        "on screen 100% of the clip"
+      ],
+      "features": {
+        "outfit_peers": 2,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "2": {
+      "pid": 2,
+      "role": "customer",
+      "confidence": 0.74,
+      "reasons": [
+        "different outfit from everyone else",
+        "on screen 35% of the clip"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "3": {
+      "pid": 3,
+      "role": "customer",
+      "confidence": 0.69,
+      "reasons": [
+        "different outfit from everyone else",
+        "approached by a staff member first"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "4": {
+      "pid": 4,
+      "role": "staff",
+      "confidence": 0.83,
+      "reasons": [
+        "same outfit as 2 others",
+        "talked to 3 people",
+        "on screen 97% of the clip"
+      ],
+      "features": {
+        "outfit_peers": 2,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "5": {
+      "pid": 5,
+      "role": "customer",
+      "confidence": 0.77,
+      "reasons": [
+        "different outfit from everyone else",
+        "waited near the entrance"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "6": {
+      "pid": 6,
+      "role": "unsure",
+      "confidence": 0.52,
+      "reasons": [
+        "on screen for only 18% of the clip",
+        "no contact with anyone"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "7": {
+      "pid": 7,
+      "role": "customer",
+      "confidence": 0.71,
+      "reasons": [
+        "different outfit from everyone else",
+        "approached by a staff member first"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "8": {
+      "pid": 8,
+      "role": "staff",
+      "confidence": 0.64,
+      "reasons": [
+        "same outfit as 2 others",
+        "talked to 2 people",
+        "joined after the start"
+      ],
+      "features": {
+        "outfit_peers": 2,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    },
+    "9": {
+      "pid": 9,
+      "role": "customer",
+      "confidence": 0.8,
+      "reasons": [
+        "different outfit from everyone else",
+        "entered with another customer"
+      ],
+      "features": {
+        "outfit_peers": 0,
+        "contacts": 3,
+        "presence": 0.9,
+        "initiated": 1
+      }
+    }
+  },
+  "roles": {
+    "1": "staff",
+    "2": "customer",
+    "3": "customer",
+    "4": "staff",
+    "5": "customer",
+    "6": "customer",
+    "7": "customer",
+    "8": "staff",
+    "9": "customer"
+  },
+  "names": {
+    "1": "Aziz"
+  },
+  "events": [
+    {
+      "type": "enter",
+      "t": 0.0,
+      "customer": 2,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": false
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 5.0,
+      "customer": 2,
+      "staff": 1,
+      "t_end": 19.0,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 5.0,
+      "customer": 2,
+      "staff": 1,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "greet",
+      "t": 5.0,
+      "customer": 2,
+      "staff": 1,
+      "t_end": null,
+      "data": {
+        "time_to_greet": null,
+        "via": "engagement",
+        "confirmed_at": 7.0
+      }
+    },
+    {
+      "type": "enter",
+      "t": 10.0,
+      "customer": 3,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": true
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 14.0,
+      "customer": 3,
+      "staff": 8,
+      "t_end": 36.0,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 14.0,
+      "customer": 3,
+      "staff": 8,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "enter",
+      "t": 14.0,
+      "customer": 5,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": true
+      }
+    },
+    {
+      "type": "greet",
+      "t": 14.0,
+      "customer": 3,
+      "staff": 8,
+      "t_end": null,
+      "data": {
+        "time_to_greet": 4.0,
+        "via": "direct",
+        "confirmed_at": 15.5
+      }
+    },
+    {
+      "type": "enter",
+      "t": 20.0,
+      "customer": 6,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": true
+      }
+    },
+    {
+      "type": "leave",
+      "t": 21.0,
+      "customer": 2,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "greeted": true,
+        "entry_known": false,
+        "detected_at": 21.4
+      }
+    },
+    {
+      "type": "wait_alert",
+      "t": 24.0,
+      "customer": 5,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "wait_s": 10.0,
+        "free_staff": [
+          1,
+          4
+        ]
+      }
+    },
+    {
+      "type": "enter",
+      "t": 25.0,
+      "customer": 7,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": true
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 28.0,
+      "customer": 7,
+      "staff": 4,
+      "t_end": 50.0,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 28.0,
+      "customer": 7,
+      "staff": 4,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "greet",
+      "t": 28.0,
+      "customer": 7,
+      "staff": 4,
+      "t_end": null,
+      "data": {
+        "time_to_greet": 3.0,
+        "via": "direct",
+        "confirmed_at": 29.6
+      }
+    },
+    {
+      "type": "wait_alert",
+      "t": 30.0,
+      "customer": 6,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "wait_s": 10.0,
+        "free_staff": [
+          1
+        ]
+      }
+    },
+    {
+      "type": "leave",
+      "t": 31.0,
+      "customer": 6,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "greeted": false,
+        "entry_known": true,
+        "detected_at": 31.4
+      }
+    },
+    {
+      "type": "walkout",
+      "t": 31.0,
+      "customer": 6,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "free_staff": [
+          1
+        ]
+      }
+    },
+    {
+      "type": "leave",
+      "t": 36.2,
+      "customer": 3,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "greeted": true,
+        "entry_known": true,
+        "detected_at": 36.6
+      }
+    },
+    {
+      "type": "enter",
+      "t": 40.0,
+      "customer": 9,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "entry_known": true
+      }
+    },
+    {
+      "type": "party",
+      "t": 41.0,
+      "customer": null,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "members": [
+          7,
+          9
+        ]
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 45.0,
+      "customer": 9,
+      "staff": 8,
+      "t_end": 50.0,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 45.0,
+      "customer": 9,
+      "staff": 8,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "greet",
+      "t": 45.0,
+      "customer": 9,
+      "staff": 8,
+      "t_end": null,
+      "data": {
+        "time_to_greet": 5.0,
+        "via": "direct",
+        "confirmed_at": 46.4
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 46.0,
+      "customer": 5,
+      "staff": 1,
+      "t_end": 59.8,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 46.0,
+      "customer": 5,
+      "staff": 1,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "greet",
+      "t": 46.0,
+      "customer": 5,
+      "staff": 1,
+      "t_end": null,
+      "data": {
+        "time_to_greet": 32.0,
+        "via": "direct",
+        "confirmed_at": 47.8
+      }
+    },
+    {
+      "type": "engagement",
+      "t": 50.0,
+      "customer": 9,
+      "staff": 4,
+      "t_end": 59.8,
+      "data": {}
+    },
+    {
+      "type": "engagement_start",
+      "t": 50.0,
+      "customer": 9,
+      "staff": 4,
+      "t_end": null,
+      "data": {}
+    },
+    {
+      "type": "handoff",
+      "t": 50.0,
+      "customer": 9,
+      "staff": 4,
+      "t_end": null,
+      "data": {
+        "from_staff": 8,
+        "to_staff": 4
+      }
+    },
+    {
+      "type": "leave",
+      "t": 50.4,
+      "customer": 7,
+      "staff": null,
+      "t_end": null,
+      "data": {
+        "greeted": true,
+        "entry_known": true,
+        "detected_at": 50.8
+      }
+    }
+  ],
+  "scorecard": {
+    "staff": [
+      {
+        "staff": 1,
+        "name": "Aziz",
+        "greets": 2,
+        "median_time_to_greet": 32.0,
+        "customers_engaged": 2,
+        "engaged_total_s": 27.8,
+        "engaged_median_s": 13.9,
+        "missed_while_free": 2,
+        "walkouts_while_free": 1,
+        "sold": null,
+        "conversion": null
+      },
+      {
+        "staff": 4,
+        "name": null,
+        "greets": 1,
+        "median_time_to_greet": 3.0,
+        "customers_engaged": 2,
+        "engaged_total_s": 31.8,
+        "engaged_median_s": 15.9,
+        "missed_while_free": 1,
+        "walkouts_while_free": 0,
+        "sold": null,
+        "conversion": null
+      },
+      {
+        "staff": 8,
+        "name": null,
+        "greets": 2,
+        "median_time_to_greet": 4.5,
+        "customers_engaged": 2,
+        "engaged_total_s": 27.0,
+        "engaged_median_s": 13.5,
+        "missed_while_free": 0,
+        "walkouts_while_free": 0,
+        "sold": null,
+        "conversion": null
+      }
+    ],
+    "store": {
+      "customers": 6,
+      "customers_entry_known": 5,
+      "greeted": 5,
+      "greet_rate": 0.833,
+      "median_time_to_greet": 4.5,
+      "walkouts": 1,
+      "unattended_wait_s": 55.0,
+      "wait_alerts": 2,
+      "engagements": 5
+    }
+  },
+  "timelines": {
+    "2": {
+      "present": [
+        [
+          0.0,
+          21.0
+        ]
+      ],
+      "waiting": [],
+      "engaged": [
+        [
+          5.0,
+          19.0
+        ]
+      ],
+      "greeted": 5.0
+    },
+    "3": {
+      "present": [
+        [
+          10.0,
+          36.2
+        ]
+      ],
+      "waiting": [
+        [
+          10.0,
+          14.0
+        ]
+      ],
+      "engaged": [
+        [
+          14.0,
+          36.0
+        ]
+      ],
+      "greeted": 14.0
+    },
+    "5": {
+      "present": [
+        [
+          14.0,
+          59.8
+        ]
+      ],
+      "waiting": [
+        [
+          14.0,
+          46.0
+        ]
+      ],
+      "engaged": [
+        [
+          46.0,
+          59.8
+        ]
+      ],
+      "greeted": 46.0
+    },
+    "6": {
+      "present": [
+        [
+          20.0,
+          31.0
+        ]
+      ],
+      "waiting": [
+        [
+          20.0,
+          31.0
+        ]
+      ],
+      "engaged": [],
+      "greeted": null
+    },
+    "7": {
+      "present": [
+        [
+          25.0,
+          50.4
+        ]
+      ],
+      "waiting": [
+        [
+          25.0,
+          28.0
+        ]
+      ],
+      "engaged": [
+        [
+          28.0,
+          50.0
+        ]
+      ],
+      "greeted": 28.0
+    },
+    "9": {
+      "present": [
+        [
+          40.0,
+          59.8
+        ]
+      ],
+      "waiting": [
+        [
+          40.0,
+          45.0
+        ]
+      ],
+      "engaged": [
+        [
+          45.0,
+          59.8
+        ]
+      ],
+      "greeted": 45.0
+    }
+  },
+  "warnings": [
+    "distance is approximate for 62% of samples"
+  ],
+  "video_status": "ready",
+  "video_url": "mock/annotated.mp4",
+  "timeline_url": "mock/timeline.png",
+  "export": {
+    "json": "mock/results.json",
+    "events_csv": "mock/events.csv",
+    "scorecard_csv": "mock/scorecard.csv"
+  }
+}
