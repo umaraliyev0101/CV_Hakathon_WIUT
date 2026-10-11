@@ -120,7 +120,7 @@ roles.
 | metrics | `metrics.py` | Scorecards for each salesperson and the store from the event list. |
 | render | `render.py`, `export.py` | Face blur first, then drawing; annotated H.264 video via `imageio-ffmpeg`, timeline PNG, event contact sheets, `results.json`, `events.csv`, `scorecard.csv`. |
 | app | `app/` | FastAPI backend and a static HTML/JS frontend with no build step: upload, job status, people and roles, results, files with HTTP range support. Background jobs; job directories older than 24 h are deleted when the app starts. |
-| live | `live.py`, `live_ws.py`, `app/static/live.*` | The live session engine, its WebSocket protocol, and the webcam page. Frames are dropped, not queued, if processing falls behind; the page shows the processed fps and reconnects by itself. |
+| live | `live.py`, `live_ws.py`, `app/static/live.*` | The live session engine, its WebSocket protocol, and the webcam page. Frames are dropped, not queued, if processing falls behind; the page shows the processed fps (frames over wall time, last 10 frames) and reconnects by itself. |
 
 ## Quickstart
 

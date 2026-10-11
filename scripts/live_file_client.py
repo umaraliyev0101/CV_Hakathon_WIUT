@@ -5,7 +5,8 @@
 
 For every frame the client sends `{"type":"time","t":<video seconds>}` and then the JPEG (quality 70), and waits for
 the overlay before sending the next (stop-and-wait, like the page). Frames go out no faster than `--fps` unless
-`--no-pace`. Each second it prints the server-reported processing fps and the client's round-trip fps, then the
+`--no-pace`. Each second it prints the server-reported fps (frames over wall time across the server's last 10
+frames) and the client's round-trip fps, then the
 people count of every frame in that second; every event is printed as it arrives. At the end it asks for the
 session `summary` and prints the totals. Exit code 0 when every frame got an overlay, 1 otherwise.
 """

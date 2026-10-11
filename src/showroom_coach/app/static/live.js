@@ -572,7 +572,7 @@ function onOverlay(o) {
     console.error('draw failed', err);
     clearCanvas();                                        // fail closed: no half-covered picture stays on screen
   }
-  $('statFps').textContent = Number.isFinite(o.fps) ? o.fps.toFixed(1) : '0.0';   // the engine's own speed (can beat the 5 fps cap)
+  $('statFps').textContent = Number.isFinite(o.fps) ? o.fps.toFixed(1) : '0.0';   // server: frames over wall time, last 10 frames
   const now = performance.now();
   S.arrivals.push(now);
   while (S.arrivals.length > 1 && now - S.arrivals[0] > 3000) S.arrivals.shift();

@@ -21,8 +21,9 @@ minutes of trajectories and outfits; anyone without a user override follows it (
 Cost control, because live must keep up on a CPU. A new track is embedded at once (so it can re-attach to someone
 just lost) but known people are refreshed at most `max_embeds_per_frame` crops per frame, oldest first, and pose runs
 for a track on its first frame and then every `pose_every`-th frame, with the last keypoints riding along with the box
-in between (the same scheme as the offline pass). `fps` is the rate the engine processes frames, not the rate they
-arrive.
+in between (the same scheme as the offline pass). `fps` is frames over wall time across the last `FPS_WINDOW` frames,
+from the start of the oldest to the end of this one: with the page's stop-and-wait protocol that includes the transport
+and the browser, so it is the rate the overlay really updates, not the engine's per-frame speed.
 
 A `LiveSession` is not thread-safe: call it from one thread at a time (the WebSocket handler does).
 """
@@ -55,7 +56,7 @@ WINDOW_S = 300.0              # trajectories, frame times and outfit statistics 
 HISTORY_FRAMES = 9000         # per-frame states kept to re-score on a preset change (30 min at 5 fps)
 MAX_ALERTS = 10               # alerts shown
 MAX_ALERT_RECORDS = 50        # alert records kept, so that hiding some (their customer became staff) leaves enough to show
-FPS_ALPHA = 0.2               # smoothing of the processed-fps moving average
+FPS_WINDOW = 10               # the overlay's fps: frames over wall time across this many frames
 MIN_REFRESH_ALPHA = 0.1       # an identity descriptor never adapts slower than this (1/n for the first few)
 UNSURE_CONFIDENCE = 0.5       # P(staff) shown before the first suggestion: no evidence either way
 _EPS = 1e-6
@@ -128,7 +129,7 @@ class LiveSession:
         self._start: float | None = None              # origin of the default clock (perf_counter)
         self._last_t: float | None = None
         self._n = 0                                    # frames processed
-        self._fps: float | None = None
+        self._frame_starts: deque[float] = deque(maxlen=FPS_WINDOW)   # perf_counter at the start of recent frames
         self._track_pid: dict[int, int] = {}           # track id -> person id
         self._pose_state: dict[int, tuple[int, np.ndarray, tuple]] = {}   # track -> (frame no., keypoints, box)
         self._pids: set[int] = set()                   # every person id handed out
@@ -196,6 +197,7 @@ class LiveSession:
         """Run one BGR frame (already resized, at most 960 px wide) and return the overlay dict. `t` is the time in
         seconds since the session began; by default the session's own clock (starting at the first frame)."""
         started = time.perf_counter()
+        self._frame_starts.append(started)
         t = self._clock(t)
         self._n += 1
         h, w = frame_bgr.shape[:2]
@@ -257,9 +259,9 @@ class LiveSession:
             "pairs": [list(p) for p in self._engine.active_pairs()], "events": new_events,
             "alerts": self._alert_lines(), "store": dict(self._store_counters(t)),
         }
-        elapsed = max(time.perf_counter() - started, 1e-3)       # the whole frame's processing time, this one included
-        self._fps = 1.0 / elapsed if self._fps is None else (1 - FPS_ALPHA) * self._fps + FPS_ALPHA / elapsed
-        overlay["fps"] = round(self._fps, 1)
+        # Frames over wall time: the last FPS_WINDOW frames, from the start of the oldest to the end of this one.
+        wall = max(time.perf_counter() - self._frame_starts[0], 1e-3)
+        overlay["fps"] = round(len(self._frame_starts) / wall, 1)
         return to_jsonable(overlay)
 
     def _observe_unconfirmed(self, tid: int, person: _Person, t: float) -> None:

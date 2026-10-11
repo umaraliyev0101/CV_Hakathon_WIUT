@@ -57,7 +57,7 @@ if defined NEED_MODELS (
   )
 )
 
-echo Showroom Coach: open http://localhost:8000 (Ctrl+C to stop)
+echo Showroom Coach: starting the server; open the URL printed below (Ctrl+C to stop)
 "%VENV_PY%" -m showroom_coach serve --host 127.0.0.1 --port 8000 %*
 set "RC=%errorlevel%"
 if not "%RC%"=="0" pause

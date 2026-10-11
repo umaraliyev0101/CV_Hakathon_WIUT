@@ -77,5 +77,5 @@ if [ "$need_models" = 1 ]; then
     || { echo "ERROR: the model download failed. Check the internet connection and run ./run.sh again." >&2; exit 1; }
 fi
 
-echo "Showroom Coach: open http://localhost:8000 (Ctrl+C to stop)"
+echo "Showroom Coach: starting the server; open the URL printed below (Ctrl+C to stop)"
 exec "$VENV_PY" -m showroom_coach serve --host 127.0.0.1 --port 8000 "$@"

@@ -587,17 +587,32 @@ def test_trajectories_are_kept_for_five_minutes_only():
 # --------------------------------------------------------------------------- session: identity and cost
 
 
-def test_fps_is_the_processing_rate_not_the_arrival_rate():
+def _slow_session(seconds=0.05):
     base = fake_stack()
 
     def slow_detect(frame):
-        time.sleep(0.05)
+        time.sleep(seconds)
         return base.detect(frame)
 
-    s = LiveSession(dataclasses.replace(base, detect=slow_detect), suggest_after=1e9)
+    return LiveSession(dataclasses.replace(base, detect=slow_detect), suggest_after=1e9)
+
+
+def test_fps_is_frames_over_wall_time_when_frames_come_back_to_back():
+    s = _slow_session()
     frame = _scene((50, RED))
-    outs = [s.process(frame, 0.2 * i) for i in range(8)]        # frames arrive instantly, one every 0.2 s of "video"
+    outs = [s.process(frame, 0.2 * i) for i in range(12)]       # frames arrive instantly, one every 0.2 s of "video"
     assert 5.0 <= outs[-1]["fps"] <= 20.0
+
+
+def test_fps_counts_the_time_between_frames_too():
+    """The HUD shows the rate the overlay really updates: 10 frames over the wall time they took, gaps included (the
+    transport and the browser, with stop-and-wait). A per-frame processing rate would say about 20 here."""
+    s = _slow_session()
+    frame = _scene((50, RED))
+    for i in range(12):
+        out = s.process(frame, 0.2 * i)
+        time.sleep(0.1)                                         # the round trip outside the engine
+    assert 4.0 <= out["fps"] <= 10 / (10 * 0.05 + 9 * 0.1) + 0.05     # at most ~7.1: 10 frames in >= 1.4 s
 
 
 def test_new_tracks_are_embedded_at_once_and_refreshes_are_budgeted():
@@ -958,7 +973,7 @@ def test_real_stack_live_speed(clip, capsys):
     people = [len(o["people"]) for o in outs]
     with capsys.disabled():
         print(f"\n[live speed] {clip}: {len(outs)} frames in {wall:.1f} s = {len(outs) / wall:.2f} fps wall "
-              f"(EMA {outs[-1]['fps']}); people per frame mean {np.mean(people):.1f} max {max(people)}")
+              f"(HUD {outs[-1]['fps']}); people per frame mean {np.mean(people):.1f} max {max(people)}")
     assert len(outs) == 100 and max(people) >= 1
     assert len(outs) / wall > 0.5
 
