@@ -30,6 +30,7 @@ const MIN_GAP_MS = 1000 / MAX_FPS;
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 10000];   // then 10 s for ever
 const SUMMARY_MS = 5000;           // mini scorecard refresh
 const WATCHDOG_MS = 30000;         // no reply for this long: treat the connection as dead
+const FIRST_REPLY_MS = 120000;     // ...but the first reply also waits for the models to load
 const FEED_MAX = 100;
 const TOAST_MS = 3200;
 const STAFF = 'rgb(20,120,230)';   // same RGB as the rendered video and the rest of the UI
@@ -317,7 +318,9 @@ function connect() {
     clearTimeout(S.watchdog);
     clearTimeout(S.loopTimer);
     if (!S.running) return;
-    if (ev.code === 1008 || ev.code === 1011) {         // the server refused this session: retrying cannot help
+    // 1008 (unknown preset) is always final. 1011 (the server cannot run live mode) is final only if no overlay ever came
+    // during this run; once live mode has worked, a 1011 is just another dropped connection and gets the usual retries.
+    if (ev.code === 1008 || (ev.code === 1011 && S.sessions === 0)) {
       const why = S.serverError || (ev.code === 1008 ? 'unknown thresholds preset' : 'live mode is unavailable');
       stop(['Live mode could not start', `The server said: ${why}. Press Start camera to try again.`, true]);
       return;
@@ -334,6 +337,8 @@ function scheduleReconnect() {
   S.attempt += 1;
   setConn('reconnecting', `reconnecting… (attempt ${S.attempt})`);
   view.classList.add('is-stale');
+  view.classList.remove('is-over-person');
+  S.overlay = null;                                     // the boxes on the dimmed picture are history: not clickable
   S.reconnectTimer = setTimeout(connect, delay);
 }
 
@@ -360,26 +365,15 @@ function askSummary() {
 }
 
 function handleMessage(msg) {
+  if (!msg || typeof msg !== 'object') return;
   if (msg.type === 'overlay') {
     S.inflight = false;
     clearTimeout(S.watchdog);
-    if (!S.gotOverlay) {
-      S.gotOverlay = true;
-      S.attempt = 0;
-      if (S.sessions++ > 0) {                             // a reconnect: the server started a new session
-        S.who = {}; S.peopleKey = ''; S.overlay = null;
-        renderAlerts([]);
-        renderSummary({ scorecard: { store: {}, staff: [] } });
-        addFeed('Connection restarted: people are numbered again and scores start from zero', 'is-note', null);
-      }
-      hideStage();
-      $('hud').hidden = false;
-      setConn('live', 'Live');
-      askSummary();
+    try {
+      showOverlay(msg);
+    } finally {
+      sendNextFrame();                                  // whatever happened while drawing, ask for the next frame
     }
-    view.classList.remove('is-stale');
-    onOverlay(msg);
-    sendNextFrame();
   } else if (msg.type === 'summary') {
     renderSummary(msg);
   } else if (msg.type === 'error') {
@@ -388,10 +382,29 @@ function handleMessage(msg) {
       clearTimeout(S.watchdog);
       sendNextFrame();
     } else {
-      S.serverError = String(msg.error);
       if (S.gotOverlay) toast(`The server said: ${msg.error}`);
+      else S.serverError = String(msg.error);            // only a reason sent while the session was starting is quoted
     }
   }
+}
+
+function showOverlay(msg) {
+  if (!S.gotOverlay) {
+    S.gotOverlay = true;
+    S.attempt = 0;
+    if (S.sessions++ > 0) {                               // a reconnect: the server started a new session
+      S.who = {}; S.peopleKey = ''; S.overlay = null;
+      renderAlerts([]);
+      renderSummary({ scorecard: { store: {}, staff: [] } });
+      addFeed('Connection restarted: people are numbered again and scores start from zero', 'is-note', null);
+    }
+    hideStage();
+    $('hud').hidden = false;
+    setConn('live', 'Live');
+    askSummary();
+  }
+  view.classList.remove('is-stale');
+  onOverlay(msg);
 }
 
 /* ------------------------------------------------------------------ frame loop (stop-and-wait) */
@@ -415,7 +428,7 @@ function sendNextFrame() {
     if (!blob) { S.inflight = false; S.loopTimer = setTimeout(sendNextFrame, MIN_GAP_MS); return; }
     ws.send(blob);
     clearTimeout(S.watchdog);
-    S.watchdog = setTimeout(() => { if (token === S.wsToken) dropDeadSocket(); }, WATCHDOG_MS);
+    S.watchdog = setTimeout(() => { if (token === S.wsToken) dropDeadSocket(); }, S.gotOverlay ? WATCHDOG_MS : FIRST_REPLY_MS);
   }, 'image/jpeg', JPEG_QUALITY);
 }
 
@@ -691,13 +704,24 @@ function resetResults() {
 
 /* ------------------------------------------------------------------ clicks */
 
+/** The pointer position in canvas pixels, or null over the letterbox bars. The canvas is shown with `object-fit: contain`,
+ *  so the picture can be smaller than the element's box (a 4:3 camera in a wide box): scale by the contain factor and
+ *  subtract the centring offsets instead of stretching the whole box over the picture. */
+function canvasPoint(ev) {
+  const r = view.getBoundingClientRect();
+  if (!r.width || !r.height || !view.width || !view.height) return null;
+  const k = Math.min(r.width / view.width, r.height / view.height);
+  const x = (ev.clientX - r.left - (r.width - view.width * k) / 2) / k;
+  const y = (ev.clientY - r.top - (r.height - view.height * k) / 2) / k;
+  return x >= 0 && y >= 0 && x <= view.width && y <= view.height ? [x, y] : null;
+}
+
 function personAt(ev) {
   const o = S.overlay;
   if (!o) return null;
-  const r = view.getBoundingClientRect();
-  if (!r.width || !r.height) return null;
-  const x = ((ev.clientX - r.left) * view.width / r.width) / S.scale.sx;
-  const y = ((ev.clientY - r.top) * view.height / r.height) / S.scale.sy;
+  const pt = canvasPoint(ev);
+  if (!pt) return null;
+  const x = pt[0] / S.scale.sx, y = pt[1] / S.scale.sy;
   let best = null, bestArea = Infinity;
   for (const p of o.people) {                             // the smallest box under the pointer wins (someone in front)
     const [x1, y1, x2, y2] = p.bbox;
