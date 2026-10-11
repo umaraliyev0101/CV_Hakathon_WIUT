@@ -1,6 +1,7 @@
 # Showroom Suite reverse proxy: one origin for the suite page, both apps and the demo videos, so a single
 # ngrok tunnel (HTTPS) serves everything and the browser allows the webcam on the live pages.
-#   /          suite page (showroom-suite/index.html)
+#   /          redirects to /studio/, the Showroom Suite studio site (showroom-suite/studio/)
+#   /suite/    the split-view page with both apps side by side (showroom-suite/index.html)
 #   /coach/    Showroom Coach  (container coach:8000, prefix stripped)
 #   /pulse/    Showroom Pulse  (container pulse:8000, prefix stripped)
 #   /demo/     demo videos (deploy/demo/, read-only)
@@ -28,6 +29,14 @@ server {
     proxy_http_version 1.1;
 
     location = /healthz { auth_basic off; return 200 "ok\n"; }
+
+    location = / { return 302 /studio/; }
+    location = /suite { return 301 /suite/; }
+    location = /suite/ {
+        root /srv/suite;
+        try_files /index.html =404;
+        add_header Cache-Control "no-cache";
+    }
 
     location / {
         root /srv/suite;

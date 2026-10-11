@@ -4,7 +4,7 @@ One Docker Compose stack:
 
 | service | what | reachable at |
 |---|---|---|
-| `web` | nginx: suite page, reverse proxy, demo videos, optional password | `http://127.0.0.1:8090/` (local only) |
+| `web` | nginx: studio site (`/` → `/studio/`), split-view page (`/suite/`), reverse proxy, demo videos, optional password | `http://127.0.0.1:8090/` (local only) |
 | `coach` | Showroom Coach (salespeople), `showroom-coach/Dockerfile` | `/coach/` |
 | `pulse` | Showroom Pulse (customers), `showroom-pulse/Dockerfile` | `/pulse/` |
 | `ngrok` | public HTTPS tunnel to `web` (profile `public`) | printed by `up.sh --public` |
