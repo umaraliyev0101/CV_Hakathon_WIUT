@@ -42,6 +42,23 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
   - MEVA 10 s clip (60 s mark): RTF 1.49, perception 6.69 s, embed 0.43 s (6%).
   - Full 300 s MEVA dev clip (G423): RTF 1.65, perception 181.6 s, embed 5.3 s (2.9%); 2197 obs, 69 embedded tracks, 51 persons, one stable segment, keyframe t=149.8 s, 0 vehicles (hallway). Cache kept at `runs/cache/` for later tasks.
 
+### M6 / Task 19A: MEVA caches, agent-drawn zones, entrance coverage
+- Perception caches for all six clips in `labels/split.json` (`runs/cache/`, CPU, yolox_s + rtmpose_s, 5 fps, 960 wide). `persons` = `identity.merge` with default config.
+
+| group | clip | perception_seconds | rtf | tracks | persons (merged) |
+|---|---|---|---|---|---|
+| dev | 03-11 G423 | 180.9 | 1.66 | 69 | 38 |
+| dev | 03-11 G420 | 169.6 | 1.77 | 69 | 56 |
+| test | 03-12 G423 | 202.2 | 1.48 | 89 | 54 |
+| test | 03-13 G421 | 341.9 | 0.88 | 321 | 162 |
+| test | 03-09 G419 | 161.5 | 1.86 | 65 | 50 |
+| test | 03-09 G299 | 325.3 | 0.92 | 334 | 143 |
+
+- Zones: `labels/zones/<clip>.json`, labeller "ai-agent, unreviewed", drawn from a face-blurred keyframe at 150 s (kept under `runs/` only) and checked on a blurred overlay. Dev clips: entrance zones also compared to GT foot points (G423 and G420 only). Test clips: drawn from the keyframe only, never adjusted after the coverage run.
+- Entrance coverage (`.venv/bin/python scripts/zone_coverage.py`; GT enter first frame / exit last frame, foot point in an `entrance` zone, target >= 70%):
+  - dev: G423 03-11 123/124 = 99.2%, G420 44/44 = 100.0%, total 167/168 = 99.4% (no tuning rounds needed after the first draw).
+  - test (reported once, not tuned): G423 03-12 140/142 = 98.6%, G421 52/53 = 98.1%, G419 31/48 = 64.6% (below target; stairwell camera where people come up the stairs and the upper flight is not covered), G299 42/46 = 91.3%; total 265/289 = 91.7%.
+
 ## Decisions
 
 - 2026-10-11: Pre-flight was not run by the owner; the agent created the repo, copied the spec/CLAUDE.md/prompt; `data/stock/` and `data/synthetic/share/` are empty.
@@ -53,6 +70,8 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - MEVA: 6 indoor clips downloaded to data/meva/ (CC BY 4.0, Corona et al., WACV 2021); see data/meva/CLIPS.md.
 - data/stock/ and data/synthetic/share/ empty at start; agent will look for a commercially licensed showroom clip by script (not Pexels).
 - 2026-10-11: roles reasons (controller ruling R3): a feature yields a reason only when its normalised value >= 0.25; top 3 such features by w*norm. Needed so a customer with presence 0.1 has `reasons == []`.
+
+- 2026-10-11 (Task 19A): zone coverage uses each actor's GT box nearest to the activity's first (enter) / last (exit) frame; entrance zones are generous (door face plus threshold) because people are at door level at those frames. G419 test coverage 64.6% is reported as is (no test tuning).
 
 ## Open problems
 

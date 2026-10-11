@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    536
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "e1",
+      "name": "Back wall door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.75,
+          0.17
+        ],
+        [
+          0.8,
+          0.17
+        ],
+        [
+          0.8,
+          0.32
+        ],
+        [
+          0.75,
+          0.32
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e2",
+      "name": "Upper left stair landing",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.18,
+          0.28
+        ],
+        [
+          0.27,
+          0.28
+        ],
+        [
+          0.27,
+          0.44
+        ],
+        [
+          0.18,
+          0.44
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e3",
+      "name": "Bottom left stairs",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.0,
+          0.84
+        ],
+        [
+          0.38,
+          0.84
+        ],
+        [
+          0.4,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e4",
+      "name": "Bottom right bleachers",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.84,
+          0.7
+        ],
+        [
+          1.0,
+          0.66
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          0.86,
+          1.0
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e5",
+      "name": "Stage right door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.95,
+          0.14
+        ],
+        [
+          1.0,
+          0.14
+        ],
+        [
+          1.0,
+          0.3
+        ],
+        [
+          0.95,
+          0.3
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "d1",
+      "name": "Refreshment table",
+      "kind": "desk",
+      "polygon": [
+        [
+          0.2,
+          0.43
+        ],
+        [
+          0.34,
+          0.43
+        ],
+        [
+          0.34,
+          0.67
+        ],
+        [
+          0.2,
+          0.67
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o1",
+      "name": "Court back",
+      "kind": "other",
+      "polygon": [
+        [
+          0.3,
+          0.32
+        ],
+        [
+          0.95,
+          0.32
+        ],
+        [
+          0.95,
+          0.48
+        ],
+        [
+          0.3,
+          0.48
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o2",
+      "name": "Court centre",
+      "kind": "other",
+      "polygon": [
+        [
+          0.3,
+          0.48
+        ],
+        [
+          0.85,
+          0.48
+        ],
+        [
+          0.75,
+          0.8
+        ],
+        [
+          0.35,
+          0.8
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o3",
+      "name": "Court right",
+      "kind": "other",
+      "polygon": [
+        [
+          0.7,
+          0.48
+        ],
+        [
+          1.0,
+          0.4
+        ],
+        [
+          1.0,
+          0.66
+        ],
+        [
+          0.85,
+          0.7
+        ],
+        [
+          0.75,
+          0.8
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

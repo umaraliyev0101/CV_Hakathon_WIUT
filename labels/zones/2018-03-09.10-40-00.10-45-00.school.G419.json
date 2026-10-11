@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    536
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "e1",
+      "name": "Double door at top of stairs",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.41,
+          0.27
+        ],
+        [
+          0.58,
+          0.27
+        ],
+        [
+          0.58,
+          0.78
+        ],
+        [
+          0.41,
+          0.78
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e2",
+      "name": "Stairs up from below",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.2,
+          0.84
+        ],
+        [
+          0.56,
+          0.84
+        ],
+        [
+          0.58,
+          1.0
+        ],
+        [
+          0.18,
+          1.0
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o1",
+      "name": "Top landing",
+      "kind": "other",
+      "polygon": [
+        [
+          0.24,
+          0.74
+        ],
+        [
+          0.56,
+          0.74
+        ],
+        [
+          0.56,
+          0.84
+        ],
+        [
+          0.22,
+          0.84
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o2",
+      "name": "Upper stairs right",
+      "kind": "other",
+      "polygon": [
+        [
+          0.58,
+          0.3
+        ],
+        [
+          0.9,
+          0.12
+        ],
+        [
+          1.0,
+          0.2
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          0.6,
+          1.0
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o3",
+      "name": "Stairwell left",
+      "kind": "other",
+      "polygon": [
+        [
+          0.18,
+          0.3
+        ],
+        [
+          0.4,
+          0.3
+        ],
+        [
+          0.4,
+          0.74
+        ],
+        [
+          0.15,
+          0.74
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}

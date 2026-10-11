@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "frame_size": [
+    960,
+    536
+  ],
+  "labeller": "ai-agent, unreviewed",
+  "zones": [
+    {
+      "zone_id": "e1",
+      "name": "Right glass double door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.66,
+          0.06
+        ],
+        [
+          0.82,
+          0.06
+        ],
+        [
+          0.82,
+          0.55
+        ],
+        [
+          0.64,
+          0.55
+        ],
+        [
+          0.64,
+          0.35
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e2",
+      "name": "Middle glass door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.48,
+          0.05
+        ],
+        [
+          0.58,
+          0.05
+        ],
+        [
+          0.58,
+          0.38
+        ],
+        [
+          0.48,
+          0.38
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e3",
+      "name": "Back centre door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.38,
+          0.07
+        ],
+        [
+          0.45,
+          0.07
+        ],
+        [
+          0.45,
+          0.34
+        ],
+        [
+          0.38,
+          0.34
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "e4",
+      "name": "Far left door",
+      "kind": "entrance",
+      "polygon": [
+        [
+          0.1,
+          0.1
+        ],
+        [
+          0.19,
+          0.1
+        ],
+        [
+          0.19,
+          0.28
+        ],
+        [
+          0.1,
+          0.28
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "d1",
+      "name": "Coffee counter",
+      "kind": "desk",
+      "polygon": [
+        [
+          0.0,
+          0.58
+        ],
+        [
+          0.22,
+          0.58
+        ],
+        [
+          0.22,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o1",
+      "name": "Lounge left",
+      "kind": "other",
+      "polygon": [
+        [
+          0.0,
+          0.2
+        ],
+        [
+          0.3,
+          0.2
+        ],
+        [
+          0.3,
+          0.58
+        ],
+        [
+          0.0,
+          0.58
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o2",
+      "name": "Cafe seating",
+      "kind": "other",
+      "polygon": [
+        [
+          0.25,
+          0.4
+        ],
+        [
+          0.62,
+          0.4
+        ],
+        [
+          0.65,
+          0.82
+        ],
+        [
+          0.22,
+          0.82
+        ]
+      ],
+      "source": "user"
+    },
+    {
+      "zone_id": "o3",
+      "name": "Open floor right",
+      "kind": "other",
+      "polygon": [
+        [
+          0.62,
+          0.55
+        ],
+        [
+          1.0,
+          0.55
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          0.45,
+          1.0
+        ],
+        [
+          0.5,
+          0.85
+        ]
+      ],
+      "source": "user"
+    }
+  ]
+}
