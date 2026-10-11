@@ -44,7 +44,10 @@ def test_embed_many_equal_length_and_absent_for_empty():
     e = Embedder(use_dino=True)
     if not e.uses_dino:
         import pytest
-        pytest.skip("DINOv2 model not present")
+        from pulse.perception.embed import MODELS_DIR
+        pytest.fail(f"DINOv2 model missing under {MODELS_DIR}/dinov2_small: run "
+                    "`.venv/bin/python -c \"from pulse.perception.models import ensure_model; "
+                    "ensure_model('dinov2_small')\"` to download it")
     out = e.embed_many({1: [solid((0, 0, 255))], 2: [solid((255, 0, 0)), solid((250, 5, 0))], 3: []})
     assert set(out) == {1, 2}
     assert out[1].shape == out[2].shape == (e.dim,) and e.dim == 64 + 384
