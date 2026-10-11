@@ -85,6 +85,14 @@ def test_every_file_written_and_check_outputs_passes(built, capsys):
     assert "OK report.json" in capsys.readouterr().out
 
 
+def test_per_car_has_sat_in_car_last(built):
+    _, _, a, out = built
+    head = (out / "per_car.csv").read_text().splitlines()[0].split(",")
+    assert head[-1] == "sat_in_car" and head[:-1][-1] == "rank"
+    rep = json.loads((out / "report.json").read_text())
+    assert all(c["sat_in_car"] == 0 for c in rep["per_car"])
+
+
 def test_check_outputs_fails_on_broken_file(built, capsys):
     out = built[3]
     (out / "visits.csv").write_text("a,b\n")

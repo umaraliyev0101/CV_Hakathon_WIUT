@@ -18,7 +18,7 @@ CSV_HEADERS = {
     "visits.csv": "person_id,role,first_t,last_t,already_present,visit_s,zones,stopped_cars,assisted,"
                   "t_first_assist,group".split(","),
     "per_car.csv": "zone_id,name,visitors,stops,stop_rate,hold_rate,median_dwell,total_dwell,"
-                   "repeat_visits,deep_interest,unserved,unassisted_share,rank".split(","),
+                   "repeat_visits,deep_interest,unserved,unassisted_share,rank,sat_in_car".split(","),
     "occupancy.csv": "t,customers,waiting,customers_per_staff".split(","),
 }
 FIXED = ["report.json", "stats.json", "insights.json", "zones.json", "roles.json", "people.json",

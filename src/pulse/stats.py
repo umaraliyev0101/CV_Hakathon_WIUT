@@ -92,7 +92,7 @@ def _zone_rows(zones: list[Zone], visits: list[ZoneVisit]) -> dict[str, dict]:
     return rows
 
 
-def _per_car(zones, visits, episodes, n_cust, rows) -> list[dict]:
+def _per_car(zones, visits, episodes, n_cust, rows, sat_events=()) -> list[dict]:
     cars = []
     for z in zones:
         if z.kind != "car":
@@ -112,7 +112,9 @@ def _per_car(zones, visits, episodes, n_cust, rows) -> list[dict]:
                      "median_dwell": r["median_dwell"], "total_dwell": r["total_dwell"],
                      "repeat_visits": sum(1 for n in per_p.values() if n >= 2),
                      "deep_interest": deep, "unserved": unserved,
-                     "unassisted_share": _share(unserved, deep)})
+                     "unassisted_share": _share(unserved, deep),
+                     "sat_in_car": len({e.person_ids[0] for e in sat_events
+                                        if e.data.get("zone_id") == z.zone_id})})
     for rank, c in enumerate(sorted(cars, key=lambda c: (-c["total_dwell"], -c["stops"])), 1):
         c["rank"] = rank
     return sorted(cars, key=lambda c: c["rank"])
@@ -152,7 +154,7 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
             cfg: Config, *, timeline: Timeline, episodes: list[InterestEpisode],
             assist: dict[int, AssistInfo], zones: list[Zone], duration: float,
             frame_size: tuple[int, int], analysed_share: float = 1.0,
-            extra_warnings: list[str] = ()) -> Stats:
+            extra_warnings: list[str] = (), sat_events: list = ()) -> Stats:
     pre = cfg.preset
     role = lambda p: roles.get(p.person_id, "customer")  # noqa: E731
     cust = [p for p in persons if role(p) != "staff"]
@@ -256,7 +258,7 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
             "assisted": bool(a and a.assisted), "t_first_assist": a.t_first if a else None,
             "group": gmember.get(p.person_id)})
 
-    return Stats(store=store, per_car=_per_car(zones, cv, ceps, n, rows),
+    return Stats(store=store, per_car=_per_car(zones, cv, ceps, n, rows, sat_events),
                  per_zone=list(rows.values()), occupancy=occ, waiting=wait, crowding=crowd,
                  time_buckets=buckets,
                  heatmap=_heatmap([s for i in cust_tl_ids for s in tl[i]], cfg.heatmap_w, cfg.heatmap_h),

@@ -207,7 +207,23 @@ Caveats:
 
 ## Sat in car (stretch)
 
-Not evaluated: the sat-in-car stretch feature is not built, and the six MEVA eval clips are indoor school scenes with no vehicle-entry activities.
+Recall of the MEVA `person_enters_vehicle` activities on one **outdoor parking-lot / drive-loop clip** (`2018-03-15.15-45-07.15-50-07.hospital.G436`, hospital camera G436, CC BY 4.0). This is a proxy only, not a showroom: the vehicles are driving in and out, the people are small and far away, so pose keypoints are unreliable, and the rule's assumption that cars are fixed (one keyframe box per car) is broken. Numbers describe the proxy and say little about showroom accuracy. Reproduce: `.venv/bin/pulse eval --out docs/EVAL.md`.
+
+A GT activity is *found* when a detected sat-in-car event (rule a or b) overlaps [start - 5 s, end + 5 s] and its keyframe car box overlaps the GT vehicle box (at the activity's last frame) by at least half of the smaller box. `any car` drops the spatial condition (an upper bound that ignores which vehicle).
+
+| measure | value |
+|---|---|
+| GT `person_enters_vehicle` activities | 11 |
+| GT vehicle overlaps a keyframe car box (detectable at all) | 0 / 11 |
+| found, same vehicle (recall) | 0 / 11 = 0.0% |
+| found, any car (upper bound) | 0 / 11 = 0.0% |
+| keyframe vehicle detections | 2 |
+| detected sat-in-car events (a / b) | 0 (0 / 0) |
+| GT `person_exits_vehicle` activities (not scored) | 11 |
+
+**Reading:** none of the GT vehicles sits on a keyframe car box (the keyframe shows the vehicles of one instant; the ones that carry passengers drive in and park elsewhere), so the static-car rules cannot match any activity by construction. This clip is effectively unusable for scoring the rules: the 0% is a limitation of the proxy, not a measurement of sat-in-car quality, and no showroom accuracy claim follows from it.
+
+Precision is not reported: MEVA annotates only people in annotated activities, so most detected events cannot be judged against ground truth. The recall figure rests on 11 activities and one clip.
 
 ## Insights
 

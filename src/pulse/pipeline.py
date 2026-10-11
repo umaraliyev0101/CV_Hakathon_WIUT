@@ -10,12 +10,12 @@ import cv2
 import numpy as np
 
 from . import cache as cache_mod
-from . import identity, insights as insights_mod, interest, journey, roles as roles_mod, sources
+from . import identity, insights as insights_mod, interest, journey, roles as roles_mod, sat_in_car, sources
 from . import stats as stats_mod, zones as zones_mod
 from .camera_motion import motion_flags, pick_key_idx, segments, to_gray_small
 from .cache import PerceptionCache
 from .config import Config, get_config
-from .datatypes import (InterestEpisode, Insight, Person, RoleSuggestion, Stats, Timeline, Zone,
+from .datatypes import (Event, InterestEpisode, Insight, Person, RoleSuggestion, Stats, Timeline, Zone,
                         ZoneVisit)
 from .engine import PerceptionEngine
 from .perception.embed import Embedder, torso_crop
@@ -137,6 +137,21 @@ def build_people(pc: PerceptionCache, cfg: Config,
     return persons, build_timeline(pc.obs, track_to_person, size, cfg, floor_h), track_to_person
 
 
+def sat_in_car_events(pc: PerceptionCache, stable: Timeline, track_to_person: dict[int, int],
+                      zones: list[Zone], cfg: Config) -> list[Event]:
+    """Sat-in-car events (spec 4.5). Keyframe car boxes only hold while the camera is stable, so only
+    observations that survive the stability filter are used."""
+    size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
+    stable_t = {pid: {s.t for s in ss} for pid, ss in stable.items()}
+    obs_by_person: dict[int, list] = {}
+    for o in pc.obs:
+        pid = track_to_person.get(o.track_id)
+        if pid is not None and o.t in stable_t.get(pid, ()):
+            obs_by_person.setdefault(pid, []).append(o)
+    return sat_in_car.assign_zones(sat_in_car.detect(stable, obs_by_person, pc.cars, cfg),
+                                   pc.cars, zones, size)
+
+
 @dataclass
 class Analysis:
     persons: list[Person]
@@ -158,7 +173,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
     """Everything after perception. Pure: reads only the cache, never runs a model."""
     size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
     duration = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
-    persons, timeline, _ = build_people(pc, cfg)
+    persons, timeline, t2p = build_people(pc, cfg)
     if zones is None:
         zones = zones_mod.auto_zones(pc.cars, (size[1], size[0]))
     inter = roles_mod.interactions(persons, timeline, pc.embeddings, duration, cfg)
@@ -170,6 +185,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
     journeys = journey.build(stable, zones, cfg.preset)
     assist = interest.assistance(stable, staff_tracks, cfg.preset)
     episodes = interest.episodes(journeys, staff_tracks, cfg.preset, stable, zones)
+    sat = sat_in_car_events(pc, stable, t2p, zones, cfg)
     same_view = sum(max(0.0, min(s.t1, duration) - s.t0) for s in pc.segments if s.stable and s.same_view)
     share = min(1.0, same_view / duration) if duration > 0 and pc.segments else 1.0
     extra = []
@@ -177,7 +193,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
         extra.append(f"Video trimmed to the first {int(cfg.max_duration_s)} s")
     st = stats_mod.compute(persons, journeys, roles, cfg, timeline=timeline, episodes=episodes,
                            assist=assist, zones=zones, duration=duration, frame_size=size,
-                           analysed_share=share, extra_warnings=extra)
+                           analysed_share=share, extra_warnings=extra, sat_events=sat)
     ins = insights_mod.recommend(st, episodes, cfg)
     meta = {"video": Path(str(pc.meta.get("video", ""))).name, "preset": cfg.preset.name,
             "duration": float(pc.meta.get("duration") or 0.0), "analysed_duration": duration,

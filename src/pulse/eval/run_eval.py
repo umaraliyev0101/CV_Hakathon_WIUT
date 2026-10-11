@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pulse import cache as cache_mod
-from pulse import journey, pipeline, sources
+from pulse import journey, pipeline, sources, zones as zones_mod
 from pulse import stats as stats_mod
 from pulse import insights as insights_mod
 from pulse.cache import PerceptionCache
@@ -475,8 +475,132 @@ def _mot_rows(m: dict) -> list[str]:
             share(m["recall"]), str(m["num_objects"])]
 
 
+# ---------------------------------------------------------------------------------------------
+# sat in car (stretch): recall against MEVA person_enters_vehicle on one outdoor clip
+
+SAT_CLIP = {"clip": "2018-03-15.15-45-07.15-50-07.hospital.G436",
+            "video": "data/meva/videos/2018-03-15.15-45-07.15-50-07.hospital.G436.r13.avi",
+            "kpf": "data/meva/annotations/outdoor_2018-03-15.15-45-07.15-50-07.hospital.G436"}
+SAT_ACT = "person_enters_vehicle"
+SAT_WINDOW_S = 5.0
+
+
+def _overlap_min(a, b) -> float:
+    iw, ih = min(a[2], b[2]) - max(a[0], b[0]), min(a[3], b[3]) - max(a[1], b[1])
+    m = min((a[2] - a[0]) * (a[3] - a[1]), (b[2] - b[0]) * (b[3] - b[1]))
+    return iw * ih / m if iw > 0 and ih > 0 and m > 0 else 0.0
+
+
+def evaluate_sat_in_car(cfg: Config) -> dict | None:
+    """Recall of GT `person_enters_vehicle` by detected sat-in-car events (either rule), from the cache.
+
+    A GT activity counts as found when a detected event's time span meets [start - 5 s, end + 5 s] AND its
+    keyframe car box overlaps the GT vehicle's box (at the activity's last frame) by at least half of the
+    smaller box ("same vehicle"). The `any_car` figure drops the spatial condition (upper bound). None if
+    the clip or its cache is missing."""
+    e = SAT_CLIP
+    video = ROOT / e["video"]
+    cdir = pipeline_cache_dir(video, cfg) if video.is_file() else None
+    if cdir is None or not (ROOT / e["kpf"]).is_dir():
+        return None
+    pc = cache_mod.load(cdir)
+    persons, tl, t2p = pipeline.build_people(pc, cfg)
+    size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
+    zones = zones_mod.auto_zones(pc.cars, (size[1], size[0]))
+    ev = pipeline.sat_in_car_events(pc, filter_stable(tl, pc.segments), t2p, zones, cfg)
+    meva = load_kpf(ROOT / e["kpf"], e["clip"])
+    fps = float(pc.meta["src_fps"])
+    sx = size[0] / int(pc.meta["src_w"])
+    gt = []
+    for a in sorted((a for a in meva.activities if a.name == SAT_ACT), key=lambda a: (a.frame_start, a.act_id)):
+        t0, t1 = a.frame_start / fps, a.frame_end / fps
+        vbox = None
+        for i in a.actors:
+            if meva.track_types.get(i) == "vehicle" and meva.tracks.get(i):
+                fr = min(meva.tracks[i], key=lambda f: abs(f - a.frame_end))
+                vbox = tuple(v * sx for v in meva.tracks[i][fr])
+        near = [x for x in ev if x.t_start <= t1 + SAT_WINDOW_S and (x.t_end or x.t_start) >= t0 - SAT_WINDOW_S]
+        same = [x for x in near if vbox and _overlap_min(x.data["car_bbox"], vbox) >= 0.5]
+        gt.append({"act_id": a.act_id, "t_start": round(t0, 1), "t_end": round(t1, 1),
+                   "vehicle_in_keyframe_car": bool(vbox and any(
+                       _overlap_min(d.bbox, vbox) >= 0.5 for d in pc.cars)),
+                   "found_same_vehicle": bool(same), "found_any_car": bool(near)})
+    n = len(gt)
+    return {
+        "clip": e["clip"], "n_gt": n, "found_same": sum(g["found_same_vehicle"] for g in gt),
+        "found_any": sum(g["found_any_car"] for g in gt),
+        "n_events": len(ev), "n_events_a": sum(x.data["rule"] == "a" for x in ev),
+        "n_events_b": sum(x.data["rule"] == "b" for x in ev), "n_cars": len(pc.cars),
+        "n_gt_on_keyframe_car": sum(g["vehicle_in_keyframe_car"] for g in gt),
+        "n_persons": len(persons), "n_exit_gt": sum(a.name == "person_exits_vehicle" for a in meva.activities),
+        "gt": gt,
+        "events": [[x.data["rule"], x.person_ids[0], round(x.t_start, 1), round(x.t_end or x.t_start, 1)]
+                   for x in ev],
+    }
+
+
+def run_sat_in_car(cfg: Config, use_cache: bool = True) -> dict | None:
+    """evaluate_sat_in_car memoised under runs/eval/ (keyed by code, config, annotations, perception cache)."""
+    video = ROOT / SAT_CLIP["video"]
+    cdir = pipeline_cache_dir(video, cfg) if video.is_file() else None
+    if cdir is None:
+        return None
+    h = hashlib.sha1(json.dumps([EVAL_VERSION, _code_digest(), cdir.name, repr(cfg)]).encode())
+    for p in sorted((ROOT / SAT_CLIP["kpf"]).glob("*.yml")):
+        h.update(p.name.encode() + str(p.stat().st_size).encode())
+    f = ROOT / "runs" / "eval" / f"sat-{SAT_CLIP['clip']}.{h.hexdigest()[:20]}.json"
+    if use_cache and f.is_file():
+        return json.loads(f.read_text())
+    r = evaluate_sat_in_car(cfg)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    for old in f.parent.glob(f"sat-{SAT_CLIP['clip']}.*.json"):
+        old.unlink()
+    f.write_text(json.dumps(r, sort_keys=True))
+    return r
+
+
+def _sat_section(r: dict | None) -> list[str]:
+    L: list[str] = []
+    if r is None:
+        return ["The outdoor clip " + SAT_CLIP["clip"] + " or its perception cache is not present on this "
+                "machine, so sat-in-car was not evaluated.", ""]
+    n = r["n_gt"]
+    L.append("Recall of the MEVA `person_enters_vehicle` activities on one **outdoor parking-lot / drive-loop "
+             f"clip** (`{r['clip']}`, hospital camera G436, CC BY 4.0). This is a proxy only, not a "
+             "showroom: the vehicles are driving in and out, the people are small and far away, so pose "
+             "keypoints are unreliable, and the rule's assumption that cars are fixed (one keyframe box per "
+             "car) is broken. Numbers describe the proxy and say little about showroom accuracy. "
+             f"Reproduce: {CMD_EVAL}.")
+    L.append("")
+    L.append("A GT activity is *found* when a detected sat-in-car event (rule a or b) overlaps "
+             f"[start - {SAT_WINDOW_S:.0f} s, end + {SAT_WINDOW_S:.0f} s] and its keyframe car box overlaps "
+             "the GT vehicle box (at the activity's last frame) by at least half of the smaller box. "
+             "`any car` drops the spatial condition (an upper bound that ignores which vehicle).")
+    L.append("")
+    rows = [["GT `person_enters_vehicle` activities", str(n)],
+            ["GT vehicle overlaps a keyframe car box (detectable at all)", f"{r['n_gt_on_keyframe_car']} / {n}"],
+            ["found, same vehicle (recall)", f"{r['found_same']} / {n} = {share(r['found_same'] / n) if n else 'n/a'}"],
+            ["found, any car (upper bound)", f"{r['found_any']} / {n} = {share(r['found_any'] / n) if n else 'n/a'}"],
+            ["keyframe vehicle detections", str(r["n_cars"])],
+            ["detected sat-in-car events (a / b)", f"{r['n_events']} ({r['n_events_a']} / {r['n_events_b']})"],
+            ["GT `person_exits_vehicle` activities (not scored)", str(r["n_exit_gt"])]]
+    L += _table(["measure", "value"], rows)
+    if r["n_gt_on_keyframe_car"] == 0:
+        L.append("**Reading:** none of the GT vehicles sits on a keyframe car box (the keyframe shows the "
+                 "vehicles of one instant; the ones that carry passengers drive in and park elsewhere), so the "
+                 "static-car rules cannot match any activity by construction. This clip is effectively "
+                 "unusable for scoring the rules: the 0% is a limitation of the proxy, not a measurement of "
+                 "sat-in-car quality, and no showroom accuracy claim follows from it.")
+        L.append("")
+    L.append("Precision is not reported: MEVA annotates only people in annotated activities, so most detected "
+             "events cannot be judged against ground truth. The recall figure rests on "
+             f"{n} activities and one clip.")
+    L.append("")
+    return L
+
+
 def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict,
-           stops: list[dict] | None = None) -> str:
+           stops: list[dict] | None = None, sat: dict | None = None) -> str:
     dev, test = per_clip["dev"], per_clip["test"]
     ad, at = aggregate(dev), aggregate(test)
     L: list[str] = []
@@ -788,9 +912,7 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict,
     L += _stops_section(stops or [])
     w("## Sat in car (stretch)")
     w("")
-    w("Not evaluated: the sat-in-car stretch feature is not built, and the six MEVA eval clips are indoor "
-      "school scenes with no vehicle-entry activities.")
-    w("")
+    L += _sat_section(sat)
 
     # ---- insights
     w("## Insights")
@@ -856,7 +978,7 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict,
 # entry point
 
 _CODE_FILES = ("eval/metrics.py", "eval/run_eval.py", "eval/meva.py", "stats.py", "journey.py", "identity.py",
-               "eval/stops.py", "timeline.py", "zones.py", "geometry.py", "pipeline.py", "config.py", "datatypes.py")
+               "eval/stops.py", "sat_in_car.py", "timeline.py", "zones.py", "geometry.py", "pipeline.py", "config.py", "datatypes.py")
 
 
 def _code_digest() -> str:
@@ -932,7 +1054,7 @@ def main(out: Path, clips: list[str] | None = None, cfg: Config | None = None) -
     except (MissingInput, OSError, sources.VideoError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    text = render(per_clip, cfg, speed, det, stops_res)
+    text = render(per_clip, cfg, speed, det, stops_res, run_sat_in_car(cfg))
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
     print(f"wrote {out}")

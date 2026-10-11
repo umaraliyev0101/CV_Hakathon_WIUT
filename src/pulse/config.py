@@ -60,6 +60,11 @@ class Config:
     crowding_time_s: float = 120.0          # R5
     heatmap_w: int = 48
     heatmap_h: int = 27
+    sat_overlap: float = 0.6                # sat-in-car: share of the person box inside a car box
+    sat_speed: float = 0.1                  # sat-in-car (a): foot speed below this, m/s
+    sat_time_s: float = 5.0                 # sat-in-car (a): still for at least this long
+    sat_reappear_s: float = 60.0            # sat-in-car (b): a track starts at the car again within this
+    sat_gap_s: float = 2.0                  # observation gap that splits a person into two track segments
 
 
 def get_config(preset_name: str = "short", **overrides) -> Config:
