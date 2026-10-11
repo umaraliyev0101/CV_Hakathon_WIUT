@@ -1,10 +1,12 @@
 """Detector benchmark (spec §5): person recall on MEVA, cars on showroom images, CPU speed."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import platform
 import statistics
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -165,6 +167,16 @@ EXCERPT_WIDTH = 1280        # 720p-class input (the MEVA source is 1920x1072, so
 _WARMUP = 3
 
 
+def _git_rev() -> str:
+    """Short git revision of the code that ran the benchmark ('+dirty' if the tree had changes)."""
+    try:
+        run = lambda *a: subprocess.run(["git", *a], cwd=_ROOT, capture_output=True, text=True,  # noqa: E731
+                                        check=True).stdout.strip()
+        return run("rev-parse", "--short", "HEAD") + ("+dirty" if run("status", "--porcelain") else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 def _make_clip():
     spec = importlib.util.spec_from_file_location("make_clip", _ROOT / "scripts" / "make_clip.py")
     mod = importlib.util.module_from_spec(spec)
@@ -229,7 +241,8 @@ def run_speed_bench(clip: Path, out: Path, start: float = EXCERPT_START_S, dur: 
     print(f"engine step: all {st['all']['fps']:.2f} fps, 1-4 people {st['1_to_4']['fps']:.2f} fps "
           f"({st['1_to_4']['n_frames']} frames)", flush=True)
 
-    res = {"clip": clip.name, "machine": platform.platform(), "provider": "CPUExecutionProvider",
+    res = {"clip": clip.name, "machine": platform.platform(), "git_rev": _git_rev(),
+           "config_hash": hashlib.sha1(repr(cfg).encode()).hexdigest()[:12], "provider": "CPUExecutionProvider",
            "excerpt": {"start_s": start, "duration_s": float(info.duration), "width": info.width,
                        "height": info.height, "sample_fps": cfg.sample_fps, "analysis_width": cfg.max_width},
            "cpu": cpu, "engine_all": st["all"], "engine_1_to_4_people": st["1_to_4"]}

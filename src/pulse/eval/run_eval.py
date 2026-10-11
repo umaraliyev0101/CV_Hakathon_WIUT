@@ -200,6 +200,7 @@ def evaluate(inp: ClipInputs, cfg: Config) -> dict:
         "clip": inp.entry["clip"], "group": inp.group, "duration": dur, "n_samples": inp.n_samples,
         "n_gt_persons": len(inp.gt_tl), "n_pred_tracks": len({o.track_id for o in inp.pc.obs}),
         "n_pred_persons": len(persons), "n_matched": len(match),
+        "obs_total": len(inp.pc.obs), "obs_not_in_person": sum(1 for o in inp.pc.obs if o.track_id not in t2p),
         "entries": {"pred": len(entries_ev), "gt": len(ent_win), "gt_all": len(ent_all),
                     "timing": [m[2] for m in en_m], "n_matched": len(en_m)},
         "exits": {"pred": len(exits_ev), "gt": len(exit_win), "gt_all": len(exit_all),
@@ -327,9 +328,17 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
       "re-run from the cache. The two merge knobs were tuned on the dev clips only "
       "(`scripts/tune_merge.py`; full trial log in `PROGRESS.md`): `merge_sim_thr` went from 0.75 to 0.9 "
       "(pooled dev entry/exit error 35.3% to 3.6%), `merge_max_speed` is insensitive and kept at 0.25. "
-      "Nothing else was tuned and the test clips were scored once, after the configuration was frozen. "
-      "With MEVA ground truth this tuning rests on two clips and counts only, so treat the new "
-      "threshold as a dev-set fit, not a general optimum.")
+      "The selection objective was written down before the first run and revised twice after seeing dev "
+      "results (the per-term cap of 3 was removed, and an interior-optimum condition was added); a first "
+      "run also used a wrong count-error formula and was discarded. The optimum (0.9) is the same under "
+      "every version of the rule. **Test numbers were visible during tuning:** draft full evaluations of "
+      "all six clips at the then-default 0.75 (including the buggy formula) were run and read before "
+      "`merge_sim_thr` was changed, and the switch from one-to-one to many-to-one track matching (below) "
+      "was made after seeing match rates on dev and test clips. The tuner itself never loads the test "
+      "clips and its objective used dev numbers only; after the freeze only report rendering and caching "
+      "code changed (no metric or configuration change). With MEVA ground truth this tuning rests on two "
+      "clips and counts only, so treat the new threshold as a dev-set fit, not a general optimum; at 0.9 "
+      "the merge joins few tracks and, on test, does not improve IDF1 (see Tracking).")
     w("- **Roles:** every person is scored as a customer, because MEVA has no staff labels "
       "(role detection is therefore not evaluated here).")
     w("- **Ground truth:** MEVA geom tracks of type `person`, sampled at the same source frames as the "
@@ -351,8 +360,12 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
     # ---- targets
     sp = speed["cpu"]
     live = speed["live_smoke"]           # snapshot of runs/bench/live_smoke.json taken by `pulse bench speed`
-    live_fps = live.get("fps_max")
     eng = speed["engine_1_to_4_people"]["fps"]
+    full = [(r["clip"], r["_meta"]["rtf"]) for g in ("dev", "test") for r in per_clip[g]]
+    below = [f"{_label(c)} {x:.2f}x" for c, x in full if x < 1.0]
+    rtf_met = (sp["rtf"] >= 1.0) and not below
+    rtf_text = (f"{sp['rtf']:.2f}x on the 60 s excerpt; full 5-min clips {min(x for _, x in full):.2f}x-"
+                f"{max(x for _, x in full):.2f}x" + (f" (below 1x: {', '.join(below)})" if below else ""))
     w("## Targets")
     w("")
     w("Spec section 6. Measured values are test-set, pooled over the test clips; dev values are given "
@@ -369,11 +382,13 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
         ["journey accuracy (1 - normalised edit distance)", ">= 80%", share(at["journey_mean"]),
          share(ad["journey_mean"]),
          _met(None if at["journey_mean"] is None else at["journey_mean"] >= 0.8)],
-        ["file mode real-time factor (60 s 720p excerpt, 5 fps, CPU)", ">= 1.0x", f"{sp['rtf']:.2f}x",
-         "(speed is not split by clip)", _met(sp["rtf"] >= 1.0)],
-        ["live mode fps (max sustained, live smoke, 1-3 people)", ">= 5 fps",
-         "n/a" if live_fps is None else f"{live_fps:.2f}", "(not split by clip)",
-         _met(None if live_fps is None else live_fps >= 5.0)],
+        ["file mode real-time factor (CPU, 5 fps; 60 s 720p excerpt, then the six full 5-min clips)", ">= 1.0x",
+         rtf_text, "(speed is not split by clip)",
+         "yes" if rtf_met else ("partly" if sp["rtf"] >= 1.0 else "NO")],
+        ["live mode fps (engine step on frames with 1-4 people; live smoke paced / max, "
+         f"at most {live['people_max']} people in view)", ">= 5 fps",
+         f"{eng:.2f} engine; smoke {live['fps']:.2f} paced, {live['fps_max']:.2f} max",
+         "(not split by clip)", _met(eng >= 5.0 and live["fps"] >= 5.0)],
     ]
     L += _table(["metric", "target", "measured (test)", "measured (dev)", "met?"], rows)
     w(f"Reproduce: {CMD_EVAL} for the first four rows; {CMD_SPEED} for file mode; {CMD_LIVE} then "
@@ -382,7 +397,11 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
       f"Engine-only step rate on frames with 1-4 people: {eng:.2f} fps (see Speed).")
     w("")
     miss = [r[0] for r in rows if r[4] == "NO"]
+    part = [r[0] for r in rows if r[4] == "partly"]
     w("**Targets missed (test):** " + ("; ".join(miss) if miss else "none") + ".")
+    if part:
+        w("")
+        w("**Targets only partly met:** " + "; ".join(part) + ".")
     w("")
 
     # ---- entries and exits
@@ -449,6 +468,12 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
       "GT person never visited are counted separately (`ours only`). The Dealership target is a median "
       "error of at most 10%; the 2 s target belongs to the Short preset and is shown for reference.")
     w("")
+    w("**What this measures:** MEVA tracks are annotated per activity and are short (median about 1.2 s on "
+      "the first dev clip; many are under `zone_min`), and each GT track is matched many-to-one inside its "
+      "own time window. These dwell figures therefore measure zone assignment inside short GT snippets, not "
+      "a person's dwell over a whole visit, and they are invariant to the identity merge by construction "
+      "(identical across all 42 tuning trials). They cannot detect merge errors.")
+    w("")
     rows = []
     for g, rs, a in (("dev", dev, ad), ("test", test, at)):
         for r in rs:
@@ -473,6 +498,11 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
       "matched persons. Matched pairs where both sequences are empty (the person visited no zone) carry no "
       "information and are skipped.")
     w("")
+    w("**What this measures:** the same windowing and many-to-one matching as Zone dwell. The sequences "
+      "compared are the zones visited inside one short GT activity track, not a person's end-to-end "
+      "journey through a visit, so the 80% target is judged on a metric that is invariant to identity "
+      "merging (unchanged across all 42 tuning trials) and says little about whole-visit journeys.")
+    w("")
     rows = []
     for g, rs, a in (("dev", dev, ad), ("test", test, at)):
         for r in rs:
@@ -482,12 +512,21 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
     L += _table(["set", "clip", "matched persons scored", "mean journey accuracy", "reproduce"], rows)
 
     # ---- tracking
+    tot_obs = sum(r["obs_total"] for g in ("dev", "test") for r in per_clip[g])
+    tot_drop = sum(r["obs_not_in_person"] for g in ("dev", "test") for r in per_clip[g])
     w("## Tracking")
     w("")
     w("MOTA and IDF1 against the GT person tracks (IoU >= 0.5), on the raw ByteTrack tracks and on the "
       "merged persons (after the identity merge), so the merge's effect is visible. MEVA annotates only "
       "the people involved in annotated activities, so un-annotated real people count as false positives "
-      "and depress MOTA and precision; read recall and IDF1 alongside.")
+      "and depress MOTA and precision; read recall and IDF1 alongside. Raw and merged are scored on the same "
+      f"observations ({tot_obs - tot_drop} of {tot_obs} observations are in a person; "
+      f"{tot_drop} tracked observations belong to no person and would be missing from the merged set). "
+      f"At `merge_sim_thr` {cfg.merge_sim_thr} the merge does not help IDF1: pooled test IDF1 "
+      f"{share(at['mot_raw']['idf1'])} raw vs {share(at['mot_merged']['idf1'])} merged, ID switches "
+      f"{at['mot_raw']['num_switches']} vs {at['mot_merged']['num_switches']}; pooled dev IDF1 "
+      f"{share(ad['mot_raw']['idf1'])} vs {share(ad['mot_merged']['idf1'])}. The merge was tuned for "
+      "person counts, not for IDF1 (GT ids are per activity, so IDF1 penalises merging).")
     w("")
     rows = []
     for g, rs, a in (("dev", dev, ad), ("test", test, at)):
@@ -503,8 +542,10 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
     w("## Speed")
     w("")
     ex = speed["excerpt"]
-    w(f"Measured on this machine (Apple M3 Pro, CPU execution provider) by {CMD_SPEED}; `pulse eval` only "
-      "reads the stored result, `runs/bench/speed.json`.")
+    w(f"Measured on `{speed['machine']}` (CPU execution provider) by {CMD_SPEED}; `pulse eval` only "
+      "reads the stored result, `runs/bench/speed.json`, recorded at git revision "
+      f"`{speed.get('git_rev', 'unknown')}` with config hash `{speed.get('config_hash', 'unknown')}` "
+      "(a stale file shows up as a different revision).")
     w("")
     rows = [
         ["file-mode real-time factor, cold (60 s excerpt, "
@@ -551,7 +592,8 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
     w("")
     w("Do the GT enter (first frame) and exit (last frame) foot points fall inside one of the clip's "
       "`entrance` zones? Target: at least 70% on the dev clips (zones were fixed on dev only). The entrance "
-      "zones are generous (door face plus threshold), so high coverage partly reflects zone size.")
+      "zones are generous (door face plus threshold), so high coverage partly reflects zone size. The "
+      "G419 test clip (stairwell) is below 70% (not tuned).")
     w("")
     rows = []
     for g in ("dev", "test"):
@@ -626,9 +668,12 @@ def render(per_clip: dict[str, list[dict]], cfg: Config, speed: dict, det: dict)
         "leave without an annotated activity (G421 has 2 annotated enters but we count 44 entries) the "
         "per-clip error is mostly un-annotated truth, not detector error; the pooled test figure is "
         "dominated by such clips and says little about showroom accuracy.",
+        "The file-mode real-time factor of the Targets table is measured on a quiet 60 s excerpt; on the "
+        "full 5-minute clips the crowded scenes (G421 lobby, G299 gym, 320+ tracks) run below real time "
+        "(see Speed). Real-time file mode is not met on crowded footage with this CPU configuration.",
         "Only six clips from two cameras-days of one school; the dev set has two clips. Differences of a "
         "few points are within noise.",
-        "File-mode and live speed are measured on one machine (Apple M3 Pro, CPU); CoreML, if shown, is "
+        "File-mode and live speed are measured on one machine (see Speed), CPU; CoreML, if shown, is "
         "reported separately and was measured once.",
         "No stock showroom or synthetic clip was available, so there is no showroom-domain accuracy number.",
     ):

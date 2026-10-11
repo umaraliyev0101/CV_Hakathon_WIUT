@@ -1,6 +1,4 @@
-import pytest
 from pulse.config import get_config
-from pulse.datatypes import Stats, InterestEpisode
 from pulse.insights import recommend, confidence
 from pulse.eval.scenarios import car, stats, eps, build
 
