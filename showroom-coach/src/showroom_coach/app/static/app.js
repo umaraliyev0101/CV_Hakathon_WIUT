@@ -13,6 +13,9 @@
 
 const Q = new URLSearchParams(location.search);
 const MOCK = Q.has('mock');
+const ROOT = window.APP_ROOT || '/';
+/** Root-relative server path ("/api/...") -> URL under the app root, so a proxy prefix (/coach/) works. */
+const at = (p) => (typeof p === 'string' && p.startsWith('/') ? ROOT + p.slice(1) : p);
 const POLL_MS = 700;
 const ALLOWED_EXT = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 const MAX_BYTES = 1024 ** 3;
@@ -85,7 +88,7 @@ async function api(method, path, body) {
   const form = body instanceof FormData;      // a file: the browser sets the multipart Content-Type itself
   let res;
   try {
-    res = await fetch(path, {
+    res = await fetch(at(path), {
       method,
       headers: body && !form ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? (form ? body : JSON.stringify(body)) : undefined,
@@ -107,7 +110,7 @@ function uploadJob(file, preset, onProgress, attempt) {
     fd.append('file', file);
     const x = new XMLHttpRequest();
     attempt.xhr = x;
-    x.open('POST', '/api/jobs');
+    x.open('POST', at('/api/jobs'));
     x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     x.onload = () => {
       let data = null;
@@ -459,7 +462,7 @@ async function enterConfirm(fromResults) {
   state.draft = { roles: {}, names: {} };
   state.loadedNames = {};
   for (const p of state.people) {
-    state.thumbs[p.pid] = p.thumb_url;
+    state.thumbs[p.pid] = at(p.thumb_url);
     state.draft.roles[p.pid] = p.role === 'staff' ? 'staff' : 'customer';
     state.draft.names[p.pid] = p.name || '';
     state.loadedNames[p.pid] = (p.name || '').trim();
@@ -492,7 +495,7 @@ function personCard(p) {
   const nameField = el('label', { class: 'name-field', for: `name-${pid}`, hidden: !isStaff() }, 'Name', input);
   const card = el('article', { class: `person${isStaff() ? ' is-staff' : ''}`, 'data-pid': pid },
     el('div', { class: 'person__photo' },
-      el('img', { src: p.thumb_url, alt: `Person ${pid}, face blurred`, width: '112', height: '168' }),
+      el('img', { src: at(p.thumb_url), alt: `Person ${pid}, face blurred`, width: '112', height: '168' }),
       el('span', { class: 'person__tag', text: `Person ${pid}` })),
     el('div', { class: 'person__body' },
       el('p', { class: `chip chip--${s.role === 'staff' || s.role === 'customer' ? s.role : 'unsure'}`, text: suggestionText(s) }),
@@ -544,7 +547,7 @@ async function submitRoles() {
 async function showResults(r, epoch = state.epoch) {
   const nobody = !(r.persons && r.persons.length);
   if (!nobody && !Object.keys(state.thumbs).length) {
-    try { for (const p of (await api('GET', `/api/jobs/${state.jobId}/people`)).people) state.thumbs[p.pid] = p.thumb_url; } catch { /* initials fall back */ }
+    try { for (const p of (await api('GET', `/api/jobs/${state.jobId}/people`)).people) state.thumbs[p.pid] = at(p.thumb_url); } catch { /* initials fall back */ }
   }
   if (epoch !== state.epoch) return;
   state.results = r;
@@ -567,7 +570,7 @@ function renderResults(r, nobody) {
     renderBadges($('#resWarn'), (r.warnings || []).filter((w) => !w.startsWith('nobody detected')));   // the empty state already says it
     const ex = r.export || {};
     $('#exports').replaceChildren(el('span', { class: 'muted', text: 'Download' }),
-      ...[['JSON', ex.json]].filter(([, href]) => href).map(([label, href]) => el('a', { href, download: '', text: label })));
+      ...[['JSON', ex.json]].filter(([, href]) => href).map(([label, href]) => el('a', { href: at(href), download: '', text: label })));
     return;
   }
   const staffN = Object.values(r.roles || {}).filter((x) => x === 'staff').length;
@@ -578,7 +581,7 @@ function renderResults(r, nobody) {
   const ex = r.export || {};
   $('#exports').replaceChildren(el('span', { class: 'muted', text: 'Download' }),
     ...[['JSON', ex.json], ['Events CSV', ex.events_csv], ['Scorecard CSV', ex.scorecard_csv]]
-      .filter(([, href]) => href).map(([label, href]) => el('a', { href, download: '', text: label })));
+      .filter(([, href]) => href).map(([label, href]) => el('a', { href: at(href), download: '', text: label })));
   renderVideo(r);
   renderTiles(r);
   renderAlerts(r);
@@ -604,7 +607,7 @@ function renderVideo(r) {
       stage.replaceChildren(stageMessage('The video could not be played', 'Your browser could not open the annotated video. The timeline, alerts and scores below are still correct.'));
       syncPlayhead();
     });
-    v.src = `${r.video_url}${sep}v=${state.videoVersion}`;
+    v.src = `${at(r.video_url)}${sep}v=${state.videoVersion}`;
     stage.append(v);
     state.videoEl = v;
   } else if (r.video_status === 'failed') {
@@ -731,10 +734,10 @@ function renderSheets(r) {
   $('#sheetsPanel').hidden = !sheets.length;
   $('#sheetCount').textContent = sheets.length ? String(sheets.length) : '';
   $('#sheets').replaceChildren(...sheets.map((s) => el('li', {},
-    el('a', { class: 'alert alert--info', href: s.url, target: '_blank', rel: 'noopener', title: `Open the ${s.caption} snapshot full size in a new tab` },
+    el('a', { class: 'alert alert--info', href: at(s.url), target: '_blank', rel: 'noopener', title: `Open the ${s.caption} snapshot full size in a new tab` },
       el('span', { class: 'alert__t', text: mmss(s.t) }),
       el('span', {}, el('span', { class: 'alert__title', text: s.caption }),
-        el('img', { class: 'sheet__img', src: s.url, alt: `${s.caption}: three frames around the event, faces blurred`, loading: 'lazy' }))))));
+        el('img', { class: 'sheet__img', src: at(s.url), alt: `${s.caption}: three frames around the event, faces blurred`, loading: 'lazy' }))))));
 }
 
 /* timeline ------------------------------------------------------------ */

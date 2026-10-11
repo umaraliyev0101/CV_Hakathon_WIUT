@@ -13,8 +13,11 @@
   // The stylesheet and script are written here, after the base is decided, because a static link or
   // script tag would be fetched early by the browser's preload scanner against the wrong base (404).
   (function () {
-    var onBackend = location.pathname === '/';
-    if (onBackend) document.write('<base href="/static/">');
+    // APP_ROOT is "/" normally and "/coach/" behind the suite's reverse proxy; every API and file URL uses it.
+    var root = location.pathname.replace(/live\/?$/, '');
+    var onBackend = /\/$/.test(root);
+    window.APP_ROOT = onBackend ? root : '/';
+    if (onBackend) document.write('<base href="' + root + 'static/">');
     document.write('<link rel="stylesheet" href="style.css">');
     window.__loadApp = function () { document.write('<script src="app.js"><\/script>'); };
   })();
@@ -43,7 +46,7 @@
 
     <div class="top__tools">
       <button type="button" class="btn btn--quiet" id="btnNew" hidden>New clip</button>
-      <a class="btn btn--quiet" href="/live">
+      <a class="btn btn--quiet" href="../live">
         <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="4" fill="currentColor"/><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         Live camera
       </a>

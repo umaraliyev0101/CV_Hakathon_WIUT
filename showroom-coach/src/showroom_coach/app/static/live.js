@@ -143,7 +143,7 @@ function clearCanvas() {
 async function loadPresets() {
   const sel = $('preset');
   try {
-    const res = await fetch('/api/presets');
+    const res = await fetch((window.APP_ROOT || '/') + 'api/presets');
     if (!res.ok) throw new Error(String(res.status));
     S.presets = await res.json();
   } catch {
@@ -288,7 +288,7 @@ function stop(note) {
 /* ------------------------------------------------------------------ websocket */
 
 function wsUrl() {
-  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/live?preset=${encodeURIComponent(S.preset)}`;
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${window.APP_ROOT || '/'}ws/live?preset=${encodeURIComponent(S.preset)}`;
 }
 
 function connect() {
