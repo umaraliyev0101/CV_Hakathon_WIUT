@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Showroom Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/suite.css">
+</head>
+<body>
+
+<header class="bar">
+  <a class="mark" href="#live">Showroom<span>Suite</span></a>
+  <nav class="nav" aria-label="Sections">
+    <a href="#live">Live floor</a>
+    <a href="#replays">Replays</a>
+    <a href="#team">Team</a>
+    <a href="#visitors">Visitors</a>
+    <a href="#insights">Insights</a>
+  </nav>
+  <span class="site" id="site-name"></span>
+</header>
+
+<main>
+
+  <!-- LIVE FLOOR -->
+  <section class="view" id="view-live" data-view="live">
+    <div class="view-head">
+      <div>
+        <h1>Live floor</h1>
+        <p>Who is on the floor, who is waiting, and which cars are holding attention right now.</p>
+      </div>
+      <span class="source" data-source="floor"></span>
+    </div>
+
+    <div class="live-grid">
+      <div class="stage">
+        <div class="stage-top">
+          <div class="lens" role="group" aria-label="Lens">
+            <button type="button" data-lens="all" aria-pressed="true">Everyone</button>
+            <button type="button" data-lens="coach" aria-pressed="false">Salespeople</button>
+            <button type="button" data-lens="pulse" aria-pressed="false">Customers</button>
+          </div>
+          <span class="clock"><span class="rec" aria-hidden="true"></span><b id="clock">14:20:00</b> &nbsp;Camera 2 · floor view</span>
+        </div>
+        <div class="floor-wrap"><canvas id="floor" aria-label="Top-down map of the showroom floor with people positions"></canvas></div>
+        <div class="stage-foot">
+          <span class="key"><i class="k-staff"></i>Salesperson</span>
+          <span class="key"><i class="k-guest"></i>Customer</span>
+          <span class="key"><i class="k-ring"></i>Within 2 m</span>
+          <span>Engaged = within 2 m for over 2 min</span>
+        </div>
+      </div>
+
+      <div class="kpis" id="live-kpis"></div>
+    </div>
+
+    <div>
+      <div class="panel-head"><h2>What just happened</h2><span class="label">Newest first</span></div>
+      <div class="log" id="live-log"></div>
+    </div>
+  </section>
+
+  <!-- REPLAYS -->
+  <section class="view" id="view-replays" data-view="replays" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Replays</h1>
+        <p>Upload recorded camera footage. Both analyses run on the same video: salesperson scoring and customer journeys.</p>
+      </div>
+      <span class="source" data-source="sessions"></span>
+    </div>
+
+    <label class="drop" id="drop" for="video-input">
+      <h2>Drop a showroom video here</h2>
+      <p>MP4 or MOV from a fixed ceiling or corner camera. Faces are blurred before anything is stored.</p>
+      <span class="btn">Choose a video</span>
+      <input id="video-input" type="file" accept="video/*" hidden>
+      <div class="progress" id="progress" hidden>
+        <div class="steps"><div></div><div></div><div></div><div></div></div>
+        <span class="label" id="progress-text">Finding people</span>
+      </div>
+    </label>
+
+    <div>
+      <div class="panel-head"><h2>Recent sessions</h2><span class="label" id="session-count"></span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Session</th><th>Recorded</th><th class="n">Length</th><th class="n">Customers</th><th class="n">Median greet</th><th>Status</th></tr></thead>
+        <tbody id="sessions"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section class="view" id="view-team" data-view="team" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Team</h1>
+        <p id="team-period"></p>
+      </div>
+      <span class="source" data-source="team"></span>
+    </div>
+
+    <div class="lead" id="team-lead"></div>
+
+    <div class="two">
+      <div>
+        <div class="panel-head"><h2>Scorecards</h2><span class="label">Score = greet speed 40 · engaged visits 40 · walk-outs 20</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Salesperson</th><th class="n">Greets</th><th class="n">Median greet</th><th class="n">Engaged</th><th class="n">Walk-outs</th><th>Last 7 days</th><th class="n">Score</th></tr></thead>
+          <tbody id="team-rows"></tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="panel-head"><h2>Is this staff?</h2><span class="label" id="suggest-count"></span></div>
+        <div class="suggest" id="suggest"></div>
+        <p class="note">The system suggests people who behave like staff. One click confirms; nothing is scored until you do.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- VISITORS -->
+  <section class="view" id="view-visitors" data-view="visitors" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Visitors</h1>
+        <p id="visitors-period"></p>
+      </div>
+      <span class="source" data-source="visitors"></span>
+    </div>
+
+    <div class="lead" id="visitors-lead"></div>
+
+    <div class="two">
+      <div class="heat-wrap">
+        <div class="floor-wrap"><canvas id="heat" aria-label="Heatmap of where customers spent time"></canvas></div>
+        <div class="heat-legend">
+          <span><i style="background:#f3c98b"></i>Passing, under 20 s</span>
+          <span><i style="background:#e58a3a"></i>Looking, 20–60 s</span>
+          <span><i style="background:#b8321f"></i>Considering, over 60 s</span>
+        </div>
+      </div>
+      <div>
+        <div class="panel-head"><h2>Most common routes</h2><span class="label">Visitors</span></div>
+        <div class="journeys" id="journeys"></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div>
+        <div class="panel-head"><h2>By car</h2><span class="label">Today</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Car</th><th class="n">Visits</th><th class="n">Median dwell</th><th class="n">Over 60 s</th><th class="n">Approached</th><th class="n">Left unserved</th></tr></thead>
+          <tbody id="zone-rows"></tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="panel-head"><h2>Interest nobody answered</h2><span class="label">Over 60 s, no salesperson within 2 m</span></div>
+        <div class="log" id="unserved"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="view" id="view-insights" data-view="insights" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Insights</h1>
+        <p>Where the salespeople data and the customer data meet. Each finding comes with one thing to try tomorrow.</p>
+      </div>
+      <span class="source" data-source="insights"></span>
+    </div>
+    <div class="insights" id="insight-list"></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/mock.js"></script>
+<script src="js/data.js"></script>
+<script src="js/floor.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
