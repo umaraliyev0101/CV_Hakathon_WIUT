@@ -88,3 +88,15 @@ def test_check_html_rejects_event_handlers(tmp_path):
     p.write_text('<html><body onload="x()"><table></table>' + BANNER_TEXT + "</body></html>")
     with pytest.raises(chk.CheckError):
         chk.check_html(p, "r.html")
+
+
+def test_empty_report_html_is_a_complete_page_and_passes_check(tmp_path):
+    """No zones, no cars, no insights, no warnings: still a complete page the validator accepts."""
+    from pulse.report_html import render_html
+    rep = {"meta": {"video": "clip.mp4", "preset": "short", "analysed_duration": 10},
+           "store": {}, "per_car": [], "warnings": [], "insights": []}
+    html = render_html(rep, b"\x89PNG")
+    assert "No car zones defined" in html and "No recommendations" in html
+    p = tmp_path / "r.html"
+    p.write_text(html)
+    _check_module().check_html(p, "r.html")

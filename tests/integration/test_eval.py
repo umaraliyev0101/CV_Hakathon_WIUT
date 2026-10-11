@@ -30,7 +30,9 @@ def test_run_eval_writes_all_sections(tmp_path):
     for h in HEADINGS:
         assert f"## {h}" in text
     assert "| metric | target | measured (test) | measured (dev) | met? |" in text
-    assert "Stops precision/recall: no labelled showroom clip yet" in text
+    assert "## Stops" in text and "**Many-to-many matching**" in text
+    assert "| clip | length | usable (stable, same view) | precision |" in text
+    assert "| wm-bangalore-04 |" in text and "| wm-bangalore-07 |" in text
     assert "Limitations" in text and "Task 20" not in text
     assert "Test numbers were visible during tuning" in text
     out2 = tmp_path / "EVAL2.md"

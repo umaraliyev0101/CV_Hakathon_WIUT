@@ -122,7 +122,7 @@ def check_html(path: Path, rel: str) -> None:
         scan.close()
     except Exception as e:  # noqa: BLE001
         raise CheckError(f"does not parse as HTML ({e})")
-    _need({"html", "body", "table"} <= scan.tags, "not a complete HTML page")
+    _need({"html", "body", "h1"} <= scan.tags, "not a complete HTML page")
     _need(BANNER in text, "banner missing")
     _need(not scan.bad, "; ".join(scan.bad))
     _need("@import" not in text and not re.search(r"url\(\s*[\"']?(?!data:)", text),
