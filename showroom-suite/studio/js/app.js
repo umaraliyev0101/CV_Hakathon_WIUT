@@ -145,6 +145,26 @@
     }
   }
   $("#video-input").addEventListener("change", (e) => analyze(e.target.files[0]));
+  // One click for judges: fetch our demo clip from this site and analyse it like an upload.
+  const demoBtn = $("#use-demo");
+  if (C.demoVideo) {
+    demoBtn.hidden = false;
+    demoBtn.title = `Analyse ${C.demoVideo.name} (a rendered showroom clip) instead of uploading your own`;
+    demoBtn.addEventListener("click", async (e) => {
+      e.preventDefault(); e.stopPropagation();            // inside the drop label: don't open the file picker
+      demoBtn.disabled = true;
+      $("#progress").hidden = false;
+      $("#progress-text").textContent = "Fetching the demo video…";
+      try {
+        const r = await fetch(C.demoVideo.url);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const blob = await r.blob();
+        await analyze(new File([blob], `${C.demoVideo.name}.mp4`, { type: blob.type || "video/mp4" }));
+      } catch (err) {
+        $("#progress-text").textContent = `Could not load the demo video: ${err.message}`;
+      } finally { demoBtn.disabled = false; }
+    });
+  }
   const drop = $("#drop");
   ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("is-over"); }));
   ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("is-over"); }));

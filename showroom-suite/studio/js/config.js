@@ -17,6 +17,9 @@ window.SUITE_CONFIG = {
   },
 
   pollMs: 1000,       // how often the Live floor asks for new positions
+
+  // "Use a demo video" in Replays: a clip that can be fetched from this site. Set below when served by deploy/.
+  demoVideo: null,
 };
 
 // Optional overrides from the address bar, for demos on another machine:
@@ -29,6 +32,8 @@ window.SUITE_CONFIG = {
     c.coachUrl = `${location.origin}/coach`;
     c.pulseUrl = `${location.origin}/pulse`;
     c.live.sessions = true;   // Replays: real uploads, analysed by both servers, with their annotated videos
+    // reports/demo_clips.md: the walk-out clip shows well in both apps (long-wait alert, walk-out, unserved car)
+    c.demoVideo = { url: `${location.origin}/demo/s002_walkout_cam1_glare.mp4`, name: "Showroom demo · walk-out" };
   }
   if (q.get("coach")) c.coachUrl = q.get("coach");
   if (q.get("pulse")) c.pulseUrl = q.get("pulse");
