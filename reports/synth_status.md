@@ -1,6 +1,6 @@
 # Synthetic showroom: full-run status (teammate C)
 
-Status: **2026-10-11 06:20 (+05)**. The share pack passes every gate:
+Status: **2026-10-11 08:45 (+05)**. The share pack passes every gate:
 - `python sim/verify.py --all` ends with **VERIFY: PASS (32/32 gates)**; full output in §6;
 - `reports/synth_visual_review.md` marks all 12 visual items as pass for all 8 shared clips.
 
@@ -111,14 +111,14 @@ All renders finished at about 08:20 (+05). Exports and statistics were regenerat
 - **The crowded and dealership_long clips are not share-pack quality** under the per-clip in-view rule (table above). Use them for detector training and tracking stress tests, not as event-evaluation clips. They were rendered last (priority A.6).
 - **Not done (out of scope or not allowed):** the detector fine-tune. A synthetic-only fine-tune could only be evaluated on a real, human-labelled held-out set, which does not exist yet. The COCO export is ready for it.
 
-## 6. Last `python sim/verify.py --all` output (full; onnxruntime's repeated "No registered plugin EP" warning lines removed)
+## 6. Last `python sim/verify.py --all` output (final run, about 08:45; full; onnxruntime's repeated "No registered plugin EP" warning lines removed)
 
 ```
 === verify: 8 clip(s): ['s000_greet_fast_cam1_day', 's000_greet_fast_cam2_glare', 's001_greet_slow_cam1_evening_dim', 's002_walkout_cam1_glare', 's003_party_cam1_day', 's003_party_cam2_evening_dim', 's004_handoff_cam1_evening_dim', 's004_handoff_cam2_glare'] ===
 === gate: pytest -q sim/tests ===
 ........................................................................ [ 56%]
 .......................................................                  [100%]
-127 passed in 25.99s
+127 passed in 22.08s
 === gate: qa_assets ===
   qa_assets: 160 manifest rows, 159 asset files on disk, 16 referenced by configs; licences: {'MIT (Copyright (c) 2020 Microsoft; Microsoft Rocketbox Avatar Library)': 140, 'MIT': 1, 'CC-BY-4.0 (vicent091036) per Sketchfab listing as credited by three.js webgl_materials_car.html; three.js repo itself MIT': 1, 'CC-BY-4.0 (Eric Chadwick / DGG; excludes Khronos logos/trademarks)': 1, 'CC-BY-NC-4.0 (Steven Grey) — embedded in glTF asset.extras; non-commercial OK for demo': 1, 'unknown — credit not embedded; source Sketchfab model is believed CC-BY-4.0 (Lionsharp Studios); demo only': 1, 'CC0': 15}
 qa_assets: PASS (0 failure(s))
@@ -132,7 +132,7 @@ qa_assets: PASS (0 failure(s))
   qa_scene[s000]: person 1: invisible in all 2 rendered camera(s) for 0.0% of lifetime
   qa_scene[s000]: person 2: invisible in all 2 rendered camera(s) for 2.9% of lifetime
 qa_scene[s000]: PASS (0 failure(s))
-  (qa_scene[s000] took 30.6 s)
+  (qa_scene[s000] took 26.1 s)
 === gate: qa_scene (s001) ===
   qa_scene[s001]: person 1 (rocketbox): height 1.684 m (config 1.69); lowest vertex z over 156 sampled frames min/max -0.000/+0.003 m
   qa_scene[s001]: person 2 (rocketbox): height 1.807 m (config 1.814); lowest vertex z over 156 sampled frames min/max -0.006/+0.004 m
@@ -144,7 +144,7 @@ qa_scene[s000]: PASS (0 failure(s))
   qa_scene[s001]: person 2: invisible in all 2 rendered camera(s) for 0.0% of lifetime
   qa_scene[s001]: person 3: invisible in all 2 rendered camera(s) for 7.4% of lifetime
 qa_scene[s001]: PASS (0 failure(s))
-  (qa_scene[s001] took 75.8 s)
+  (qa_scene[s001] took 63.9 s)
 === gate: qa_scene (s002) ===
   qa_scene[s002]: person 1 (rocketbox): height 1.760 m (config 1.769); lowest vertex z over 105 sampled frames min/max +0.002/+0.004 m
   qa_scene[s002]: person 2 (rocketbox): height 1.821 m (config 1.822); lowest vertex z over 105 sampled frames min/max -0.034/+0.004 m
@@ -154,7 +154,7 @@ qa_scene[s001]: PASS (0 failure(s))
   qa_scene[s002]: person 1: invisible in all 2 rendered camera(s) for 0.0% of lifetime
   qa_scene[s002]: person 2: invisible in all 2 rendered camera(s) for 5.7% of lifetime
 qa_scene[s002]: PASS (0 failure(s))
-  (qa_scene[s002] took 35.1 s)
+  (qa_scene[s002] took 30.0 s)
 === gate: qa_scene (s003) ===
   qa_scene[s003]: person 1 (rocketbox): height 1.676 m (config 1.686); lowest vertex z over 110 sampled frames min/max -0.003/+0.004 m
   qa_scene[s003]: person 2 (rocketbox): height 1.727 m (config 1.729); lowest vertex z over 110 sampled frames min/max -0.016/+0.004 m
@@ -166,7 +166,7 @@ qa_scene[s002]: PASS (0 failure(s))
   qa_scene[s003]: person 2: invisible in all 2 rendered camera(s) for 3.6% of lifetime
   qa_scene[s003]: person 3: invisible in all 2 rendered camera(s) for 3.6% of lifetime
 qa_scene[s003]: PASS (0 failure(s))
-  (qa_scene[s003] took 52.2 s)
+  (qa_scene[s003] took 45.0 s)
 === gate: qa_scene (s004) ===
   qa_scene[s004]: person 1 (rocketbox): height 1.756 m (config 1.762); lowest vertex z over 124 sampled frames min/max -0.021/+0.004 m
   qa_scene[s004]: person 2 (rocketbox): height 1.780 m (config 1.788); lowest vertex z over 124 sampled frames min/max -0.005/+0.004 m
@@ -178,7 +178,7 @@ qa_scene[s003]: PASS (0 failure(s))
   qa_scene[s004]: person 2: invisible in all 2 rendered camera(s) for 0.0% of lifetime
   qa_scene[s004]: person 3: invisible in all 2 rendered camera(s) for 3.9% of lifetime
 qa_scene[s004]: PASS (0 failure(s))
-  (qa_scene[s004] took 58.7 s)
+  (qa_scene[s004] took 51.6 s)
 === gate: qa_render (s000_greet_fast_cam1_day) ===
   qa_render[s000_greet_fast_cam1_day]: expected frames 450 (from configs/scene_000.json)
   qa_render[s000_greet_fast_cam1_day]: mean luma min/mean/max 129.9/131.5/132.5; max clipped 0.000%; max magenta 0.0000%
@@ -186,7 +186,7 @@ qa_scene[s004]: PASS (0 failure(s))
   qa_render[s000_greet_fast_cam1_day]: person 1 (staff) labelled in 450/450 frames (100.0%)
   qa_render[s000_greet_fast_cam1_day]: person 2 (customer) labelled in 396/450 frames (88.0%)
 qa_render[s000_greet_fast_cam1_day]: PASS (0 failure(s))
-  (qa_render[s000_greet_fast_cam1_day] took 28.7 s)
+  (qa_render[s000_greet_fast_cam1_day] took 30.0 s)
 === gate: qa_events (s000_greet_fast_cam1_day) ===
   qa_events[s000_greet_fast_cam1_day]: [short_clip] scripted=[('engagement', 11.9), ('greet', 11.9)]
   qa_events[s000_greet_fast_cam1_day]: [short_clip] rule=[('engagement', 11.3), ('greet', 11.3)]
@@ -196,7 +196,7 @@ qa_events[s000_greet_fast_cam1_day]: PASS (0 failure(s))
   qa_video[s000_greet_fast_cam1_day]: s000_greet_fast_cam1_day.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=450 duration=45.000s size=1280x720
   qa_video[s000_greet_fast_cam1_day]: opencv: frame_count=450 first_ok=True last_ok=True
 qa_video[s000_greet_fast_cam1_day]: PASS (0 failure(s))
-  (qa_video[s000_greet_fast_cam1_day] took 0.5 s)
+  (qa_video[s000_greet_fast_cam1_day] took 0.4 s)
 === gate: qa_render (s000_greet_fast_cam2_glare) ===
   qa_render[s000_greet_fast_cam2_glare]: expected frames 450 (from configs/scene_000.json)
   qa_render[s000_greet_fast_cam2_glare]: mean luma min/mean/max 104.5/109.1/109.9; max clipped 0.064%; max magenta 0.0000%
@@ -204,7 +204,7 @@ qa_video[s000_greet_fast_cam1_day]: PASS (0 failure(s))
   qa_render[s000_greet_fast_cam2_glare]: person 1 (staff) labelled in 450/450 frames (100.0%)
   qa_render[s000_greet_fast_cam2_glare]: person 2 (customer) labelled in 437/450 frames (97.1%)
 qa_render[s000_greet_fast_cam2_glare]: PASS (0 failure(s))
-  (qa_render[s000_greet_fast_cam2_glare] took 26.4 s)
+  (qa_render[s000_greet_fast_cam2_glare] took 27.1 s)
 === gate: qa_events (s000_greet_fast_cam2_glare) ===
   qa_events[s000_greet_fast_cam2_glare]: [short_clip] scripted=[('engagement', 11.9), ('greet', 11.9)]
   qa_events[s000_greet_fast_cam2_glare]: [short_clip] rule=[('engagement', 11.3), ('greet', 11.3)]
@@ -214,7 +214,7 @@ qa_events[s000_greet_fast_cam2_glare]: PASS (0 failure(s))
   qa_video[s000_greet_fast_cam2_glare]: s000_greet_fast_cam2_glare.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=450 duration=45.000s size=1280x720
   qa_video[s000_greet_fast_cam2_glare]: opencv: frame_count=450 first_ok=True last_ok=True
 qa_video[s000_greet_fast_cam2_glare]: PASS (0 failure(s))
-  (qa_video[s000_greet_fast_cam2_glare] took 0.4 s)
+  (qa_video[s000_greet_fast_cam2_glare] took 0.3 s)
 === gate: qa_render (s001_greet_slow_cam1_evening_dim) ===
   qa_render[s001_greet_slow_cam1_evening_dim]: expected frames 780 (from configs/scene_001.json)
   qa_render[s001_greet_slow_cam1_evening_dim]: mean luma min/mean/max 55.4/57.7/58.5; max clipped 0.000%; max magenta 0.0000%
@@ -223,7 +223,7 @@ qa_video[s000_greet_fast_cam2_glare]: PASS (0 failure(s))
   qa_render[s001_greet_slow_cam1_evening_dim]: person 2 (staff) labelled in 780/780 frames (100.0%)
   qa_render[s001_greet_slow_cam1_evening_dim]: person 3 (customer) labelled in 722/780 frames (92.6%)
 qa_render[s001_greet_slow_cam1_evening_dim]: PASS (0 failure(s))
-  (qa_render[s001_greet_slow_cam1_evening_dim] took 57.9 s)
+  (qa_render[s001_greet_slow_cam1_evening_dim] took 57.8 s)
 === gate: qa_events (s001_greet_slow_cam1_evening_dim) ===
   qa_events[s001_greet_slow_cam1_evening_dim]: [short_clip] scripted=[('engagement', 53.133333), ('greet', 53.133333)]
   qa_events[s001_greet_slow_cam1_evening_dim]: [short_clip] rule=[('wait_alert', 32.566667), ('engagement', 52.533333), ('greet', 52.533333)]
@@ -233,7 +233,7 @@ qa_events[s001_greet_slow_cam1_evening_dim]: PASS (0 failure(s))
   qa_video[s001_greet_slow_cam1_evening_dim]: s001_greet_slow_cam1_evening_dim.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=780 duration=78.000s size=1280x720
   qa_video[s001_greet_slow_cam1_evening_dim]: opencv: frame_count=780 first_ok=True last_ok=True
 qa_video[s001_greet_slow_cam1_evening_dim]: PASS (0 failure(s))
-  (qa_video[s001_greet_slow_cam1_evening_dim] took 0.7 s)
+  (qa_video[s001_greet_slow_cam1_evening_dim] took 0.5 s)
 === gate: qa_render (s002_walkout_cam1_glare) ===
   qa_render[s002_walkout_cam1_glare]: expected frames 524 (from configs/scene_002.json)
   qa_render[s002_walkout_cam1_glare]: mean luma min/mean/max 144.2/145.1/146.1; max clipped 0.105%; max magenta 0.0000%
@@ -241,7 +241,7 @@ qa_video[s001_greet_slow_cam1_evening_dim]: PASS (0 failure(s))
   qa_render[s002_walkout_cam1_glare]: person 1 (staff) labelled in 524/524 frames (100.0%)
   qa_render[s002_walkout_cam1_glare]: person 2 (customer) labelled in 474/524 frames (90.5%)
 qa_render[s002_walkout_cam1_glare]: PASS (0 failure(s))
-  (qa_render[s002_walkout_cam1_glare] took 32.1 s)
+  (qa_render[s002_walkout_cam1_glare] took 32.4 s)
 === gate: qa_events (s002_walkout_cam1_glare) ===
   qa_events[s002_walkout_cam1_glare]: [short_clip] scripted=[('walkout', 49.866667)]
   qa_events[s002_walkout_cam1_glare]: [short_clip] rule=[('wait_alert', 32.8), ('walkout', 49.866667)]
@@ -251,7 +251,7 @@ qa_events[s002_walkout_cam1_glare]: PASS (0 failure(s))
   qa_video[s002_walkout_cam1_glare]: s002_walkout_cam1_glare.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=524 duration=52.400s size=1280x720
   qa_video[s002_walkout_cam1_glare]: opencv: frame_count=524 first_ok=True last_ok=True
 qa_video[s002_walkout_cam1_glare]: PASS (0 failure(s))
-  (qa_video[s002_walkout_cam1_glare] took 0.5 s)
+  (qa_video[s002_walkout_cam1_glare] took 0.4 s)
 === gate: qa_render (s003_party_cam1_day) ===
   qa_render[s003_party_cam1_day]: expected frames 550 (from configs/scene_003.json)
   qa_render[s003_party_cam1_day]: mean luma min/mean/max 111.9/115.2/116.8; max clipped 0.000%; max magenta 0.0000%
@@ -260,7 +260,7 @@ qa_video[s002_walkout_cam1_glare]: PASS (0 failure(s))
   qa_render[s003_party_cam1_day]: person 2 (customer) labelled in 490/550 frames (89.1%)
   qa_render[s003_party_cam1_day]: person 3 (customer) labelled in 486/550 frames (88.4%)
 qa_render[s003_party_cam1_day]: PASS (0 failure(s))
-  (qa_render[s003_party_cam1_day] took 41.5 s)
+  (qa_render[s003_party_cam1_day] took 42.1 s)
 === gate: qa_events (s003_party_cam1_day) ===
   qa_events[s003_party_cam1_day]: [short_clip] scripted=[('party', 2.633333), ('engagement', 11.366667), ('engagement', 11.366667), ('greet', 11.366667), ('greet', 11.366667)]
   qa_events[s003_party_cam1_day]: [short_clip] rule=[('party', 2.633333), ('engagement', 10.766667), ('engagement', 10.766667), ('greet', 10.766667), ('greet', 10.766667)]
@@ -270,7 +270,7 @@ qa_events[s003_party_cam1_day]: PASS (0 failure(s))
   qa_video[s003_party_cam1_day]: s003_party_cam1_day.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=550 duration=55.000s size=1280x720
   qa_video[s003_party_cam1_day]: opencv: frame_count=550 first_ok=True last_ok=True
 qa_video[s003_party_cam1_day]: PASS (0 failure(s))
-  (qa_video[s003_party_cam1_day] took 0.6 s)
+  (qa_video[s003_party_cam1_day] took 0.4 s)
 === gate: qa_render (s003_party_cam2_evening_dim) ===
   qa_render[s003_party_cam2_evening_dim]: expected frames 550 (from configs/scene_003.json)
   qa_render[s003_party_cam2_evening_dim]: mean luma min/mean/max 41.4/42.2/42.7; max clipped 0.000%; max magenta 0.0000%
@@ -279,7 +279,7 @@ qa_video[s003_party_cam1_day]: PASS (0 failure(s))
   qa_render[s003_party_cam2_evening_dim]: person 2 (customer) labelled in 530/550 frames (96.4%)
   qa_render[s003_party_cam2_evening_dim]: person 3 (customer) labelled in 530/550 frames (96.4%)
 qa_render[s003_party_cam2_evening_dim]: PASS (0 failure(s))
-  (qa_render[s003_party_cam2_evening_dim] took 38.1 s)
+  (qa_render[s003_party_cam2_evening_dim] took 33.8 s)
 === gate: qa_events (s003_party_cam2_evening_dim) ===
   qa_events[s003_party_cam2_evening_dim]: [short_clip] scripted=[('party', 2.633333), ('engagement', 11.366667), ('engagement', 11.366667), ('greet', 11.366667), ('greet', 11.366667)]
   qa_events[s003_party_cam2_evening_dim]: [short_clip] rule=[('party', 2.633333), ('engagement', 10.766667), ('engagement', 10.766667), ('greet', 10.766667), ('greet', 10.766667)]
@@ -289,7 +289,7 @@ qa_events[s003_party_cam2_evening_dim]: PASS (0 failure(s))
   qa_video[s003_party_cam2_evening_dim]: s003_party_cam2_evening_dim.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=550 duration=55.000s size=1280x720
   qa_video[s003_party_cam2_evening_dim]: opencv: frame_count=550 first_ok=True last_ok=True
 qa_video[s003_party_cam2_evening_dim]: PASS (0 failure(s))
-  (qa_video[s003_party_cam2_evening_dim] took 0.4 s)
+  (qa_video[s003_party_cam2_evening_dim] took 0.3 s)
 === gate: qa_render (s004_handoff_cam1_evening_dim) ===
   qa_render[s004_handoff_cam1_evening_dim]: expected frames 620 (from configs/scene_004.json)
   qa_render[s004_handoff_cam1_evening_dim]: mean luma min/mean/max 58.1/59.7/60.8; max clipped 0.000%; max magenta 0.0000%
@@ -298,7 +298,7 @@ qa_video[s003_party_cam2_evening_dim]: PASS (0 failure(s))
   qa_render[s004_handoff_cam1_evening_dim]: person 2 (staff) labelled in 620/620 frames (100.0%)
   qa_render[s004_handoff_cam1_evening_dim]: person 3 (customer) labelled in 582/620 frames (93.9%)
 qa_render[s004_handoff_cam1_evening_dim]: PASS (0 failure(s))
-  (qa_render[s004_handoff_cam1_evening_dim] took 43.2 s)
+  (qa_render[s004_handoff_cam1_evening_dim] took 36.0 s)
 === gate: qa_events (s004_handoff_cam1_evening_dim) ===
   qa_events[s004_handoff_cam1_evening_dim]: [short_clip] scripted=[('engagement', 11.3), ('greet', 11.3), ('engagement', 30.866667), ('handoff', 30.866667)]
   qa_events[s004_handoff_cam1_evening_dim]: [short_clip] rule=[('engagement', 10.7), ('greet', 10.7), ('engagement', 30.266667), ('handoff', 30.266667)]
@@ -308,7 +308,7 @@ qa_events[s004_handoff_cam1_evening_dim]: PASS (0 failure(s))
   qa_video[s004_handoff_cam1_evening_dim]: s004_handoff_cam1_evening_dim.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=620 duration=62.000s size=1280x720
   qa_video[s004_handoff_cam1_evening_dim]: opencv: frame_count=620 first_ok=True last_ok=True
 qa_video[s004_handoff_cam1_evening_dim]: PASS (0 failure(s))
-  (qa_video[s004_handoff_cam1_evening_dim] took 0.6 s)
+  (qa_video[s004_handoff_cam1_evening_dim] took 0.4 s)
 === gate: qa_render (s004_handoff_cam2_glare) ===
   qa_render[s004_handoff_cam2_glare]: expected frames 620 (from configs/scene_004.json)
   qa_render[s004_handoff_cam2_glare]: mean luma min/mean/max 118.2/127.0/128.7; max clipped 0.036%; max magenta 0.0000%
@@ -317,7 +317,7 @@ qa_video[s004_handoff_cam1_evening_dim]: PASS (0 failure(s))
   qa_render[s004_handoff_cam2_glare]: person 2 (staff) labelled in 620/620 frames (100.0%)
   qa_render[s004_handoff_cam2_glare]: person 3 (customer) labelled in 596/620 frames (96.1%)
 qa_render[s004_handoff_cam2_glare]: PASS (0 failure(s))
-  (qa_render[s004_handoff_cam2_glare] took 46.3 s)
+  (qa_render[s004_handoff_cam2_glare] took 37.7 s)
 === gate: qa_events (s004_handoff_cam2_glare) ===
   qa_events[s004_handoff_cam2_glare]: [short_clip] scripted=[('engagement', 11.3), ('greet', 11.3), ('engagement', 30.866667), ('handoff', 30.866667)]
   qa_events[s004_handoff_cam2_glare]: [short_clip] rule=[('engagement', 10.7), ('greet', 10.7), ('engagement', 30.266667), ('handoff', 30.266667)]
@@ -327,7 +327,7 @@ qa_events[s004_handoff_cam2_glare]: PASS (0 failure(s))
   qa_video[s004_handoff_cam2_glare]: s004_handoff_cam2_glare.mp4: codec=h264 pix_fmt=yuv420p fps=10/1 avg=10/1 frames=620 duration=62.000s size=1280x720
   qa_video[s004_handoff_cam2_glare]: opencv: frame_count=620 first_ok=True last_ok=True
 qa_video[s004_handoff_cam2_glare]: PASS (0 failure(s))
-  (qa_video[s004_handoff_cam2_glare] took 0.6 s)
+  (qa_video[s004_handoff_cam2_glare] took 0.5 s)
 === gate: qa_detector (all clips, per lighting variant) ===
   qa_detector: detector providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] conf=0.5 iou=0.5
   qa_detector: s000_greet_fast_cam1_day: recall 845/846 = 0.999
@@ -342,7 +342,7 @@ qa_video[s004_handoff_cam2_glare]: PASS (0 failure(s))
   qa_detector: [evening_dim] clips=3 recall@IoU0.5 = 5596/5643 = 0.992 (gate >= 0.8); unmatched detections (report only): {}
   qa_detector: [glare] clips=3 recall@IoU0.5 = 3332/3382 = 0.985 (gate >= 0.8); unmatched detections (report only): {}
 qa_detector: PASS (0 failure(s))
-  (qa_detector took 31.9 s)
+  (qa_detector took 18.3 s)
 === summary ===
   pytest                                                       PASS
   qa_assets                                                    PASS
@@ -377,6 +377,7 @@ qa_detector: PASS (0 failure(s))
   qa_video[s004_handoff_cam2_glare]                            PASS
   qa_detector                                                  PASS
 VERIFY: PASS (32/32 gates passed)
+exit code: 0
 ```
 
 ## 7. Resume commands
