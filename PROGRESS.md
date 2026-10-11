@@ -55,6 +55,30 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 - Offline pass: noise-track filter → constrained identity merge (112 tracks become 31 persons on `meva_a_60s`) → geometry → role features and suggestions → events (all sampled frames, t0 = 0) → scorecards. Re-scoring takes 0.07–0.1 s and never re-detects.
 - Rendering: face-blurred H.264 at 10 fps. `meva_a_60s` renders in 8.1 s (7.4× real time). The privacy guard test measures face-region std ≤ 9.2 with blur against about 45 without it. Exports are timeline PNG, contact sheets, results.json and events/scorecard CSV.
 
+### M4 summary (~06:00): web app, upload flow
+
+- FastAPI app (`showroom-coach serve`, `run.bat`): upload (411/413/415/400 guards) → background perception (one job at a time; damaged or unreadable video fails cleanly) → confirm-staff gallery (blurred thumbnails, suggestion with confidence and ≤ 3 reasons, one-click toggle, names) → results (annotated video with HTTP Range, timeline, scorecards, alerts, JSON/CSV export). Re-scoring takes about 0.14 s and never re-detects. Each re-render is versioned. Job data older than 24 h is deleted at startup.
+- **Real smoke via `run.bat` + `scripts/smoke_api.py`** (`meva_b_60s.mp4`, CPU shared with other agents): `SMOKE OK`, 331 requests. Upload 0.08 s, needs_confirm after 253 s, roles round-trip 0.46 s, video ready 67 s later. An earlier run on `meva_a_60s` reached needs_confirm in 122 s. **The < 3 min target was missed under load**; it is re-measured idle in the Morning summary.
+- Frontend: vanilla JS, no CDN, works offline. Verified with Playwright at 1280/1920 px, including the nobody-detected and connection-lost states, with no console errors.
+
+### M5 summary (~06:30): live mode
+
+- `/live`: getUserMedia → JPEG over `/ws/live` (stop-and-wait, ≤ 5 fps, auto-reconnect) → the same engine → canvas overlay. Faces are blurred on the canvas for tracked and untracked detections. Clicking a box toggles staff/customer, and auto-suggestion starts after 30 s.
+- Live people are confirmed (≥ 3 observations over ≥ 1 s) before they count, so no phantom customers. Alerts follow role changes. One person ID is never shown on two boxes (the duplicate-ID bug was fixed: 66 → 0 affected frames on `meva_b`).
+- **Real webcam frame grab:** `showroom-coach webcam-check` captured "Web Camera" at index 0 (DSHOW), 640×480. Mean brightness was 8/255 (dark, empty room at night), 0 people, and a blurred copy was saved. The live page was also tested with the real camera in headed Chrome, reaching "Live" in 1.4 s.
+- **Live fps** (real stack, CPU contended): about 4 people per frame (MEVA G423 window) gave 5.2–6.3 fps (target ≥ 4 ✅). Crowded clips with 11–19 people gave about 3–4 fps quiet and about 1.5 contended.
+
+### M6 summary (~07:15): MEVA evaluation (details in `docs/EVAL.md`)
+
+- 7 clips × first 150 s. The split was written before tuning: dev = 3 clips, test = 4 clips, 2 of the test cameras unseen in dev. Tuning was done on dev only (64 configs, flat). The test set was measured once.
+- **TEST (system):**
+  - talk recall 0.5% strict / 1.1% twin-aware (target ≥ 70% ❌);
+  - talk precision on mapped detections 14.3% / 10.3%;
+  - enter/exit recall 2.9% / 20.6%, with median timing error 1.1 / 0.8 s;
+  - persons IDF1 13.5%, MOTA −27.4%.
+- Root cause: the detector matches only 17.6% of annotated MEVA person boxes (people median 47 px tall), so most talk pairs involve someone we never track. An oracle-tracks ablation (perfect detection) separates this from the engagement logic; see EVAL.md.
+- Staff suggestion and greet-time error are **not measurable**: no labelled showroom footage exists (`data/stock/` empty).
+
 ## Decisions
 
 - Python 3.12 venv, because the machine default (3.14) is outside the `requires-python` range `>=3.11,<3.14`.
@@ -79,6 +103,12 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 - **Damaged files:** a damaged video (frames stop before 90% of the expected count) or a container reporting more than 240 fps fails cleanly with a `VideoError`.
 - **Re-rendered videos:** each re-render is written to `annotated-<rev>.mp4`, because Windows browsers lock the mp4 that is playing.
 - **Default test run:** it excludes `@pytest.mark.slow`; run those with `pytest -m slow`.
+
+- **MEVA scope:** evaluation covers the first 150 s of each of the 7 clips, because full clips need more than 1 h of CPU. The split was fixed in `data/meva/split.json` before tuning.
+- **Twin-aware mapping:** MEVA often annotates one person as several actors, so the evaluator reports the strict (as planned) and twin-aware id mapping side by side.
+- **Concurrent commits:** commit `37aa229` contains both the MEVA evaluator (Task 6.2) and the analyze/serve CLI (Task 3.3), because concurrent agents shared the git index. History was kept, not rewritten.
+- **Upload limits:** uploads without Content-Length (chunked) get 411, so the 1 GB cap is enforced before Starlette spools the body.
+- **Launchers:** `run.bat`/`run.sh` refuse a venv outside Python 3.11–3.13. `.gitattributes` pins eol for the scripts.
 
 ## Open problems
 
