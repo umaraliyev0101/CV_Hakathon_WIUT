@@ -201,8 +201,10 @@ Notes on the data rows:
 - **Blur covers detected persons only** (see Privacy). Rendered outputs of footage with
   undetected people may still show a face.
 - **One camera per job**, no cross-camera tracking, no CRM or DMS integration, no accounts.
-- **Not built:** sat-in-car detection, floor-calibration UI, printable report, sales-CSV join (stretch
-  items).
+- **Floor calibration** (zone editor, "Calibrate floor": 4 clicked floor points with real X/Y in metres)
+  gives metric positions, speeds and a top-down heatmap in file mode only; live mode ignores it. Accuracy
+  depends on the clicked points and ignores lens distortion; points above the horizon are marked invalid.
+- **Not built:** printable report, sales-CSV join (stretch items).
 - **The perception cache is unblurred local data** (`runs/cache/` keeps the raw keyframe); protect the
   machine accordingly.
 - **Webcam check not run in the final verification chain tonight:** the FaceTime camera returned black

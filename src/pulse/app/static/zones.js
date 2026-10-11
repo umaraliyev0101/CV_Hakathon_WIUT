@@ -48,6 +48,7 @@ export class ZoneEditor {
     const n = this.floor.img.length;
     if (n) {
       const world = this.floor.world.map((p) => [parseFloat(p[0]), parseFloat(p[1])]);
+      if (world.some((p) => p.some((v) => Math.abs(v) > 1000))) throw new Error("Floor coordinates must be within +-1000 m.");
       if (n !== 4 || world.slice(0, 4).some((p) => !p.every(Number.isFinite)))
         throw new Error("Floor calibration needs 4 clicked points, each with X and Y in metres. Finish it or press Clear floor points.");
       doc.floor = { img: this.floor.img, world };
@@ -67,7 +68,11 @@ export class ZoneEditor {
         const inp = document.createElement("input");
         inp.type = "number"; inp.step = "any"; inp.size = 5; inp.value = this.floor.world[i][k];
         inp.setAttribute("aria-label", `Point ${i + 1} ${k ? "Y" : "X"} in metres`);
-        inp.addEventListener("input", () => { this.floor.world[i][k] = inp.value; });
+        inp.addEventListener("input", () => {
+          this.floor.world[i][k] = inp.value;
+          const v = parseFloat(inp.value);
+          this.showError(Number.isFinite(v) && Math.abs(v) > 1000 ? "Floor coordinates must be within +-1000 m." : "");
+        });
         li.append(inp, k ? " m" : " m, Y ");
       });
       rows.append(li);
@@ -155,7 +160,7 @@ export class ZoneEditor {
     this.els.hint.textContent = {
       select: "Click a zone to select it. Drag its corners to reshape.",
       rect: "Press on the picture and drag to draw a rectangle.",
-      calib: "Click 4 points on the floor (corners of a known rectangle), then enter each point's X and Y in metres.",
+      calib: "Click 4 points on the floor in order around a four-sided area (corners of a known rectangle), then enter each point's X and Y in metres.",
       poly: "Click to place corners. Double-click or press Finish polygon to close it (Esc cancels).",
     }[mode];
     this.els.canvas.style.cursor = mode === "select" ? "default" : "crosshair";

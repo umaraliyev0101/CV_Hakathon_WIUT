@@ -77,8 +77,18 @@ def build_timeline(obs: list[TrackObs], track_to_person: dict[int, int], frame_s
         zs = [r[2].z if r[2].method != "invalid" and math.isfinite(r[2].z) else None for r in rows]
         valid = [z for z in zs if z is not None]
         fill = median(valid) if valid else None
-        speeds = smooth_speed([r[0].t for r in rows], [r[1] for r in rows],
-                              [z if z is not None else fill for z in zs], f, cfg.speed_window_s)
+        if floor_h is not None:
+            # floor mode: positions are already metres, so speed = smoothed floor displacement / dt
+            # (same gap-splitting runs and symmetric window); invalid positions get no speed
+            ok = [i for i, r in enumerate(rows) if r[2].method == "floor"]
+            speeds = [None] * len(rows)
+            sub = smooth_speed([rows[i][0].t for i in ok], [(rows[i][2].x, rows[i][2].z) for i in ok],
+                               [1.0] * len(ok), 1.0, cfg.speed_window_s)
+            for i, v in zip(ok, sub):
+                speeds[i] = v
+        else:
+            speeds = smooth_speed([r[0].t for r in rows], [r[1] for r in rows],
+                                  [z if z is not None else fill for z in zs], f, cfg.speed_window_s)
         samples = []
         for (o, fp, pe), sp in zip(rows, speeds):
             ok = pe.method != "invalid"

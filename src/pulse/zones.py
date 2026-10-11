@@ -138,6 +138,16 @@ def _non_degenerate(pts, name: str) -> None:
             raise FloorError(f"floor.{name}: points are collinear or coincident")
 
 
+def _convex(pts, name: str) -> None:
+    """The four points, in the given order, must form a convex quadrilateral (rejects bow-ties)."""
+    cr = []
+    for i in range(4):
+        a, b, c = pts[i], pts[(i + 1) % 4], pts[(i + 2) % 4]
+        cr.append((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]))
+    if not (all(c > 0 for c in cr) or all(c < 0 for c in cr)):
+        raise FloorError(f"floor.{name}: the 4 points must be given in order around a convex quadrilateral")
+
+
 def validate_floor(floor) -> dict:
     """Floor calibration dict -> normalised copy {'img': [[u,v]x4], 'world': [[x,y]x4]}; FloorError otherwise."""
     if not isinstance(floor, dict):
@@ -146,10 +156,17 @@ def validate_floor(floor) -> dict:
     world = _pts4(floor.get("world"), "world", -MAX_WORLD_M, MAX_WORLD_M)
     _non_degenerate(img, "img")
     _non_degenerate(world, "world")
+    # Both quads convex and in matching point order: a bow-tie in either set gives a wild fit. The
+    # windings may differ (image y points down, floor y usually does not); a homography allows either.
+    _convex(img, "img")
+    _convex(world, "world")
     try:
         h = fit_homography(img, world)
         if not np.all(np.isfinite(h)) or abs(np.linalg.det(h)) < 1e-12:
             raise ValueError("singular")
+        ws = [(h @ np.array([u, v, 1.0]))[2] for u, v in img]
+        if not (all(w > 0 for w in ws) or all(w < 0 for w in ws)):
+            raise ValueError("points straddle the horizon")
     except ValueError as e:
         raise FloorError(f"floor calibration could not be fitted ({e})")
     return {"img": [list(p) for p in img], "world": [list(p) for p in world]}
@@ -159,7 +176,12 @@ def floor_homography(floor: dict, frame_size: tuple[int, int]) -> np.ndarray:
     """Homography from analysis-frame pixels to floor metres; frame_size is (w, h)."""
     f = validate_floor(floor)
     w, h = frame_size
-    return fit_homography([(u * w, v * h) for u, v in f["img"]], f["world"])
+    pts = [(u * w, v * h) for u, v in f["img"]]
+    hm = fit_homography(pts, f["world"])
+    cx, cy = np.mean(pts, axis=0)
+    if (hm @ np.array([cx, cy, 1.0]))[2] < 0:     # keep w > 0 on the floor side so to_floor can reject w <= 0
+        hm = -hm
+    return hm
 
 
 def save_zones(path, zones: list[Zone], frame_size: tuple[int, int] | None = None,

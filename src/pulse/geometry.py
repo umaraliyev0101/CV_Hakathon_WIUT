@@ -136,6 +136,6 @@ def fit_homography(img_pts, floor_pts) -> np.ndarray:
 
 def to_floor(h: np.ndarray, pt) -> tuple[float, float]:
     v = np.asarray(h, dtype=np.float64) @ np.array([pt[0], pt[1], 1.0])
-    if v[2] == 0 or not np.all(np.isfinite(v)):
+    if v[2] <= 0 or not np.all(np.isfinite(v)):       # w <= 0: on or beyond the horizon
         return (math.nan, math.nan)
     return (float(v[0] / v[2]), float(v[1] / v[2]))
