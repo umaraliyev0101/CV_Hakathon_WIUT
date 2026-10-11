@@ -1,0 +1,73 @@
+# Showroom Suite reverse proxy: one origin for the suite page, both apps and the demo videos, so a single
+# ngrok tunnel (HTTPS) serves everything and the browser allows the webcam on the live pages.
+#   /          suite page (showroom-suite/index.html)
+#   /coach/    Showroom Coach  (container coach:8000, prefix stripped)
+#   /pulse/    Showroom Pulse  (container pulse:8000, prefix stripped)
+#   /demo/     demo videos (deploy/demo/, read-only)
+# ${AUTH_REALM} is "off" (no password) unless deploy/.env sets DEMO_USER and DEMO_PASS (see deploy/README.md).
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    server_name _;
+    absolute_redirect off;          # redirects stay relative, so they keep ngrok's https:// scheme and host
+
+    auth_basic "${AUTH_REALM}";
+    auth_basic_user_file /etc/nginx/htpasswd;
+
+    # Uploads: both apps accept clips up to 1 GB and stream them to disk themselves.
+    client_max_body_size 1100m;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_http_version 1.1;
+
+    location = /healthz { auth_basic off; return 200 "ok\n"; }
+
+    location / {
+        root /srv/suite;
+        index index.html;
+        add_header Cache-Control "no-cache";
+    }
+    # Tells the suite page that the apps live on this origin under /coach/ and /pulse/.
+    location = /suite-config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-cache";
+        return 200 "window.SUITE_PROXY = true;\n";
+    }
+
+    location /demo/ {
+        alias /srv/demo/;
+        autoindex on;
+        autoindex_exact_size off;
+    }
+
+    location = /coach { return 301 /coach/; }
+    location /coach/ {
+        proxy_pass http://coach:8000/;
+        include /etc/nginx/proxy_headers.conf;     # in every location: a local proxy_set_header drops inherited ones
+        proxy_set_header Host $http_host;
+    }
+
+    location = /pulse { return 301 /pulse/; }
+    location /pulse/ {
+        # Pulse refuses unknown Host headers (DNS rebinding) and unsafe requests whose Origin differs from Host
+        # (cross-site posts). The public host changes with every ngrok URL, so present a fixed internal host,
+        # and rewrite Origin to match it ONLY when the browser's Origin is this same public host. A request from
+        # any other site keeps its foreign Origin and is still rejected by Pulse.
+        set $pulse_origin $http_origin;
+        set $origin_check "$http_origin|$http_host";
+        if ($origin_check ~* "^https?://([^/|]+)\|\1$") {
+            set $pulse_origin "http://pulse";
+        }
+        proxy_pass http://pulse:8000/;
+        include /etc/nginx/proxy_headers.conf;
+        proxy_set_header Host pulse;
+        proxy_set_header Origin $pulse_origin;
+    }
+}

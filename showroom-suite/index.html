@@ -9,9 +9,11 @@
   Showroom Suite demo page (YAK-45). Shows Showroom Coach (salespeople) and Showroom Pulse (customers) side by side.
   Each app runs on its own server; this page only embeds them, so it works from any host:
     - defaults: same host as this page, Coach on :8000, Pulse on :8001 (localhost when opened as a file);
+    - behind the deploy/ reverse proxy (suite-config.js sets SUITE_PROXY): same origin, /coach/ and /pulse/;
     - change them in the top bar, or pass ?coach=http://host:8000&pulse=http://host:8001 in the URL.
   No build step, no external requests.
 -->
+<script src="suite-config.js"></script>  <!-- only the deploy/ proxy serves this; a 404 elsewhere is harmless -->
 <style>
   :root { --bg: #f4f6f9; --fg: #1b2430; --muted: #5b6573; --card: #ffffff; --line: #d9dee5;
           --coach: #1478e6; --pulse: #ff8c00; --ok: #2e7d32; --bad: #c62828; }
@@ -31,6 +33,7 @@
   .bar input { width: 220px; max-width: 60vw; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
                background: var(--bg); color: var(--fg); font: inherit; }
   .bar input:invalid { border-color: var(--bad); }
+  [hidden] { display: none !important; }
   button, .btn { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
                  background: var(--card); color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; }
   button.primary { background: var(--fg); color: var(--card); border-color: var(--fg); }
@@ -62,6 +65,7 @@
   <label>Coach <input id="coachUrl" type="url" required placeholder="http://server:8000"></label>
   <label>Pulse <input id="pulseUrl" type="url" required placeholder="http://server:8001"></label>
   <button class="primary" type="submit">Apply</button>
+  <a class="btn" id="demoLink" href="demo/" target="_blank" rel="noopener" hidden title="Sample showroom videos to download and upload">Demo videos</a>
 </form>
 <main>
   <section class="panel" id="coach">
@@ -106,7 +110,8 @@ function clean(u) { return String(u || '').trim().replace(/\/+$/, ''); }
 const query = new URLSearchParams(location.search);
 const urls = {};
 for (const [app, port] of Object.entries(APPS)) {
-  urls[app] = clean(query.get(app) || load(app) || `${scheme}//${host}:${port}`);
+  const fallback = window.SUITE_PROXY ? `${location.origin}/${app}` : `${scheme}//${host}:${port}`;
+  urls[app] = clean(query.get(app) || load(app) || fallback);
   $(app + 'Url').value = urls[app];
 }
 
@@ -148,6 +153,7 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('focus-coach', 'focus-pulse'); });
 
+if (window.SUITE_PROXY) $('demoLink').hidden = false;
 for (const app of Object.keys(APPS)) show(app);
 </script>
 </body>

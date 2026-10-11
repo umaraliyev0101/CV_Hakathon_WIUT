@@ -18,3 +18,8 @@ deck/build/deck.html
 
 # browser-automation scratch (Playwright MCP snapshots)
 .playwright-mcp/
+
+# deploy/: local secrets and generated files
+deploy/.env
+deploy/htpasswd
+deploy/demo/

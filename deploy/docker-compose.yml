@@ -1,0 +1,66 @@
+# Showroom Suite on one machine: Coach + Pulse + the suite page behind one nginx origin, published by ngrok.
+# Run from the repo root:  deploy/up.sh   (see deploy/README.md)
+name: showroom
+
+x-app: &app
+  restart: unless-stopped
+  init: true
+  # CPU inference (onnxruntime). Keep the two apps from starving each other and the machine's other services.
+  cpus: ${APP_CPUS:-16}
+
+services:
+  coach:
+    <<: *app
+    build: ../showroom-coach
+    image: showroom-coach:local
+    environment:
+      SHOWROOM_DETECTOR: ${SHOWROOM_DETECTOR:-}          # e.g. rfdetr_ft@2 once our fine-tuned weights win
+      SHOWROOM_LIVE_DETECTOR: ${SHOWROOM_LIVE_DETECTOR:-}
+      SHOWROOM_RFDETR_FT: ${SHOWROOM_RFDETR_FT:-}        # e.g. /opt/ft/showroom_detector_ft.onnx
+    volumes:
+      - coach-data:/data
+      - ../models:/opt/ft:ro                             # our detector weights (models/*.onnx, gitignored)
+
+  pulse:
+    <<: *app
+    build: ../showroom-pulse
+    image: showroom-pulse:local
+    environment:
+      PULSE_ALLOWED_HOSTS: pulse                         # nginx always presents Host: pulse (see nginx.conf.template)
+      PULSE_RFDETR_FT: ${PULSE_RFDETR_FT:-}
+    volumes:
+      - pulse-models:/app/models                         # downloaded on first use / by up.sh, kept across rebuilds
+      - pulse-jobs:/app/jobs
+      - ../models:/opt/ft:ro
+
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [coach, pulse]
+    environment:
+      AUTH_REALM: ${AUTH_REALM:-off}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8090}:80"                 # local only; the public way in is the ngrok service
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./proxy_headers.conf:/etc/nginx/proxy_headers.conf:ro
+      - ./htpasswd:/etc/nginx/htpasswd:ro
+      - ../showroom-suite:/srv/suite:ro
+      - ./demo:/srv/demo:ro
+
+  ngrok:
+    image: ngrok/ngrok:3-alpine
+    restart: unless-stopped
+    depends_on: [web]
+    profiles: [public]                                   # only with `up.sh --public`
+    # NGROK_DOMAIN (optional): your reserved/static ngrok domain; without it ngrok picks a random URL.
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['exec ngrok http web:80 --log stdout $${NGROK_DOMAIN:+--url=$$NGROK_DOMAIN}']
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}              # up.sh fills it from ~/.config/ngrok/ngrok.yml
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+
+volumes:
+  coach-data:
+  pulse-models:
+  pulse-jobs:
