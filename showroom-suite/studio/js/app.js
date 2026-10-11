@@ -37,10 +37,15 @@
   const VIEWS = ["live", "replays", "team", "visitors", "demand", "insights"];
   const loaded = {};
   function route() {
-    const name = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "live";
+    const hash = location.hash.slice(1);
+    const sessionId = hash.startsWith("session/") ? decodeURIComponent(hash.slice(8)) : null;
+    const name = sessionId ? "session" : VIEWS.includes(hash) ? hash : "live";
+    const navName = sessionId ? "replays" : name;   // a session page belongs to Replays in the nav
+    if (name !== "session") player.pause();
     document.querySelectorAll("[data-view]").forEach((v) => (v.hidden = v.dataset.view !== name));
-    document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.getAttribute("href") === `#${name}`));
+    document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.getAttribute("href") === `#${navName}`));
     document.querySelectorAll(".nav a[aria-current]").forEach((a) => a.setAttribute("aria-current", "page"));
+    if (sessionId) { openSession(sessionId); return; }
     if (!loaded[name]) { loaded[name] = true; LOADERS[name](); }
     if (name === "visitors" && visitorsData) requestAnimationFrame(drawVisitorsHeat);
     if (name === "demand" && demandData) requestAnimationFrame(drawDemand);
@@ -113,8 +118,8 @@
     const list = await D.getSessions();
     $("#session-count").textContent = `${list.length} sessions`;
     $("#sessions").innerHTML = list.map((s) => `
-      <tr>
-        <td><span class="who">${esc(s.name)}</span><span class="sub mono">${esc(s.id)}</span></td>
+      <tr class="row-link" data-session="${esc(s.id)}" tabindex="0" title="Open this session's results">
+        <td><a class="who" href="#session/${encodeURIComponent(s.id)}">${esc(s.name)}</a><span class="sub mono">${esc(s.id)}</span></td>
         <td>${esc(s.recorded)}</td>
         <td class="n">${hmm(s.lengthSec)}</td>
         <td class="n">${esc(s.customers)}</td>
@@ -134,6 +139,7 @@
       $("#progress-text").textContent = `Done. ${s.customers} customers, median greet ${mmss(s.medianGreetSec)}.`;
       toast(`“${s.name}” is ready`);
       renderSessions();
+      location.hash = `#session/${encodeURIComponent(s.id)}`;   // straight to its results
     } catch (err) {
       $("#progress-text").textContent = `Could not analyse this video: ${err.message}`;
     }
@@ -277,6 +283,155 @@
         <p class="act">${esc(i.act)}</p>
       </article>`).join("");
   }
+
+  const openRow = (e) => {
+    const tr = e.target.closest("tr[data-session]");
+    if (!tr || e.target.closest("a")) return;
+    if (e.type === "keydown" && e.key !== "Enter") return;
+    location.hash = `#session/${encodeURIComponent(tr.dataset.session)}`;
+  };
+  $("#sessions").addEventListener("click", openRow);
+  $("#sessions").addEventListener("keydown", openRow);
+
+  // ---- session results ----------------------------------------------------------------------
+  // The video with its moments on a timeline underneath, plus that session's numbers. Demo sessions play the user's
+  // own upload with invented results, and say so; live sessions play the servers' annotated video.
+  const player = $("#player");
+  const KIND = { greet: "Greet", engagement: "Engagement", walkout: "Walk-out", unserved: "Unserved customer" };
+  let session = null, sessionToken = 0;
+
+  const duration = () => (Number.isFinite(player.duration) && player.duration > 0 ? player.duration : session?.lengthSec || 1);
+
+  function seek(t) {
+    if (!session?.videos.length) return;
+    player.currentTime = Math.max(0, t - 1);          // a second of lead-in, so the moment is seen arriving
+    player.play().catch(() => {});
+  }
+
+  function showVideo(i) {
+    const v = session.videos[i], at = player.currentTime || 0, playing = !player.paused;
+    document.querySelectorAll("#video-switch button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+    player.src = v.url;
+    player.addEventListener("loadedmetadata", () => { player.currentTime = Math.min(at, duration()); if (playing) player.play().catch(() => {}); drawTimeline(); }, { once: true });
+  }
+
+  function drawTimeline() {
+    const d = duration();
+    const left = (t) => `${Math.min(100, (t / d) * 100)}%`;
+    // Top lane: one clickable mark per moment. Bottom lane: how long engagements and unserved waits lasted
+    // (drawn only, so a long span never covers another moment's mark).
+    $("#tl-track").innerHTML = `<i class="tl-head" id="tl-head"></i>`
+      + session.moments.filter((m) => m.durSec).map((m) => `
+      <i class="tl-span m-${esc(m.kind)}" style="left:${left(m.t)};width:${Math.max(0.4, (m.durSec / d) * 100)}%"></i>`).join("")
+      + session.moments.map((m, i) => `
+      <button type="button" class="tl-mark m-${esc(m.kind)}" data-moment="${i}" style="left:${left(m.t)}"
+              title="${mmss(m.t)} · ${esc(KIND[m.kind] || m.kind)}: ${esc(m.text)}"
+              aria-label="${mmss(m.t)}, ${esc(KIND[m.kind] || m.kind)}. ${esc(m.text)}"></button>`).join("");
+    const step = d > 1800 ? 600 : d > 600 ? 120 : d > 180 ? 30 : 10;
+    const ticks = [];
+    for (let t = 0; t <= d; t += step) ticks.push(`<span style="left:${left(t)}">${mmss(t)}</span>`);
+    $("#tl-axis").innerHTML = ticks.join("");
+    tick();
+  }
+
+  function tick() {
+    if (!session) return;
+    const t = player.currentTime || 0, d = duration();
+    const head = $("#tl-head");
+    if (head) head.style.left = `${Math.min(100, (t / d) * 100)}%`;
+    $("#player-time").textContent = `${mmss(t)} / ${mmss(d)}`;
+    // the moment on screen right now, shown over the video (a few seconds, or the whole span)
+    const now = session.moments.filter((m) => t >= m.t && t < m.t + Math.max(4, m.durSec || 0)).pop();
+    const cap = $("#moment-caption");
+    cap.hidden = !now || !session.videos.length;
+    if (now) cap.innerHTML = `<span class="mono">${mmss(now.t)}</span><b>${esc(KIND[now.kind] || now.kind)}</b>${esc(now.text)}${session.demo ? `<em>demo</em>` : ""}`;
+    document.querySelectorAll("#moment-list .log-row").forEach((r) => r.classList.toggle("is-now", now != null && +r.dataset.moment === session.moments.indexOf(now)));
+  }
+  player.addEventListener("timeupdate", tick);
+  player.addEventListener("seeked", tick);
+  player.addEventListener("loadedmetadata", drawTimeline);
+
+  function onMoment(e) {
+    const el = e.target.closest("[data-moment]");
+    if (!el || (e.type === "keydown" && e.key !== "Enter")) return;
+    seek(session.moments[+el.dataset.moment].t);
+  }
+  $("#tl-track").addEventListener("click", (e) => {
+    if (e.target.closest("[data-moment]")) return onMoment(e);
+    const r = e.currentTarget.getBoundingClientRect();         // a click on the bare track scrubs there
+    if (session?.videos.length) player.currentTime = ((e.clientX - r.left) / r.width) * duration();
+  });
+  $("#moment-list").addEventListener("click", onMoment);
+  $("#moment-list").addEventListener("keydown", onMoment);
+
+  async function openSession(id) {
+    const token = ++sessionToken;
+    $("#session-name").textContent = "Loading…";
+    let s;
+    try { s = await D.getSession(id); } catch (err) { $("#session-name").textContent = `Could not open this session: ${err.message}`; return; }
+    if (token !== sessionToken) return;                      // the user already went elsewhere
+    session = s;
+    const coach = s.moments.filter((m) => m.lens === "coach").length, pulse = s.moments.length - coach;
+    $("#session-name").textContent = s.name;
+    $("#session-meta").textContent = [s.recorded, s.lengthSec ? `${mmss(s.lengthSec)} of video` : "", `${coach} salespeople moments, ${pulse} customer moments`].filter(Boolean).join(" · ");
+    $("#session-demo").hidden = !s.demo;
+    $("#demo-stamp").hidden = !s.demo || !s.videos.length;
+
+    // video (+ a switch when the servers give more than one annotated video)
+    $("#player-empty").hidden = s.videos.length > 0;
+    player.hidden = !s.videos.length;
+    $("#video-switch").innerHTML = s.videos.length > 1
+      ? s.videos.map((v, i) => `<button type="button" data-video="${i}" aria-pressed="${i === 0}">${esc(v.label)}</button>`).join("")
+      : s.videos.length ? `<button type="button" aria-pressed="true" disabled>${esc(s.videos[0].label)}</button>` : "";
+    player.removeAttribute("src"); player.load();
+    if (s.videos.length) showVideo(0);
+
+    const walkouts = s.moments.filter((m) => m.kind === "walkout").length, unserved = s.moments.filter((m) => m.kind === "unserved").length;
+    $("#session-kpis").innerHTML = [
+      { lens: "pulse", label: "Customers", value: s.customers, text: `${unserved} left a car unserved after lingering.` },
+      { lens: "coach", label: "Median greet", value: mmss(s.medianGreetSec), text: "From walking in to a salesperson within 1.5 m." },
+      { lens: "coach", label: "Walk-outs", value: walkouts, text: walkouts ? "Left without being greeted. Click one on the timeline to see why." : "Every customer was greeted." },
+    ].map((t) => `
+      <div class="kpi">
+        <div class="label"><span>${esc(t.label)}</span>${lensTag(t.lens)}</div>
+        <div class="value">${esc(t.value)}</div>
+        <p class="finding">${esc(t.text)}</p>
+      </div>`).join("");
+
+    $("#moment-count").textContent = `${s.moments.length} moments${s.demo ? " · demo" : ""}`;
+    $("#moment-list").innerHTML = s.moments.map((m, i) => `
+      <div class="log-row" data-moment="${i}" tabindex="0" role="button" aria-label="Jump to ${mmss(m.t)}">
+        <span class="mono">${mmss(m.t)}</span><span class="tag m-tag m-${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)}</span><span>${esc(m.text)}</span>
+      </div>`).join("") || `<p class="note">Nothing happened in this video.</p>`;
+
+    const b = s.busiestCar;
+    $("#busiest").innerHTML = b ? `
+      <div class="value">${esc(b.label)}</div>
+      <dl>
+        <div><dt>Visits</dt><dd>${esc(b.visits)}</dd></div>
+        <div><dt>Median dwell</dt><dd>${mmss(b.medianDwellSec)}</dd></div>
+        <div><dt>Left unserved</dt><dd class="${b.unserved ? "poor" : ""}">${esc(b.unserved)}</dd></div>
+      </dl>` : `<p class="note">No car held anyone's attention.</p>`;
+
+    $("#session-staff").innerHTML = s.staff.map((p) => `<tr>
+        <td><span class="who">${esc(p.name)}</span></td>
+        <td class="n">${esc(p.greets)}</td>
+        <td class="n ${p.medianGreetSec > 60 ? "poor" : ""}">${mmss(p.medianGreetSec)}</td>
+        <td class="n">${esc(p.engaged)}</td>
+        <td class="n ${p.walkouts >= 2 ? "poor" : ""}">${esc(p.walkouts)}</td>
+        <td class="n"><div class="score"><div class="bar-s"><i style="width:${p.score}%"></i></div><span>${esc(p.score)}</span></div></td>
+      </tr>`).join("") || `<tr><td colspan="6" class="note">No salespeople confirmed for this session.</td></tr>`;
+
+    const maxR = Math.max(1, ...s.routes.map((r) => r.count));
+    $("#session-routes").innerHTML = s.routes.map((r) => `
+      <div class="journey">
+        <div><div class="path">${r.path.map((p) => `<span>${esc(p)}</span>`).join("")}</div><div class="bar-j" style="width:${(r.count / maxR) * 100}%"></div></div>
+        <span class="num">${esc(r.count)}</span>
+      </div>`).join("") || `<p class="note">No routes in this session.</p>`;
+
+    drawTimeline();
+  }
+  $("#video-switch").addEventListener("click", (e) => { const b = e.target.closest("[data-video]"); if (b) showVideo(+b.dataset.video); });
 
   const LOADERS = {
     live: async () => { floorplan = floorplan || (await D.getFloorplan()); pollLive(); requestAnimationFrame(frame); },

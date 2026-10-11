@@ -271,6 +271,76 @@
   }
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const localVideos = new Map();   // session id -> object URL of the file uploaded in this tab
+
+  function videoDuration(url) {
+    return new Promise((resolve) => {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => resolve(Number.isFinite(v.duration) ? v.duration : null);
+      v.onerror = () => resolve(null);
+      v.src = url;
+    });
+  }
+
+  // Seeded, so a session shows the same demo results every time it is opened.
+  function seeded(text) {
+    let h = 2166136261;
+    for (const c of text) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+    return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+  }
+
+  function demoResults(id, lengthSec, knownCustomers) {
+    const r = seeded(id), pick = (a) => a[Math.floor(r() * a.length)];
+    const staffNames = ["Aziz", "Dilnoza", "Jasur"];
+    const cars = FLOOR.zones.map((z) => z.label);
+    const customers = knownCustomers || Math.max(2, Math.round(lengthSec / 45 + r() * 2));
+    const moments = [];
+    const per = Object.fromEntries(staffNames.map((n) => [n, { name: n, greets: 0, greetSecs: [], engaged: 0, walkouts: 0 }]));
+    for (let c = 0; c < customers; c++) {
+      const t = Math.min(lengthSec - 1, (c + 0.15 + r() * 0.6) * (lengthSec / customers));
+      const roll = r();
+      if (roll < 0.14) {
+        moments.push({ t, kind: "walkout", lens: "coach", text: "A customer left without being greeted." });
+        per[pick(staffNames)].walkouts++;
+      } else if (roll < 0.28) {
+        const dwell = Math.round(60 + r() * 60), car = pick(cars);
+        moments.push({ t, kind: "unserved", lens: "pulse", car, durSec: Math.min(dwell, lengthSec - t), text: `A customer looked at the ${car} for ${mmss(dwell)}. Nobody came within 2 m.` });
+      } else {
+        const who = per[pick(staffNames)], wait = Math.round(15 + r() * 70);
+        who.greets++; who.greetSecs.push(wait);
+        moments.push({ t, kind: "greet", lens: "coach", text: `${who.name} greeted a customer after ${mmss(wait)}.` });
+        if (r() < 0.65 && t + 8 < lengthSec) {
+          const len = Math.min(Math.round(lengthSec * (0.08 + r() * 0.12)), lengthSec - t - 4);
+          who.engaged++;
+          moments.push({ t: t + 4, kind: "engagement", lens: "coach", durSec: len, text: `${who.name} stayed with the customer for ${mmss(len)}.` });
+        }
+      }
+    }
+    moments.sort((a, b) => a.t - b.t);
+    const median = (a) => (a.length ? a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)] : null);
+    const staff = Object.values(per).map((p) => {
+      const mg = median(p.greetSecs);
+      const score = Math.round(Math.max(20, Math.min(98, 40 * (mg == null ? 0.5 : Math.min(1, 60 / mg)) + 40 * (p.greets ? p.engaged / p.greets : 0) + 20 - 7 * p.walkouts)));
+      return { name: p.name, greets: p.greets, medianGreetSec: mg, engaged: p.engaged, walkouts: p.walkouts, score };
+    });
+    const allGreets = Object.values(per).flatMap((p) => p.greetSecs);
+    const ranked = cars.map((label) => ({ label, visits: Math.round(r() * customers) + 1 })).sort((a, b) => b.visits - a.visits);
+    const top = ranked[0];
+    return {
+      customers,
+      medianGreetSec: median(allGreets),
+      moments,
+      staff,
+      routes: [
+        { path: ["Entrance", ranked[0].label, ranked[1].label, "Exit"], count: Math.max(1, Math.round(customers * 0.4)) },
+        { path: ["Entrance", ranked[0].label, "Reception"], count: Math.max(1, Math.round(customers * 0.25)) },
+        { path: ["Entrance", ranked[2].label, "Exit"], count: Math.max(1, Math.round(customers * 0.15)) },
+      ],
+      busiestCar: { label: top.label, visits: top.visits, medianDwellSec: Math.round(40 + r() * 80),
+                    unserved: moments.filter((m) => m.kind === "unserved" && m.car === top.label).length },
+    };
+  }
   const sessions = [
     { id: "s-0311", name: "Camera 2 · afternoon", recorded: "11 Oct, 12:00", lengthSec: 7200, customers: 16, medianGreetSec: 51, status: "ready" },
     { id: "s-0310", name: "Camera 2 · morning", recorded: "11 Oct, 10:00", lengthSec: 7200, customers: 19, medianGreetSec: 44, status: "ready" },
@@ -387,10 +457,28 @@
     getSessions: async () => sessions.slice(),
     analyzeVideo: async (file, onStep) => {
       const steps = ["Finding people", "Following each person across frames", "Suggesting who is staff", "Scoring visits and routes"];
+      const url = URL.createObjectURL(file);          // the demo plays the user's own video, from this browser only
+      const probe = videoDuration(url);
       for (let i = 0; i < steps.length; i++) { onStep(i, steps[i]); await wait(900 + Math.random() * 600); }
-      const s = { id: `s-${Date.now()}`, name: file.name.replace(/\.[^.]+$/, ""), recorded: "Just now", lengthSec: 1260, customers: 6, medianGreetSec: 57, status: "ready" };
+      const lengthSec = Math.max(1, Math.round((await probe) || 60));
+      const id = `s-${Date.now()}`;
+      const r = demoResults(id, lengthSec);
+      const s = { id, name: file.name.replace(/\.[^.]+$/, ""), recorded: "Just now", lengthSec,
+                  customers: r.customers, medianGreetSec: r.medianGreetSec, status: "ready" };
+      localVideos.set(id, url);
       sessions.unshift(s);
       return s;
+    },
+    // Demo results for one session: invented moments and numbers, scaled to the video's length and labelled demo.
+    getSession: async (id) => {
+      const s = sessions.find((x) => x.id === id)
+        || { id, name: `Session ${id}`, recorded: "", lengthSec: 600, status: "ready" };
+      const url = localVideos.get(id);
+      return {
+        ...s, demo: true,
+        videos: url ? [{ label: "Your video", url }] : [],
+        ...demoResults(id, s.lengthSec, s.customers),
+      };
     },
   };
 })();

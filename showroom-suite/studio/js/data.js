@@ -52,6 +52,15 @@
     getSessions: async () => todo("getSessions"),
     // analyzeVideo(file, onStep) -> the new session (same shape). Call onStep(index 0-3, label) as work progresses.
     analyzeVideo: async (file, onStep) => todo("analyzeVideo"),
+    // One session's results page (see CONNECTING.md, "Session results"):
+    // { id, name, recorded, lengthSec, customers, medianGreetSec|null,
+    //   demo: false,                                   // true only for invented results (the page then says so)
+    //   videos:[{ label, url }],                       // annotated videos, e.g. Coach's and Pulse's; first one shows
+    //   moments:[{ t (s), kind:"greet"|"engagement"|"walkout"|"unserved", lens:"coach"|"pulse", text, durSec? }],
+    //   staff:[{ name, greets, medianGreetSec|null, engaged, walkouts, score (0-100) }],
+    //   routes:[{ path:["Entrance","RAV4",...,"Exit"], count }],
+    //   busiestCar:{ label, visits, medianDwellSec, unserved } | null }
+    getSession: async (id) => todo("getSession"),
 
     // Team (Coach)
     // { period, lead:[{label,value,text}] (4 items),
@@ -85,7 +94,7 @@
 
   const SECTION_OF = {
     getFloorplan: "floor", getLive: "floor",
-    getSessions: "sessions", analyzeVideo: "sessions",
+    getSessions: "sessions", analyzeVideo: "sessions", getSession: "sessions",
     getTeam: "team", confirmStaff: "team",
     getVisitors: "visitors",
     getDemand: "demand",

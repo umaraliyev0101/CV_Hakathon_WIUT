@@ -292,3 +292,70 @@ td .sub { display: block; font-size: 12.5px; color: var(--ink-3); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- session results (#session/<id>) ---------- */
+.row-link { cursor: pointer; }
+.row-link:hover td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.row-link a.who { text-decoration: none; }
+.row-link a.who:hover { text-decoration: underline; text-underline-offset: 3px; }
+.back { font-size: 13px; color: var(--ink-2); display: inline-block; margin-bottom: var(--s-3); }
+.back::before { content: "← "; }
+.demo-note {
+  margin: 0; padding: var(--s-3) var(--s-4); max-width: none;
+  border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--paper)); color: var(--ink-2);
+}
+.demo-note b { color: var(--ink); font-weight: 500; }
+
+.player { position: relative; background: #000; aspect-ratio: 16 / 9; }
+.player video { width: 100%; height: 100%; display: block; background: #000; }
+.player-empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--stage-dim); padding: var(--s-5); }
+.player-empty p { margin: 4px 0; }
+.player-empty a { color: var(--stage-ink); }
+.demo-stamp {
+  position: absolute; top: var(--s-3); right: var(--s-3); pointer-events: none;
+  font: 500 12px/1 var(--f-mono); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--stage); background: var(--accent); padding: 6px 8px;
+}
+.caption {
+  position: absolute; left: var(--s-3); right: var(--s-3); bottom: 56px; pointer-events: none;
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--stage) 86%, transparent); color: var(--stage-ink);
+  padding: 8px 12px; font-size: 14px; max-width: max-content;
+}
+.caption b { font-weight: 500; }
+.caption em { font: 500 11px/1 var(--f-mono); font-style: normal; text-transform: uppercase; color: var(--stage); background: var(--accent); padding: 3px 5px; }
+
+.timeline { padding: var(--s-4) var(--s-4) var(--s-2); border-top: 1px solid var(--stage-2); }
+.tl-track { position: relative; height: 34px; background: var(--stage-2); cursor: pointer; }
+.tl-head { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--stage-ink); pointer-events: none; z-index: 2; }
+.tl-mark {
+  position: absolute; top: 3px; height: 18px; width: 6px; margin-left: -3px; padding: 0; border: 0; cursor: pointer; z-index: 1;
+}
+.tl-span { position: absolute; top: 25px; height: 5px; pointer-events: none; opacity: 0.8; }
+.tl-mark:hover, .tl-mark:focus-visible { outline: 2px solid var(--stage-ink); outline-offset: 1px; z-index: 3; }
+.tl-axis { position: relative; height: 18px; margin-top: 4px; font: 400 11px/1 var(--f-mono); color: var(--stage-dim); }
+.tl-axis span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+.tl-axis span:first-child { transform: none; }
+
+.m-greet { background: var(--accent); }
+.m-engagement { background: color-mix(in srgb, var(--accent) 45%, var(--stage-2)); }
+.m-walkout { background: var(--bad); }
+.m-unserved { background: var(--guest); }
+.key i.m-greet, .key i.m-engagement, .key i.m-walkout, .key i.m-unserved { border-radius: 0; width: 10px; height: 10px; }
+.m-tag.m-greet, .m-tag.m-engagement, .m-tag.m-walkout, .m-tag.m-unserved { background: none; }
+.m-tag.m-greet, .m-tag.m-engagement { color: #a65510; }
+.m-tag.m-walkout { color: var(--bad); }
+.m-tag.m-unserved { color: #3f6a86; }
+
+.moments .log-row { cursor: pointer; }
+.moments .log-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.moments .log-row.is-now { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.moments { max-height: 420px; overflow-y: auto; }
+
+.busiest { border-top: 1px solid var(--rule); padding-top: var(--s-4); }
+.busiest .value { font: 300 clamp(40px, 4.4vw, 60px)/1 var(--f-display); font-stretch: 108%; letter-spacing: -0.03em; }
+.busiest dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: var(--s-4) 0 0; }
+.busiest dl div { padding-right: var(--s-3); }
+.busiest dl div + div { padding-left: var(--s-3); border-left: 1px solid var(--rule); }
+.busiest dt { font-size: 12.5px; color: var(--ink-3); }
+.busiest dd { margin: 4px 0 0; font: 400 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }

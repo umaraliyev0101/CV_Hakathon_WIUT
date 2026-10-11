@@ -121,7 +121,7 @@ The full shapes are in the comments at the top of `js/data.js`. All times are in
 |---|---|---|---|---|
 | Team | `team` | `getTeam`, `confirmStaff` | Coach | `confirmStaff(trackId, isStaff)` is the one-click staff confirmation. Point it at Coach's confirm endpoint. |
 | Visitors | `visitors` | `getVisitors` | Pulse | `heat` is a grid: `{cols, rows, values}`, row-major, any non-negative scale. If Pulse has a heatmap image instead of numbers, downsample it to about 48×32. `zones`, `journeys` and `unserved` map onto Pulse's zones, journeys and unserved-interest output. |
-| Replays | `sessions` | `getSessions`, `analyzeVideo` | Both | See "Uploads" below. |
+| Replays | `sessions` | `getSessions`, `analyzeVideo`, `getSession` | Both | See "Uploads" and "Session results" below. |
 | Demand | `demand` | `getDemand` | Pulse, plus Coach | Marketing charts, built from aggregates over a period (for example the last 4 weeks). **Funnel:** counts per stage: came in (Pulse entries) → 20 s+ at a car → 60 s+ at a car (Pulse dwell) → within 2 m for 2 min+ (Coach engagements) → reached reception (Pulse zone). **Busy hours:** average visitors per weekday × hour. **Models:** per car, weekly visits with 60 s+ dwell and the share approached. **Campaign:** weekly considered visits per car, plus the week index when a campaign started (enter that by hand). The "Next step" sentences are computed from these numbers, so you only send data. The optional `fix` text on a funnel stage is shown when that stage loses the most people. |
 | Live floor | `floor` | `getFloorplan`, `getLive` | Both | See "Live floor" below. |
 | Insights | `insights` | `getInsights` | Both | Pulse already has `insights.py`. Combine its findings with Coach's scorecard. Each item needs `value` (the big number), `text` (one sentence) and `act` (one next step). If you run out of time, leave this section in demo mode, but don't present it as real numbers. |
@@ -148,6 +148,69 @@ analyzeVideo: async (file, onStep) => {
 
 `onStep(index 0–3, label)` drives the four-segment progress bar. Call it whenever the jobs move forward, so the
 bar never looks frozen.
+
+### Session results (`getSession`)
+
+Clicking a session, or finishing an upload, opens `#session/<id>`: the video with a timeline of moments under it,
+then that session's numbers. `getSession(id)` returns everything the page shows (shape in `js/data.js`).
+
+**Demo mode** plays the user's own upload with invented moments and numbers on top. The page labels them three
+ways: a "Demo results" banner, a stamp on the video, and a "demo" tag on each caption. In live mode return
+`demo: false`, and none of these labels appear.
+
+**One id for two jobs.** An upload creates a Coach job and a Pulse job. Have `analyzeVideo` return
+`id: `${coachJob.job_id}~${pulseJob.job_id}``, and split it again in `getSession`:
+
+```js
+getSession: async (id) => {
+  const [cid, pid] = id.split("~");
+  const [c, p] = await Promise.all([
+    get(C.coachUrl, `/api/jobs/${cid}/results`),       // Coach: events, scorecard, video_url
+    get(C.pulseUrl, `/api/jobs/${pid}/results`),       // Pulse: per_car, journey_flow, files.annotated_video
+  ]);
+  const at = (base, path) => (path ? base + path : null);  // both apps return root-relative file paths
+  const name = (pidOf) => c.names?.[pidOf] || `Person ${pidOf}`;
+  const moments = [
+    ...c.events.filter((e) => e.type === "greet").map((e) => ({ t: e.t, kind: "greet", lens: "coach",
+        text: `${name(e.staff)} greeted a customer${e.data?.time_to_greet != null ? ` after ${mmss(e.data.time_to_greet)}` : ""}.` })),
+    ...c.events.filter((e) => e.type === "engagement").map((e) => ({ t: e.t, kind: "engagement", lens: "coach",
+        durSec: e.t_end - e.t, text: `${name(e.staff)} stayed with the customer for ${mmss(e.t_end - e.t)}.` })),
+    ...c.events.filter((e) => e.type === "walkout").map((e) => ({ t: e.t, kind: "walkout", lens: "coach",
+        text: "A customer left without being greeted." })),
+    ...UNSERVED_FROM_PULSE,   // see below
+  ].sort((a, b) => a.t - b.t);
+  const cars = [...(p.per_car || [])].sort((a, b) => b.visitors - a.visitors);
+  return {
+    id, name: "…", recorded: "…", lengthSec: c.duration, demo: false,
+    customers: c.scorecard.store.customers, medianGreetSec: c.scorecard.store.median_time_to_greet,
+    videos: [
+      { label: "Salespeople", url: at(C.coachUrl, c.video_url) },                       // Coach's annotated.mp4
+      { label: "Customers", url: at(C.pulseUrl, p.files?.annotated_video && `/api/jobs/${pid}/files/${p.files.annotated_video}`) },
+    ].filter((v) => v.url),
+    moments,
+    staff: c.scorecard.staff.map((s) => ({ name: s.name || `S${s.staff}`, greets: s.greets,
+      medianGreetSec: s.median_time_to_greet, engaged: s.customers_engaged, walkouts: s.walkouts_while_free,
+      score: /* your formula, 0-100 */ 0 })),
+    routes: /* from p.journey_flow: the most common Start > car > ... > End paths, as { path, count } */ [],
+    busiestCar: cars[0] ? { label: cars[0].name, visits: cars[0].visitors, medianDwellSec: cars[0].median_dwell,
+                            unserved: cars[0].unserved } : null,
+  };
+},
+```
+
+Notes:
+
+- **Field names.** Check them against a real response (`/api/jobs/<id>/results`) before relying on them. The
+  Coach ones are documented in `showroom-coach/docs/API.md`. Coach's video exists only after staff are confirmed
+  and the render finishes (`video_status: "ready"`). Until then, leave it out of `videos`.
+- **Unserved moments.** Pulse's report counts unserved interest per car (`per_car[].unserved`), but it has no
+  list with times. Add a small read-only endpoint, e.g. `GET /suite/jobs/{id}/unserved`, that returns
+  `[{t_start, t_end, zone}]` from `analysis.episodes` where `unserved` is true. Then map each one to
+  `{ t: t_start, kind: "unserved", lens: "pulse", durSec: t_end - t_start, car: zone, text }`.
+- **Two videos.** When `videos` has more than one entry, the player shows a switch above it. The switch keeps the
+  current position, so the same moment can be compared in Coach's and Pulse's annotations.
+- **Same origin.** Behind `deploy/`'s proxy, `coachUrl` and `pulseUrl` are this site's own `/coach` and `/pulse`,
+  so the browser sends the video and API requests without CORS.
 
 ### Live floor
 

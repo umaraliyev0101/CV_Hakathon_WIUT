@@ -94,6 +94,78 @@
     </div>
   </section>
 
+  <!-- SESSION RESULTS (#session/<id>) -->
+  <section class="view" id="view-session" data-view="session" hidden>
+    <div class="view-head">
+      <div>
+        <a class="link back" href="#replays">All sessions</a>
+        <h1 id="session-name">Session</h1>
+        <p id="session-meta"></p>
+      </div>
+      <span class="source" data-source="sessions"></span>
+    </div>
+
+    <p class="demo-note" id="session-demo" hidden>
+      <b>Demo results.</b> Your video plays as uploaded, but the moments and numbers on this page are invented to show
+      the layout. They are not an analysis of this video. Connect the servers (CONNECTING.md) for real results.
+    </p>
+
+    <div class="live-grid">
+      <div class="stage">
+        <div class="stage-top">
+          <div class="lens" role="group" aria-label="Video" id="video-switch"></div>
+          <span class="clock" id="player-time">0:00 / 0:00</span>
+        </div>
+        <div class="player">
+          <video id="player" controls playsinline preload="metadata"></video>
+          <div class="player-empty" id="player-empty" hidden>
+            <p>No video is stored for this demo session.</p>
+            <p>Upload a clip in <a href="#replays">Replays</a> to see it here with the results underneath.</p>
+          </div>
+          <span class="demo-stamp" id="demo-stamp" hidden>Demo results · not real analysis</span>
+          <div class="caption" id="moment-caption" aria-live="polite" hidden></div>
+        </div>
+        <div class="timeline" id="timeline">
+          <div class="tl-track" id="tl-track"><i class="tl-head" id="tl-head"></i></div>
+          <div class="tl-axis" id="tl-axis"></div>
+        </div>
+        <div class="stage-foot">
+          <span class="key"><i class="m-greet"></i>Greet</span>
+          <span class="key"><i class="m-engagement"></i>Engagement</span>
+          <span class="key"><i class="m-walkout"></i>Walk-out</span>
+          <span class="key"><i class="m-unserved"></i>Unserved customer</span>
+          <span>Click a moment to jump there</span>
+        </div>
+      </div>
+      <div class="kpis" id="session-kpis"></div>
+    </div>
+
+    <div class="two">
+      <div>
+        <div class="panel-head"><h2>Moments</h2><span class="label" id="moment-count"></span></div>
+        <div class="log moments" id="moment-list"></div>
+      </div>
+      <div>
+        <div class="panel-head"><h2>Busiest car</h2><span class="label">Customers</span></div>
+        <div class="busiest" id="busiest"></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div>
+        <div class="panel-head"><h2>Salespeople</h2><span class="label">This session</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Salesperson</th><th class="n">Greets</th><th class="n">Median greet</th><th class="n">Engaged</th><th class="n">Walk-outs</th><th class="n">Score</th></tr></thead>
+          <tbody id="session-staff"></tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="panel-head"><h2>Customer routes</h2><span class="label">This session</span></div>
+        <div class="journeys" id="session-routes"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- TEAM -->
   <section class="view" id="view-team" data-view="team" hidden>
     <div class="view-head">
