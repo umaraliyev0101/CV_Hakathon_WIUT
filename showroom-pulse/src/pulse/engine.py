@@ -10,6 +10,7 @@ from .config import Config
 from .datatypes import Det, TrackObs
 from .perception import finetuned
 from .perception.detect import VEHICLE_CLASSES, Detector
+from .perception.device import default_providers
 from .perception.pose import PoseEstimator
 from .tracking import Tracker
 
@@ -17,8 +18,9 @@ _WINDOW = 50
 
 
 class PerceptionEngine:
-    def __init__(self, cfg: Config, providers=("CPUExecutionProvider",)):
+    def __init__(self, cfg: Config, providers=None):
         self.cfg = cfg
+        providers = default_providers() if providers is None else providers   # ORT_DEVICE=cuda -> GPU
         self.providers = tuple(providers)
         self.detector = Detector(cfg.detector, cfg, providers=providers)     # vehicles (and persons by default)
         # PULSE_RFDETR_FT: our fine-tuned person-only RF-DETR handles persons; cars stay on cfg.detector
