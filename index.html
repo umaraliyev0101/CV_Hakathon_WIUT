@@ -18,6 +18,7 @@
     <a href="#replays">Replays</a>
     <a href="#team">Team</a>
     <a href="#visitors">Visitors</a>
+    <a href="#demand">Demand</a>
     <a href="#insights">Insights</a>
   </nav>
   <span class="site" id="site-name"></span>
@@ -163,6 +164,50 @@
     </div>
   </section>
 
+  <!-- DEMAND -->
+  <section class="view" id="view-demand" data-view="demand" hidden>
+    <div class="view-head">
+      <div>
+        <h1>Demand</h1>
+        <p id="demand-period">What people come for, when they come, and what to do about it.</p>
+      </div>
+      <span class="source" data-source="demand"></span>
+    </div>
+
+    <div class="charts">
+      <article class="chart" id="c-funnel">
+        <div class="panel-head"><h2>Visit funnel</h2><span class="label">Visitors</span></div>
+        <p class="question">Where does interest stop turning into a conversation?</p>
+        <div class="funnel" role="list"></div>
+        <p class="act"></p>
+      </article>
+
+      <article class="chart" id="c-hours">
+        <div class="panel-head"><h2>Busy hours</h2><span class="label">Average visitors per hour</span></div>
+        <p class="question">When should ads end, test-drive days run, and extra staff be on the floor?</p>
+        <div class="hours"></div>
+        <div class="ramp"></div>
+        <p class="act"></p>
+      </article>
+
+      <article class="chart" id="c-demand">
+        <div class="panel-head"><h2>Car demand vs service</h2><span class="label">Per model, weekly</span></div>
+        <p class="question">Which cars pull serious interest, and do those visitors get a salesperson?</p>
+        <div class="plot"></div>
+        <p class="act"></p>
+        <details><summary>Show the numbers</summary><div class="table-wrap"></div></details>
+      </article>
+
+      <article class="chart" id="c-campaign">
+        <div class="panel-head"><h2>Campaign lift</h2><span class="label">Considered visits per week</span></div>
+        <div class="lift"></div>
+        <div class="plot"></div>
+        <p class="act"></p>
+        <details><summary>Show the numbers</summary><div class="table-wrap"></div></details>
+      </article>
+    </div>
+  </section>
+
   <!-- INSIGHTS -->
   <section class="view" id="view-insights" data-view="insights" hidden>
     <div class="view-head">
@@ -183,6 +228,7 @@
 <script src="js/mock.js"></script>
 <script src="js/data.js"></script>
 <script src="js/floor.js"></script>
+<script src="js/charts.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
