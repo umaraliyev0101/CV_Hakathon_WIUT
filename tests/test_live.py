@@ -372,6 +372,80 @@ def test_walkout_alert_shows_current_names_and_drops_when_the_leaver_becomes_sta
     assert s.summary()["scorecard"]["store"]["walkouts"] == 0
 
 
+# --------------------------------------------------------------------------- session: one person id per box
+
+
+def _pids(out):
+    return [p["pid"] for p in out["people"]]
+
+
+def _revived_track_script():
+    """Red person A stands at x=100 until 1.0 and disappears; red person B shows up at x=400 from 2.2 (a new track that
+    looks like A and takes A's person id); A comes back at 2.8, where the tracker still has A's lost track and revives it."""
+    def script(t):
+        a = t <= 1.0 + 1e-9 or t >= 2.8 - 1e-9
+        b = t >= 2.2 - 1e-9
+        return _scene(*([(100, RED)] if a else []), *([(400, RED)] if b else []))
+    script.until = 5.0
+    return script
+
+
+def test_a_revived_track_does_not_share_its_old_person_id_with_the_track_that_took_it():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    outs = _run(s, _revived_track_script())
+    for o in outs:
+        assert len(set(_pids(o))) == len(o["people"]), (o["t"], _pids(o))        # never the same id twice in one overlay
+    at2_6 = next(o for o in outs if o["t"] == pytest.approx(2.6))
+    assert _pids(at2_6) == [1] and at2_6["people"][0]["bbox"][0] > 300                # B took over A's id (A was out of view)
+    last = outs[-1]
+    assert len(last["people"]) == 2
+    by_x = sorted(last["people"], key=lambda p: p["bbox"][0])
+    assert by_x[1]["pid"] == 1 and by_x[0]["pid"] != 1                               # B (the holder) keeps it, A is a new person
+
+
+def test_toggle_flips_only_the_person_clicked_when_ids_were_once_shared():
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    script = _revived_track_script()
+    outs = _run(s, script)
+    last = outs[-1]
+    clicked = last["people"][0]["pid"]
+    assert s.toggle(clicked) == "staff"
+    after = s.process(script(5.2), 5.2)
+    assert sorted(p["role"] for p in after["people"]) == ["customer", "staff"]
+
+
+def test_pids_are_unique_in_every_overlay_of_the_synthetic_videos(meet_video, synth_video):
+    for path in (meet_video, synth_video):
+        s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+        n = 0
+        for _, t, frame in iter_frames(path, sample_fps=5):
+            out = s.process(frame, t)
+            assert len(set(_pids(out))) == len(out["people"]), (path.name, t, _pids(out))
+            n += 1
+        assert n >= 25
+
+
+def test_a_duplicate_from_the_identity_layer_is_split_instead_of_shown_twice():
+    # belt and braces: whatever the identity layer does, one id never labels two boxes in a frame
+    s = LiveSession(fake_stack(), preset="short", suggest_after=1e9)
+    identity, split = s._identity, set()
+    real_resolve, real_assign = identity.resolve, identity.assign_new
+
+    def faulty_resolve(track_id, t, emb):                    # claims person 7 for every track, until a track is split off
+        real_resolve(track_id, t, emb)
+        return identity._pid_of[track_id] if track_id in split else 7
+
+    def assign_new(track_id, t):
+        split.add(track_id)
+        return real_assign(track_id, t)
+
+    identity.resolve, identity.assign_new = faulty_resolve, assign_new
+    out = s.process(_scene((50, RED), (300, BLUE)), 0.0)
+    assert len(out["people"]) == 2 and len(set(_pids(out))) == 2 and len(split) == 1
+    again = s.process(_scene((50, RED), (300, BLUE)), 0.2)
+    assert sorted(_pids(again)) == sorted(_pids(out))        # the split is remembered for that track
+
+
 # --------------------------------------------------------------------------- session: presets
 
 
@@ -859,3 +933,21 @@ def test_real_stack_live_speed(clip, capsys):
               f"(EMA {outs[-1]['fps']}); people per frame mean {np.mean(people):.1f} max {max(people)}")
     assert len(outs) == 100 and max(people) >= 1
     assert len(outs) / wall > 0.5
+
+
+@pytest.mark.slow
+def test_real_stack_never_shows_a_person_id_twice_in_one_overlay():
+    from showroom_coach.config import repo_root
+
+    path = repo_root() / "data" / "samples" / "meva_b_60s.mp4"
+    if not path.is_file():
+        pytest.skip("meva_b_60s.mp4 missing")
+    s = LiveSession(_real_stack(), preset="short")
+    repeats = []
+    for i, (_, t, frame) in enumerate(iter_frames(path, sample_fps=5)):
+        if i >= 150:
+            break
+        ids = _pids(s.process(frame, t))
+        if len(set(ids)) != len(ids):
+            repeats.append((round(t, 1), sorted(p for p in set(ids) if ids.count(p) > 1)))
+    assert i == 150 and repeats == []

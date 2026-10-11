@@ -325,15 +325,19 @@ class LiveSession:
         return kpts
 
     def _identify(self, frame: np.ndarray, t: float, tracked: list) -> list[int]:
-        """Person id per tracked box. Call order matters to `LiveIdentity`: end the step, then resolve each track.
-        New tracks are embedded first (all in one call) so they can re-attach to someone just lost."""
+        """Person id per tracked box, all different. Call order matters to `LiveIdentity`: end the step, then resolve
+        each track. New tracks are embedded first (all in one call) so they can re-attach to someone just lost. A
+        tracker can revive an old track whose person was re-attached to a newer one meanwhile: the identity layer
+        then gives the revived track a new person, and a second guard here splits any id that still repeats."""
         self._identity.end_step(t, {tid for tid, _ in tracked})
         new = [j for j, (tid, _) in enumerate(tracked) if tid not in self._track_pid]
         described = dict(zip(new, self._describe(frame, [tracked[j][1].bbox for j in new])))
-        pids = []
+        pids: list[int] = []
         for j, (tid, _) in enumerate(tracked):
             emb, dino = described.get(j, (None, None))
             pid = self._identity.resolve(tid, t, emb)
+            if pid in pids:   # one id must never label two boxes (LiveIdentity already prevents it; this keeps it so)
+                pid = self._identity.assign_new(tid, t)
             self._track_pid[tid] = pid
             self._pids.add(pid)
             person = self._people.setdefault(pid, _Person(last_t=t))

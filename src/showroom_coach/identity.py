@@ -11,7 +11,9 @@ the pair being merged, so merging A with B and B with C cannot sneak A and C tog
 
 Live, ``LiveIdentity`` hands out person ids frame by frame. A track keeps its pid; a new track may take over the
 pid of someone who just vanished (no active track, seen within ``window`` seconds) if they look alike. Per frame
-call ``end_step(t, ids_in_view_now)`` first, then ``resolve`` for each track in that frame (see ``LiveIdentity``).
+call ``end_step(t, ids_in_view_now)`` first, then ``resolve`` for each track (see ``LiveIdentity``). A person id
+belongs to at most one track in view at a time: if a tracker revives an old track whose person has meanwhile been
+re-attached to a newer one, the newer track keeps the id and the revived one becomes a new person.
 
 Pure numpy, no I/O and no clock.
 """
@@ -140,17 +142,22 @@ class LiveIdentity:
         self._pid_of: dict[int, int] = {}  # track id -> pid, kept for the whole session (one small int per track)
         self._emb: dict[int, np.ndarray] = {}  # pid -> unit appearance descriptor, if the person has one
         self._last_seen: dict[int, float] = {}  # pid -> last time any track of theirs was active
+        self._holder: dict[int, int] = {}  # pid -> the track that last resolved to it (who owns the id if two claim it)
         self._active: set[int] = set()  # track ids in view at the last end_step, plus those resolved since
 
     def resolve(self, track_id: int, t: float, emb: np.ndarray | None) -> int:
         """Return the pid for ``track_id`` at time ``t``. Call it after this frame's ``end_step``.
 
-        A known track keeps its pid. A new track with an embedding takes the pid of the best-matching person who
-        has no active track, was last seen within ``window`` seconds, and is closer than ``thr`` (cosine
-        distance); otherwise it gets a fresh pid. A new track without an embedding always gets a fresh pid.
+        A known track keeps its pid, unless another track in view holds that pid now (a tracker revived this track
+        after its person was re-attached to a newer one): it is then treated like a new track. A new track with an
+        embedding takes the pid of the best-matching person who has no active track, was last seen within ``window``
+        seconds, and is closer than ``thr`` (cosine distance); otherwise it gets a fresh pid. A new track without an
+        embedding always gets a fresh pid. No two tracks resolved in one frame ever get the same pid.
         """
         unit = _unit(emb)
         pid = self._pid_of.get(track_id)
+        if pid is not None and self._held_by_another(pid, track_id):
+            pid = None
         if pid is None:
             pid = self._reattach(t, unit) if unit is not None else None
             if pid is None:
@@ -160,8 +167,25 @@ class LiveIdentity:
         if unit is not None and pid not in self._emb:
             self._emb[pid] = unit  # first descriptor for this person; later ones go through update_emb
         self._last_seen[pid] = t
+        self._holder[pid] = track_id
         self._active.add(track_id)
         return pid
+
+    def assign_new(self, track_id: int, t: float) -> int:
+        """Give ``track_id`` a brand-new pid and remember it for the track. For a caller that finds two tracks of one
+        frame with the same pid and has to split them. The new person has no descriptor until ``update_emb``."""
+        pid = self._next_pid
+        self._next_pid += 1
+        self._pid_of[track_id] = pid
+        self._last_seen[pid] = t
+        self._holder[pid] = track_id
+        self._active.add(track_id)
+        return pid
+
+    def _held_by_another(self, pid: int, track_id: int) -> bool:
+        """Whether a different track that is in view holds ``pid`` (it resolved to it most recently)."""
+        holder = self._holder.get(pid)
+        return holder is not None and holder != track_id and holder in self._active
 
     def end_step(self, t: float, active_track_ids: set[int]) -> None:
         """Start frame ``t``: ``active_track_ids`` are all the tracks in view now, including ones born this frame.
@@ -180,6 +204,7 @@ class LiveIdentity:
         for pid in stale:
             del self._last_seen[pid]
             self._emb.pop(pid, None)
+            self._holder.pop(pid, None)
 
     def update_emb(self, pid: int, emb: np.ndarray, alpha: float = 0.2) -> None:
         """Blend a new descriptor into a person's stored one: ``(1 - alpha) * old + alpha * new``, re-normalised.

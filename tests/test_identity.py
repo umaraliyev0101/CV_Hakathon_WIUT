@@ -298,3 +298,47 @@ def test_update_emb_ignores_forgotten_person_and_reattach_survives():
     assert len(li._emb) == 0
     li.end_step(101.0, {2})
     assert li.resolve(2, 101.0, emb([1, 0, 0])) != p  # too old to re-attach, and no KeyError
+
+
+# --- one active track per pid: a tracker can revive a track whose person was meanwhile re-attached -------------------
+
+
+def _revived_setup():
+    """Track 1 is lost, track 2 is born looking the same and takes over the pid, then the tracker revives track 1."""
+    li = LiveIdentity(thr=0.3, window=10.0)
+    li.end_step(0.0, {1}); p1 = li.resolve(1, 0.0, emb([1, 0, 0]))
+    li.end_step(0.2, {2})
+    assert li.resolve(2, 0.2, emb([1, 0.02, 0])) == p1  # re-attached while track 1 was out of view
+    return li, p1
+
+
+def test_live_revived_track_whose_pid_is_held_by_another_active_track_gets_a_new_pid():
+    li, p1 = _revived_setup()
+    li.end_step(0.4, {1, 2})
+    revived, holder = li.resolve(1, 0.4, None), li.resolve(2, 0.4, None)
+    assert holder == p1 and revived != p1  # the track that holds the pid keeps it
+    li.end_step(0.6, {1, 2})  # and it stays that way
+    assert (li.resolve(1, 0.6, None), li.resolve(2, 0.6, None)) == (revived, p1)
+
+
+def test_live_the_holder_keeps_the_pid_whatever_order_the_tracks_are_resolved_in():
+    li, p1 = _revived_setup()
+    li.end_step(0.4, {1, 2})
+    holder, revived = li.resolve(2, 0.4, None), li.resolve(1, 0.4, None)
+    assert holder == p1 and revived != p1
+
+
+def test_live_revived_track_keeps_its_pid_when_the_holder_is_gone():
+    li, p1 = _revived_setup()
+    li.end_step(0.4, {1})  # track 2 died; track 1 is the only one left
+    assert li.resolve(1, 0.4, None) == p1
+
+
+def test_live_assign_new_gives_a_track_a_fresh_pid_and_keeps_it():
+    li = LiveIdentity()
+    li.end_step(0.0, {1, 2})
+    p, q = li.resolve(1, 0.0, None), li.resolve(2, 0.0, None)
+    fresh = li.assign_new(2, 0.0)
+    assert fresh not in (p, q)
+    li.end_step(0.2, {1, 2})
+    assert li.resolve(2, 0.2, None) == fresh and li.resolve(1, 0.2, None) == p
