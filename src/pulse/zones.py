@@ -1,10 +1,15 @@
 """Zones: automatic car zones, point-in-polygon, presence hysteresis, zone files."""
 from __future__ import annotations
 
+import itertools
 import json
+import math
 from pathlib import Path
 
+import numpy as np
+
 from pulse.datatypes import Det, Zone
+from pulse.geometry import fit_homography
 
 VEHICLES = ("car", "truck", "motorcycle", "bus")
 
@@ -100,11 +105,70 @@ def presence_intervals(ts: list[float], inside: list[bool], zone_min: float,
     return [(a, b) for a, b in clusters if b - a >= zone_min - 1e-6]
 
 
+class FloorError(ValueError):
+    pass
+
+
+MAX_WORLD_M = 1000.0
+
+
+def _pts4(v, name: str, lo: float | None, hi: float | None) -> list[tuple[float, float]]:
+    if not isinstance(v, (list, tuple)) or len(v) != 4:
+        raise FloorError(f"floor.{name} needs exactly 4 points")
+    out = []
+    for p in v:
+        ok = (isinstance(p, (list, tuple)) and len(p) == 2
+              and all(isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c)
+                      for c in p))
+        if not ok:
+            raise FloorError(f"floor.{name}: every point must be [x, y] with finite numbers")
+        if lo is not None and not all(lo <= c <= hi for c in p):
+            raise FloorError(f"floor.{name}: values must be within [{lo:g}, {hi:g}]")
+        out.append((float(p[0]), float(p[1])))
+    return out
+
+
+def _non_degenerate(pts, name: str) -> None:
+    """No three of the four points may be (nearly) collinear."""
+    span = max(max(p[0] for p in pts) - min(p[0] for p in pts),
+               max(p[1] for p in pts) - min(p[1] for p in pts))
+    for a, b, c in itertools.combinations(pts, 3):
+        area2 = abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+        if span <= 0 or area2 <= 1e-4 * span * span:
+            raise FloorError(f"floor.{name}: points are collinear or coincident")
+
+
+def validate_floor(floor) -> dict:
+    """Floor calibration dict -> normalised copy {'img': [[u,v]x4], 'world': [[x,y]x4]}; FloorError otherwise."""
+    if not isinstance(floor, dict):
+        raise FloorError("floor must be an object with 'img' and 'world'")
+    img = _pts4(floor.get("img"), "img", 0.0, 1.0)
+    world = _pts4(floor.get("world"), "world", -MAX_WORLD_M, MAX_WORLD_M)
+    _non_degenerate(img, "img")
+    _non_degenerate(world, "world")
+    try:
+        h = fit_homography(img, world)
+        if not np.all(np.isfinite(h)) or abs(np.linalg.det(h)) < 1e-12:
+            raise ValueError("singular")
+    except ValueError as e:
+        raise FloorError(f"floor calibration could not be fitted ({e})")
+    return {"img": [list(p) for p in img], "world": [list(p) for p in world]}
+
+
+def floor_homography(floor: dict, frame_size: tuple[int, int]) -> np.ndarray:
+    """Homography from analysis-frame pixels to floor metres; frame_size is (w, h)."""
+    f = validate_floor(floor)
+    w, h = frame_size
+    return fit_homography([(u * w, v * h) for u, v in f["img"]], f["world"])
+
+
 def save_zones(path, zones: list[Zone], frame_size: tuple[int, int] | None = None,
-               labeller: str | None = None) -> None:
+               labeller: str | None = None, floor: dict | None = None) -> None:
     doc: dict = {"version": 1, "frame_size": list(frame_size) if frame_size else None}
     if labeller is not None:
         doc["labeller"] = labeller
+    if floor is not None:
+        doc["floor"] = validate_floor(floor)
     doc["zones"] = [z.to_dict() for z in zones]
     Path(path).write_text(json.dumps(doc, indent=2))
 
@@ -112,3 +176,9 @@ def save_zones(path, zones: list[Zone], frame_size: tuple[int, int] | None = Non
 def load_zones(path) -> list[Zone]:
     doc = json.loads(Path(path).read_text())
     return [Zone.from_dict(d) for d in doc["zones"]]
+
+
+def load_floor(path) -> dict | None:
+    """Optional floor calibration of a zone file (None for files without one)."""
+    doc = json.loads(Path(path).read_text())
+    return validate_floor(doc["floor"]) if doc.get("floor") is not None else None

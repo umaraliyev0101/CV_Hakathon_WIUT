@@ -165,15 +165,17 @@ class Analysis:
     insights: list[Insight]
     zones: list[Zone]
     meta: dict = field(default_factory=dict)
+    floor: dict | None = None            # optional floor calibration (zone file 'floor')
 
 
 def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
           overrides: dict[int, str] | None = None,
-          imported_roles: dict[int, str] | None = None) -> Analysis:
+          imported_roles: dict[int, str] | None = None, floor: dict | None = None) -> Analysis:
     """Everything after perception. Pure: reads only the cache, never runs a model."""
     size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
     duration = float(pc.meta.get("analysed_duration") or pc.meta.get("duration") or 0.0)
-    persons, timeline, t2p = build_people(pc, cfg)
+    floor_h = zones_mod.floor_homography(floor, size) if floor else None
+    persons, timeline, t2p = build_people(pc, cfg, floor_h)
     if zones is None:
         zones = zones_mod.auto_zones(pc.cars, (size[1], size[0]))
     inter = roles_mod.interactions(persons, timeline, pc.embeddings, duration, cfg)
@@ -203,7 +205,7 @@ def score(pc: PerceptionCache, cfg: Config, zones: list[Zone] | None = None,
             "perception_seconds": float(pc.meta.get("perception_seconds", 0.0)),
             "rtf": float(pc.meta.get("rtf", 0.0)), "demo_only": cfg.preset.demo_only}
     return Analysis(persons, timeline, suggestions, roles, journeys, episodes, assist, st, ins,
-                    zones, meta)
+                    zones, meta, floor)
 
 
 def write_outputs(pc: PerceptionCache, analysis: Analysis, out_dir, cfg: Config, video=None,
@@ -221,7 +223,8 @@ def analyze(video, out_dir, preset: str = "short", zones_path=None, roles_path=N
     cfg = cfg or get_config(preset)
     pc = perceive(video, Path(cache_root), cfg, progress)
     zones = zones_mod.load_zones(zones_path) if zones_path else None
+    floor = zones_mod.load_floor(zones_path) if zones_path else None
     imported = roles_mod.load_roles_json(roles_path) if roles_path else None
-    analysis = score(pc, cfg, zones=zones, imported_roles=imported)
+    analysis = score(pc, cfg, zones=zones, imported_roles=imported, floor=floor)
     write_outputs(pc, analysis, out_dir, cfg, video=video, render_video=render_video)
     return analysis

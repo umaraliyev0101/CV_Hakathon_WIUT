@@ -24,13 +24,17 @@ export class ZoneEditor {
     this.draft = null;               // {type:'rect', a, b} | {type:'poly', pts, hover}
     this.drag = null;                // {zi, vi}
     this.frameSize = null;
+    this.floor = { img: [], world: [] };   // optional floor calibration: 4 clicked points + their metres
     this._bind();
   }
 
   async load(zonesDoc, imgUrl) {
     this.frameSize = zonesDoc.frame_size;
     this.zones = zonesDoc.zones.map((z) => ({ ...z, polygon: z.polygon.map((p) => [p[0], p[1]]) }));
-    this.selected = null; this.draft = null; this.setMode("select"); this.showError("");
+    const f = zonesDoc.floor;
+    this.floor = f ? { img: f.img.map((p) => [p[0], p[1]]), world: f.world.map((p) => [String(p[0]), String(p[1])]) }
+                   : { img: [], world: [] };
+    this.selected = null; this.draft = null; this.setMode("select"); this.showError(""); this.renderFloor();
     await new Promise((res) => {
       this.els.img.onload = this.els.img.onerror = res;
       this.els.img.src = imgUrl;
@@ -39,8 +43,35 @@ export class ZoneEditor {
   }
 
   toDoc() {
-    return { version: 1, frame_size: this.frameSize, zones: this.zones.map((z) => ({
+    const doc = { version: 1, frame_size: this.frameSize, zones: this.zones.map((z) => ({
       zone_id: z.zone_id, name: z.name, kind: z.kind, polygon: z.polygon, source: z.source || "user" })) };
+    const n = this.floor.img.length;
+    if (n) {
+      const world = this.floor.world.map((p) => [parseFloat(p[0]), parseFloat(p[1])]);
+      if (n !== 4 || world.slice(0, 4).some((p) => !p.every(Number.isFinite)))
+        throw new Error("Floor calibration needs 4 clicked points, each with X and Y in metres. Finish it or press Clear floor points.");
+      doc.floor = { img: this.floor.img, world };
+    }
+    return doc;
+  }
+
+  // ---------------------------------------------------------------- floor calibration
+  clearFloor() { this.floor = { img: [], world: [] }; this.renderFloor(); this.draw(); }
+  renderFloor() {
+    const rows = this.els.floorRows; if (!rows) return;
+    rows.textContent = "";
+    this.floor.img.forEach((p, i) => {
+      const li = document.createElement("li");
+      li.append(`Point ${i + 1}: X `);
+      [0, 1].forEach((k) => {
+        const inp = document.createElement("input");
+        inp.type = "number"; inp.step = "any"; inp.size = 5; inp.value = this.floor.world[i][k];
+        inp.setAttribute("aria-label", `Point ${i + 1} ${k ? "Y" : "X"} in metres`);
+        inp.addEventListener("input", () => { this.floor.world[i][k] = inp.value; });
+        li.append(inp, k ? " m" : " m, Y ");
+      });
+      rows.append(li);
+    });
   }
 
   showError(msg) {
@@ -94,6 +125,8 @@ export class ZoneEditor {
     b.poly.addEventListener("click", () => this.setMode("poly"));
     b.finish.addEventListener("click", () => this.finishPoly());
     b.del.addEventListener("click", () => this.deleteSelected());
+    b.calib?.addEventListener("click", () => this.setMode("calib"));
+    b.clearFloor?.addEventListener("click", () => this.clearFloor());
     this.els.name.addEventListener("input", () => {
       if (this.selected === null) return;
       this.zones[this.selected].name = this.els.name.value; this.renderList(); this.draw();
@@ -117,10 +150,12 @@ export class ZoneEditor {
     b.select.setAttribute("aria-pressed", String(mode === "select"));
     b.rect.setAttribute("aria-pressed", String(mode === "rect"));
     b.poly.setAttribute("aria-pressed", String(mode === "poly"));
+    b.calib?.setAttribute("aria-pressed", String(mode === "calib"));
     b.finish.hidden = mode !== "poly";
     this.els.hint.textContent = {
       select: "Click a zone to select it. Drag its corners to reshape.",
       rect: "Press on the picture and drag to draw a rectangle.",
+      calib: "Click 4 points on the floor (corners of a known rectangle), then enter each point's X and Y in metres.",
       poly: "Click to place corners. Double-click or press Finish polygon to close it (Esc cancels).",
     }[mode];
     this.els.canvas.style.cursor = mode === "select" ? "default" : "crosshair";
@@ -130,6 +165,12 @@ export class ZoneEditor {
   onDown(e) {
     const n = this.toNorm(e);
     this.els.canvas.setPointerCapture?.(e.pointerId);
+    if (this.mode === "calib") {
+      if (this.floor.img.length < 4) {
+        this.floor.img.push(n); this.floor.world.push(["", ""]); this.renderFloor(); this.draw();
+      } else this.showError("4 points are placed. Press Clear floor points to start again.");
+      return;
+    }
     if (this.mode === "rect") { this.draft = { type: "rect", a: n, b: n }; return; }
     if (this.mode === "poly") {
       if (!this.draft) this.draft = { type: "poly", pts: [], hover: n };
@@ -225,6 +266,13 @@ export class ZoneEditor {
         const [x, y] = this.px(p);
         g.beginPath(); g.arc(x, y, HANDLE, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2; g.strokeStyle = col; g.stroke();
       });
+    });
+    this.floor.img.forEach((p, i) => {
+      const [x, y] = this.px(p);
+      g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fillStyle = "#0a8f8f"; g.fill();
+      g.lineWidth = 2; g.strokeStyle = "#fff"; g.stroke();
+      g.fillStyle = "#fff"; g.font = "700 11px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(String(i + 1), x, y);
     });
     const d = this.draft;
     if (d?.type === "rect") {

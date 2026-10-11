@@ -93,8 +93,8 @@ async function pollJob() {
 // ------------------------------------------------------------------ 2. zones
 const zoneEditor = new ZoneEditor({
   panel: $("step-zones"), img: $("zone-img"), canvas: $("zone-canvas"), list: $("zone-list"), form: $("zone-form"),
-  name: $("zone-name"), kind: $("zone-kind"), hint: $("tool-hint"), error: $("zone-error"),
-  btn: { select: $("tool-select"), rect: $("tool-rect"), poly: $("tool-poly"), finish: $("tool-finish"), del: $("tool-delete") },
+  name: $("zone-name"), kind: $("zone-kind"), hint: $("tool-hint"), error: $("zone-error"), floorRows: $("floor-rows"),
+  btn: { select: $("tool-select"), rect: $("tool-rect"), poly: $("tool-poly"), finish: $("tool-finish"), del: $("tool-delete"), calib: $("tool-calib"), clearFloor: $("tool-clear-floor") },
 });
 
 async function openZones() {

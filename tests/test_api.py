@@ -454,3 +454,20 @@ def test_skip_roles_makes_everyone_customer_and_warns(make_client, video):
     c.post(f"/api/jobs/{jid}/score", json={"render_video": False})
     res = c.get(f"/api/jobs/{jid}/results").json()
     assert res["store"]["staff"] == 1 and SKIP_WARNING not in res["warnings"]
+
+
+def test_floor_calibration_api(make_client, video):
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    doc = c.get(f"/api/jobs/{jid}/zones").json()
+    floor = {"img": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.5], [0.2, 0.5]],
+             "world": [[0, 0], [6, 0], [6, 8], [0, 8]]}
+    bad = c.put(f"/api/jobs/{jid}/zones", json={**doc, "floor": {**floor, "img": floor["img"][:3]}})
+    assert bad.status_code == 422 and "floor" in bad.json()["error"]
+    ok = c.put(f"/api/jobs/{jid}/zones", json={**doc, "floor": floor})
+    assert ok.status_code == 200 and ok.json()["floor"] == floor
+    assert c.get(f"/api/jobs/{jid}/zones").json()["floor"] == floor
+    assert c.post(f"/api/jobs/{jid}/score", json={"render_video": False}).status_code == 200
+    assert c.get(f"/api/jobs/{jid}/files/heatmap_topdown.png").status_code == 200
+    assert "floor" not in c.put(f"/api/jobs/{jid}/zones", json=doc).json()

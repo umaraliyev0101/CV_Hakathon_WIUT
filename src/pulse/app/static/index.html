@@ -59,6 +59,7 @@
           <button type="button" id="tool-select" aria-pressed="true">Select / move</button>
           <button type="button" id="tool-rect" aria-pressed="false">Add rectangle</button>
           <button type="button" id="tool-poly" aria-pressed="false">Add polygon</button>
+          <button type="button" id="tool-calib" aria-pressed="false">Calibrate floor</button>
           <button type="button" id="tool-finish" hidden>Finish polygon</button>
           <button type="button" id="tool-delete" class="danger" disabled>Delete zone</button>
         </div>
@@ -81,6 +82,12 @@
             </select>
           </div>
         </form>
+        <div id="floor-box">
+          <h3>Floor calibration (optional)</h3>
+          <p class="muted">Gives a top-down heatmap in metres. Use Calibrate floor, click 4 floor points, enter their real X/Y in metres.</p>
+          <ol id="floor-rows" class="zone-list"></ol>
+          <button type="button" id="tool-clear-floor">Clear floor points</button>
+        </div>
         <p id="zone-error" class="error" role="alert" hidden></p>
         <button type="button" id="zones-ok" class="primary">Looks right</button>
       </aside>

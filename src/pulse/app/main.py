@@ -97,6 +97,11 @@ def validate_zones(doc) -> list[Zone]:
         if zones_mod.polygon_area(pts) <= MIN_ZONE_AREA:
             raise ZoneError(f"{label}: polygon area is too small")
         zones.append(Zone(zid, name.strip(), kind, pts, "user"))
+    if doc.get("floor") is not None:
+        try:
+            zones_mod.validate_floor(doc["floor"])
+        except zones_mod.FloorError as e:
+            raise ZoneError(str(e))
     return zones
 
 
@@ -542,7 +547,7 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
         pc = job.get_pc()
         size = (int(pc.meta["frame_w"]), int(pc.meta["frame_h"]))
         with job.lock:
-            zones_mod.save_zones(job.zones_path, zones, size)
+            zones_mod.save_zones(job.zones_path, zones, size, floor=doc.get("floor"))
             return json.loads(job.zones_path.read_text())
 
     # ------------------------------------------------------------------ people / roles
@@ -649,13 +654,14 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
                 cfg = get_config(preset)
                 pc = job.get_pc()
                 zones = zones_mod.load_zones(job.zones_path) if job.zones_path.is_file() else None
+                floor = zones_mod.load_floor(job.zones_path) if job.zones_path.is_file() else None
                 if job.roles_skipped:     # spec 3: skip means everyone is a customer
                     everyone = {p["person_id"]: "customer" for p in read_people(job)}
-                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=everyone)
+                    analysis = pipeline.score(pc, cfg, zones=zones, overrides=everyone, floor=floor)
                     analysis.stats.warnings.append(SKIP_WARNING)
                 else:
                     analysis = pipeline.score(pc, cfg, zones=zones, overrides=job.overrides or None,
-                                              imported_roles=job.imported or None)
+                                              imported_roles=job.imported or None, floor=floor)
                 pipeline.write_outputs(pc, analysis, job.out_dir, cfg, video=job.input_path,
                                        render_video=False)
             except Exception as e:  # noqa: BLE001

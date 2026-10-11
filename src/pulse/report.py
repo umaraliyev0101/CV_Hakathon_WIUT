@@ -139,6 +139,41 @@ def _heatmap(key: np.ndarray, stats) -> np.ndarray:
     return out
 
 
+def _topdown_heatmap(path: Path, analysis, pc) -> None:
+    """Customer foot positions on the floor plane, in metres.
+
+    PRIVACY: this is a pure matplotlib plot of coordinates; it contains no video pixels, so there is
+    nothing to face-blur."""
+    from .timeline import filter_stable
+    world = np.asarray(analysis.floor["world"], float)
+    lo, hi = world.min(axis=0), world.max(axis=0)
+    margin = 0.1 * max(float((hi - lo).max()), 1.0)
+    lo, hi = lo - margin, hi + margin
+    stable = filter_stable(analysis.timeline, pc.segments)
+    pts = [s.pos_m for pid, ss in stable.items() if analysis.roles.get(pid) != "staff"
+           for s in ss if s.dist_method == "floor" and s.pos_m is not None]
+    fig, ax = plt.subplots(figsize=(6, 6 * max(hi[1] - lo[1], 1e-6) / max(hi[0] - lo[0], 1e-6)
+                                     if hi[0] > lo[0] else 6))
+    if pts:
+        a = np.asarray(pts, float)
+        h, xe, ye = np.histogram2d(a[:, 0], a[:, 1], bins=40, range=[[lo[0], hi[0]], [lo[1], hi[1]]])
+        ax.imshow(np.ma.masked_equal(h.T, 0), origin="lower", extent=[lo[0], hi[0], lo[1], hi[1]],
+                  cmap="inferno", aspect="equal")
+    closed = np.vstack([world, world[:1]])
+    ax.plot(closed[:, 0], closed[:, 1], "c--", lw=1, label="calibration")
+    ax.plot(world[:, 0], world[:, 1], "co", ms=4)
+    ax.set_xlim(lo[0], hi[0])
+    ax.set_ylim(lo[1], hi[1])
+    ax.set_aspect("equal")
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_title("Customer positions on the floor (top-down)")
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(path, format="png", metadata={"Software": None})
+    plt.close(fig)
+
+
 def _line_chart(path: Path, rows: list, title: str, ylabel: str) -> None:
     fig, ax = plt.subplots(figsize=(7, 2.6))
     if rows:
@@ -203,7 +238,7 @@ def _thumbnails(analysis, pc, video, cfg, obs_t, out_dir: Path) -> dict[int, str
 
 
 _OWNED = ["report.json", "stats.json", "insights.json", "zones.json", "roles.json", "people.json",
-          "visits.csv", "per_car.csv", "occupancy.csv", "heatmap.png", "occupancy.svg", "waiting.svg",
+          "visits.csv", "per_car.csv", "occupancy.csv", "heatmap.png", "heatmap_topdown.png", "occupancy.svg", "waiting.svg",
           "journey_flow.json", "keyframe.jpg", "annotated.mp4", "annotated.part.mp4"]
 
 
@@ -239,12 +274,14 @@ def build_report(analysis, pc, out_dir, cfg: Config, video=None, render_video: b
     key = _keyframe(pc, video, obs_t, cfg, warnings)
     cv2.imwrite(str(put("keyframe", "keyframe.jpg")), key, [cv2.IMWRITE_JPEG_QUALITY, 92])
     cv2.imwrite(str(put("heatmap", "heatmap.png")), _heatmap(key, st))
+    if getattr(analysis, "floor", None):
+        _topdown_heatmap(put("heatmap_topdown", "heatmap_topdown.png"), analysis, pc)
     _line_chart(put("occupancy_chart", "occupancy.svg"), st.occupancy, "Customers present", "customers")
     _line_chart(put("waiting_chart", "waiting.svg"), st.waiting, "Customers waiting unattended", "customers")
 
     _dump(put("stats", "stats.json"), st.to_dict())
     _dump(put("insights", "insights.json"), [i.to_dict() for i in analysis.insights])
-    save_zones(put("zones", "zones.json"), analysis.zones, size)
+    save_zones(put("zones", "zones.json"), analysis.zones, size, floor=getattr(analysis, "floor", None))
     _dump(put("roles", "roles.json"), export_roles_json(analysis.roles))
     flow = _journey_flow(analysis)
     _dump(put("journey_flow", "journey_flow.json"), flow)
