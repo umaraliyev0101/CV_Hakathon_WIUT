@@ -1,0 +1,261 @@
+"""The FastAPI app: REST job API, static pages and the live WebSocket (api-contract.md is the binding reference).
+
+    GET  /                               static/index.html (the upload -> confirm -> results app)
+    GET  /live                           static/live.html (the live camera page)
+    GET  /static/...                     the frontend's files
+    GET  /api/presets                    {name: {label, thresholds}}
+    POST /api/jobs                       multipart `file` + form `preset` -> {"job_id"}; 415 / 400 / 413
+    GET  /api/jobs/{id}                  job status; 404 unknown
+    GET  /api/jobs/{id}/people           confirm-view people; 409 before needs_confirm
+    POST /api/jobs/{id}/roles            {"roles", "names", "preset"} -> results (instant re-score, video re-rendered)
+    GET  /api/jobs/{id}/results          results; 409 before needs_confirm
+    GET  /api/jobs/{id}/files/{name}     whitelisted outputs (HTTP Range supported, so the video can seek)
+    WS   /ws/live?preset=short           live camera protocol (live_ws.serve_live)
+
+Everything runs on this computer. Uploads are saved under an ASCII name in their job directory, never under the
+client's file name, and the type, preset and the 1 GB cap are checked before anything is kept. Job directories older
+than 24 h are deleted when the app starts.
+"""
+
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Callable
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile
+
+from .. import config
+from ..live import LiveSession
+from ..live_ws import serve_live
+from ..perception.stack import PerceptionStack, default_stack
+from ..types import to_jsonable
+from .jobs import ALLOWED_EXTENSIONS, JobConflict, JobManager, upload_extension
+
+log = logging.getLogger(__name__)
+
+__all__ = ["create_app", "MAX_UPLOAD_BYTES"]
+
+STATIC_DIR = Path(__file__).with_name("static")
+MAX_UPLOAD_BYTES = 1 << 30            # 1 GB; read at request time
+MULTIPART_SLACK = 1 << 20             # form fields and boundaries on top of the file itself
+CHUNK = 1 << 20
+MAX_NAME_CHARS = 40
+ROLES = ("staff", "customer")
+NO_STORE = {"Cache-Control": "no-store"}
+NO_CACHE = {"Cache-Control": "no-cache"}
+MEDIA_TYPES = {".mp4": "video/mp4", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json",
+               ".csv": "text/csv; charset=utf-8"}
+BANNER = ("Coaching support only — not an automatic judgement of staff (Uzbekistan AI law ZRU-1115). Faces are "
+          "blurred; processing stays on this computer. Staff must be informed that analytics is in use.")
+LIVE_PLACEHOLDER = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showroom Coach live</title></head>
+<body style="font-family: system-ui, sans-serif; margin: 2rem; max-width: 40rem">
+<p role="note"><strong>{BANNER}</strong></p>
+<h1>Live camera</h1>
+<p>The live camera page (live.html with live.js) is not installed in this build. <a href="/">Back to video upload</a></p>
+</body></html>
+"""
+
+
+class RolesBody(BaseModel):
+    roles: dict[str, str] = {}
+    names: dict[str, str | None] = {}
+    preset: str | None = None
+
+
+class _TooLarge(Exception):
+    pass
+
+
+class _NoCacheStatic(StaticFiles):
+    """The frontend changes between runs during the hackathon; make browsers revalidate (ETag) instead of guessing."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers.update(NO_CACHE)
+        return response
+
+
+def _copy_capped(src, dst: Path, limit: int) -> int:
+    """Copy the file object `src` to `dst` in 1 MB chunks; _TooLarge as soon as more than `limit` bytes came."""
+    src.seek(0)
+    n = 0
+    with open(dst, "wb") as out:
+        while chunk := src.read(CHUNK):
+            n += len(chunk)
+            if n > limit:
+                raise _TooLarge()
+            out.write(chunk)
+    return n
+
+
+def _pid_map(values: dict, what: str) -> dict[int, object]:
+    out = {}
+    for key, value in values.items():
+        try:
+            out[int(key)] = value
+        except ValueError:
+            raise HTTPException(400, f"{what}: {key!r} is not a person id") from None
+    return out
+
+
+def create_app(stack_factory: Callable[[], PerceptionStack] | None = None, jobs_root: Path | None = None,
+               live_session_factory: Callable[[str], LiveSession] | None = None) -> FastAPI:
+    """The web app. `stack_factory()` gives the perception stack for file jobs (default: the real stack with
+    `config.DEFAULT_DETECTOR`); `live_session_factory(preset)` gives a `LiveSession` per WebSocket connection (default:
+    the real stack with `config.LIVE_DETECTOR`, or `stack_factory`'s stack when one was injected, e.g. in tests);
+    `jobs_root` defaults to `config.jobs_dir()`."""
+    if live_session_factory is None:
+        if stack_factory is None:
+            def live_session_factory(preset: str) -> LiveSession:
+                return LiveSession(default_stack(config.LIVE_DETECTOR), preset=preset)
+        else:
+            injected = stack_factory
+
+            def live_session_factory(preset: str) -> LiveSession:
+                return LiveSession(injected(), preset=preset)
+    if stack_factory is None:
+        def stack_factory() -> PerceptionStack:
+            return default_stack(config.DEFAULT_DETECTOR)
+
+    manager = JobManager(Path(jobs_root) if jobs_root is not None else config.jobs_dir(), stack_factory)
+    live_factory = live_session_factory
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        removed = await run_in_threadpool(manager.cleanup)
+        log.info("startup cleanup: %d job director%s older than %g h deleted from %s", removed,
+                 "y" if removed == 1 else "ies", manager.max_age_h, manager.root)
+        try:
+            yield
+        finally:
+            await run_in_threadpool(manager.close)
+
+    app = FastAPI(title="Showroom Coach", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.state.jobs = manager
+
+    # ------------------------------------------------------------------------------------------------ pages
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers=NO_STORE)
+
+    @app.get("/live", include_in_schema=False)
+    def live_page():
+        page = STATIC_DIR / "live.html"
+        if page.is_file():
+            return FileResponse(page, media_type="text/html", headers=NO_STORE)
+        return HTMLResponse(LIVE_PLACEHOLDER, headers=NO_STORE)
+
+    app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
+
+    # -------------------------------------------------------------------------------------------------- API
+
+    @app.get("/api/presets")
+    def presets():
+        return {name: {"label": config.PRESET_LABELS.get(name, name), "thresholds": to_jsonable(th)}
+                for name, th in config.PRESETS.items()}
+
+    @app.post("/api/jobs")
+    async def create_job(request: Request):
+        limit = MAX_UPLOAD_BYTES
+        length = request.headers.get("content-length", "")
+        if length.isdigit() and int(length) > limit + MULTIPART_SLACK:
+            raise HTTPException(413, "The file is larger than 1 GB.")
+        async with request.form(max_files=1, max_fields=10) as form:
+            upload = form.get("file")
+            preset = form.get("preset") or "short"
+            if not isinstance(upload, UploadFile):
+                raise HTTPException(400, "No video file was sent (form field 'file').")
+            if upload_extension(upload.filename) is None:
+                raise HTTPException(415, f"Unsupported file type. Use {', '.join(e[1:].upper() for e in ALLOWED_EXTENSIONS)}.")
+            if not isinstance(preset, str) or preset not in config.PRESETS:
+                raise HTTPException(400, f"Unknown preset; choose one of {', '.join(sorted(config.PRESETS))}.")
+            part = manager.incoming_path()
+            try:
+                await run_in_threadpool(_copy_capped, upload.file, part, limit)
+            except _TooLarge:
+                part.unlink(missing_ok=True)
+                raise HTTPException(413, "The file is larger than 1 GB.") from None
+            except BaseException:
+                part.unlink(missing_ok=True)
+                raise
+            filename = upload.filename
+        try:
+            job = await run_in_threadpool(manager.create, filename, part, preset)
+        except BaseException:
+            part.unlink(missing_ok=True)
+            raise
+        log.info("job %s created (%s, preset %s)", job.id, job.filename, preset)
+        return {"job_id": job.id}
+
+    def _job_or_404(job_id: str):
+        try:
+            return manager.get(job_id)
+        except KeyError:
+            raise HTTPException(404, "Unknown job. It may have been deleted, or the server was restarted.") from None
+
+    @app.get("/api/jobs/{job_id}")
+    def job_status(job_id: str):
+        return _job_or_404(job_id).public()
+
+    @app.get("/api/jobs/{job_id}/people")
+    def job_people(job_id: str):
+        _job_or_404(job_id)
+        try:
+            return {"people": manager.people(job_id)}
+        except JobConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.post("/api/jobs/{job_id}/roles")
+    def job_roles(job_id: str, body: RolesBody):
+        _job_or_404(job_id)
+        roles = _pid_map(body.roles, "roles")
+        bad = sorted({r for r in roles.values() if r not in ROLES})
+        if bad:
+            raise HTTPException(400, f"roles must be 'staff' or 'customer', got {', '.join(map(repr, bad))}")
+        names = {pid: ("" if n is None else str(n).strip()[:MAX_NAME_CHARS])
+                 for pid, n in _pid_map(body.names, "names").items()}
+        if body.preset is not None and body.preset not in config.PRESETS:
+            raise HTTPException(400, f"Unknown preset; choose one of {', '.join(sorted(config.PRESETS))}.")
+        try:
+            manager.set_roles(job_id, roles, names, body.preset)
+            return manager.results(job_id)
+        except JobConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.get("/api/jobs/{job_id}/results")
+    def job_results(job_id: str):
+        _job_or_404(job_id)
+        try:
+            return manager.results(job_id)
+        except JobConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.get("/api/jobs/{job_id}/files/{name:path}")
+    def job_file(job_id: str, name: str):
+        try:
+            path = manager.file(job_id, name)
+        except KeyError:
+            raise HTTPException(404, "No such file.") from None
+        # Versioned videos and person thumbnails never change under their name; everything else is rewritten in place
+        # by a re-score (and annotated.mp4 is an alias of the latest video), so browsers must revalidate those.
+        stable = name.startswith("people/") or (name.startswith("annotated-") and name.endswith(".mp4"))
+        return FileResponse(path, media_type=MEDIA_TYPES.get(path.suffix.lower()),
+                            headers=None if stable else NO_CACHE)
+
+    # ------------------------------------------------------------------------------------------------- live
+
+    @app.websocket("/ws/live")
+    async def ws_live(websocket: WebSocket):
+        await serve_live(websocket, live_factory)
+
+    return app
