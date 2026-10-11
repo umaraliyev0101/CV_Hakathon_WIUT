@@ -1,17 +1,26 @@
 """Perception pipeline: detect -> track -> pose -> embed over a video, the per-video cache, and the face blur
 helpers that make the saved track crops safe to show."""
 import inspect
+import json
+import os
+import shutil
+import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import cv2
 import numpy as np
 import pytest
 
+from showroom_coach import config
+from showroom_coach.analysis import build_persons
 from showroom_coach.perception import pipeline
 from showroom_coach.perception.pipeline import (
-    cached_perception, carry_keypoints, load_result, run_perception, save_result, video_key,
+    cache_key, cached_perception, carry_keypoints, load_result, perception_params, run_perception, save_result,
+    video_key,
 )
 from showroom_coach.perception.stack import PerceptionStack, fake_stack
+from showroom_coach.perception.tracking import Tracker
 from showroom_coach.render import blur_faces, face_region
 from showroom_coach.sources import VideoError
 from showroom_coach.types import Det
@@ -335,8 +344,10 @@ def _flicker_video_stack(make_video, tmp_path):
 
 
 def test_min_track_constants_match_the_analysis_filter():
-    from showroom_coach import config
     assert config.MIN_TRACK_OBS == 3 and config.MIN_TRACK_S == 1.0
+    sig = inspect.signature(build_persons).parameters          # analysis drops tracks by the very same constants
+    assert sig["min_track_obs"].default == config.MIN_TRACK_OBS
+    assert sig["min_track_s"].default == config.MIN_TRACK_S
 
 
 def test_only_real_tracks_are_embedded_and_get_crops(make_video, tmp_path):
@@ -433,7 +444,7 @@ def test_cache_files_load_without_pickle(synth_video, tmp_path):
     _, cached = cached_perception(synth_video, fake_stack(), tmp_path)
     assert cached is False
     (d,) = [p for p in tmp_path.iterdir() if p.is_dir()]
-    assert d.name == video_key(synth_video, 5.0, 960, 300.0, "fake")
+    assert d.name == cache_key(synth_video, perception_params(fake_stack()))
     with np.load(d / "perception.npz", allow_pickle=False) as z:
         assert all(z[k].dtype != object for k in z.files)
     assert (d / "perception.json").is_file() and (d / "crops").is_dir()
@@ -504,6 +515,170 @@ def test_corrupt_cache_entry_is_recomputed(synth_video, tmp_path):
     assert cached is False and len(res.track_ids()) == 2
     _, cached = cached_perception(synth_video, fake_stack(), tmp_path)
     assert cached is True
+
+
+# --- the key covers everything that changes what an entry contains
+
+
+def _key(path, stack=None, **kw):
+    return cache_key(path, perception_params(stack or fake_stack(), **kw))
+
+
+def _tracker_default(monkeypatch, name, value):
+    names = list(inspect.signature(Tracker.__init__).parameters)[1:]            # fps, lost_seconds, activation, ...
+    defaults = list(Tracker.__init__.__defaults__)
+    defaults[names.index(name)] = value
+    monkeypatch.setattr(Tracker.__init__, "__defaults__", tuple(defaults))
+
+
+def test_cache_key_covers_every_content_changing_parameter(synth_video, monkeypatch):
+    base = _key(synth_video)
+    assert base == _key(synth_video) and len(base) == 16
+    keys = {
+        "sample_fps": _key(synth_video, sample_fps=10.0),
+        "max_width": _key(synth_video, max_width=640),
+        "max_seconds": _key(synth_video, max_seconds=4.0),
+        "pose_every arg": _key(synth_video, pose_every=1),
+        "crops_per_track arg": _key(synth_video, crops_per_track=2),
+        "stack name": _key(synth_video, PerceptionStack("other", fake_stack().detect, None, None)),
+    }
+    for name, value in (("DEFAULT_POSE_EVERY", 3), ("DEFAULT_CROPS_PER_TRACK", 3),    # defaults are effective values
+                        ("MIN_TRACK_OBS", 4), ("MIN_TRACK_S", 2.0)):
+        with monkeypatch.context() as m:
+            m.setattr(pipeline, name, value)
+            keys[name] = _key(synth_video)
+    for name, value in (("activation", 0.4), ("lost_seconds", 3.0), ("match_thr", 0.7)):
+        with monkeypatch.context() as m:
+            _tracker_default(m, name, value)
+            keys["tracker " + name] = _key(synth_video)
+    assert len(set(keys.values()) | {base}) == len(keys) + 1, keys          # every one of them gives its own key
+    assert base not in keys.values()
+
+
+def test_explicit_values_equal_to_the_defaults_give_the_same_key(synth_video):
+    assert _key(synth_video, pose_every=2, crops_per_track=4, sample_fps=5, max_width=960, max_seconds=300) == \
+        _key(synth_video)
+
+
+def test_a_tracker_that_exposes_its_settings_is_keyed_by_them(synth_video):
+    def with_tracker(**settings):
+        st = fake_stack()
+        st.new_tracker = lambda fps: SimpleNamespace(**settings)
+        return st
+
+    a = _key(synth_video, with_tracker(activation=0.2, lost_seconds=2.0, match_thr=0.8))
+    assert a == _key(synth_video, with_tracker(activation=0.2, lost_seconds=2.0, match_thr=0.8))
+    assert a != _key(synth_video, with_tracker(activation=0.3, lost_seconds=2.0, match_thr=0.8))
+    assert a != _key(synth_video, with_tracker(activation=0.2, lost_seconds=1.0, match_thr=0.8))
+    assert a != _key(synth_video, with_tracker(activation=0.2, lost_seconds=2.0, match_thr=0.7))
+
+
+def test_perception_params_lists_the_effective_settings(synth_video):
+    p = perception_params(fake_stack())
+    assert p["sample_fps"] == 5.0 and p["max_width"] == 960 and p["max_seconds"] == 300.0 and p["stack"] == "fake"
+    assert p["pose_every"] == pipeline.DEFAULT_POSE_EVERY == 2 and p["crops_per_track"] == 4
+    assert p["min_track_obs"] == config.MIN_TRACK_OBS and p["min_track_s"] == config.MIN_TRACK_S
+    assert p["tracker"]["activation"] == 0.25 and p["tracker"]["lost_seconds"] == 2.0 and p["tracker"]["match_thr"] == 0.8
+    assert p["tracker"]["class"].endswith("Tracker")
+    assert perception_params(fake_stack(), crops_per_track=0)["crops_per_track"] == 1    # what run_perception uses
+    with pytest.raises(ValueError):
+        perception_params(fake_stack(), pose_every=0)
+    with pytest.raises(TypeError):
+        perception_params(fake_stack(), nonsense=1)
+
+
+def test_the_params_are_stored_in_the_json_and_on_the_result(synth_video, tmp_path):
+    res, _ = cached_perception(synth_video, fake_stack(), tmp_path)
+    (d,) = [p for p in tmp_path.iterdir() if p.is_dir()]
+    meta = json.loads((d / "perception.json").read_text(encoding="utf-8"))
+    assert meta["params"] == perception_params(fake_stack()) == res.params
+    again, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is True and again.params == res.params
+    direct = run_perception(synth_video, fake_stack(), pose_every=1, crops_per_track=2)
+    assert direct.params["pose_every"] == 1 and direct.params["crops_per_track"] == 2
+
+
+def test_an_entry_whose_stored_params_disagree_is_recomputed(synth_video, tmp_path):
+    cached_perception(synth_video, fake_stack(), tmp_path)
+    (d,) = [p for p in tmp_path.iterdir() if p.is_dir()]
+    meta = json.loads((d / "perception.json").read_text(encoding="utf-8"))
+    meta["params"]["min_track_obs"] = 99                                  # e.g. an entry written by other code
+    (d / "perception.json").write_text(json.dumps(meta), encoding="utf-8")
+    _, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is False
+    _, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is True
+
+
+def test_changing_a_constant_does_not_serve_a_stale_entry(synth_video, tmp_path, monkeypatch):
+    first, c1 = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert c1 is False and len(first.track_emb) == 2
+    with monkeypatch.context() as m:
+        m.setattr(pipeline, "MIN_TRACK_OBS", 1000)                        # no track is real any more
+        second, c2 = cached_perception(synth_video, fake_stack(), tmp_path)
+        assert c2 is False and second.track_emb == {} and second.params["min_track_obs"] == 1000
+    third, c3 = cached_perception(synth_video, fake_stack(), tmp_path)    # constant restored: the first entry again
+    assert c3 is True and len(third.track_emb) == 2
+    assert len([p for p in tmp_path.iterdir() if p.is_dir()]) == 2
+    with monkeypatch.context() as m:
+        m.setattr(pipeline, "DEFAULT_POSE_EVERY", 1)
+        _, c4 = cached_perception(synth_video, fake_stack(), tmp_path)
+        assert c4 is False
+
+
+def test_the_cache_dir_is_named_by_cache_key(synth_video, tmp_path):
+    cached_perception(synth_video, fake_stack(), tmp_path, pose_every=1)
+    (d,) = [p for p in tmp_path.iterdir() if p.is_dir()]
+    assert d.name == _key(synth_video, pose_every=1) != _key(synth_video)
+
+
+# --- publish: lost race, stale temp dirs
+
+
+def test_a_lost_race_still_returns_the_current_video_path(synth_video, tmp_path, monkeypatch):
+    real_replace = os.replace
+
+    def lose_the_race(src, dst):
+        if Path(dst).name.startswith(".") or not Path(src).name.startswith(".tmp-"):
+            return real_replace(src, dst)
+        shutil.copytree(src, dst)                                         # the other run published first ...
+        meta = json.loads((Path(dst) / "perception.json").read_text(encoding="utf-8"))
+        meta["video"]["path"] = "elsewhere/winner.avi"                    # ... from another path
+        (Path(dst) / "perception.json").write_text(json.dumps(meta), encoding="utf-8")
+        raise FileExistsError(dst)
+
+    monkeypatch.setattr(pipeline.os, "replace", lose_the_race)
+    res, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is False and res.video.path == str(synth_video)
+    assert len(res.track_ids()) == 2 and Path(res.crops_dir).is_dir()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".tmp-")]
+    monkeypatch.undo()
+    res, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is True and res.video.path == str(synth_video)
+
+
+def test_stale_tmp_dirs_are_swept_but_fresh_ones_and_entries_are_kept(synth_video, tmp_path):
+    old, fresh, entry = tmp_path / ".tmp-abc-old", tmp_path / ".tmp-abc-fresh", tmp_path / "0123456789abcdef"
+    for d in (old, fresh, entry):
+        (d / "crops").mkdir(parents=True)
+        (d / "crops" / "1.jpg").write_bytes(b"x")
+    two_hours_ago = time.time() - 7200
+    os.utime(old, (two_hours_ago, two_hours_ago))
+    os.utime(entry, (two_hours_ago, two_hours_ago))                       # an old entry is not a temp dir
+    (tmp_path / ".tmp-file").write_text("not a dir")
+    os.utime(tmp_path / ".tmp-file", (two_hours_ago, two_hours_ago))
+    cached_perception(synth_video, fake_stack(), tmp_path)
+    assert not old.exists() and fresh.exists() and entry.exists() and (tmp_path / ".tmp-file").exists()
+
+
+def test_the_sweep_also_runs_on_a_cache_hit(synth_video, tmp_path):
+    cached_perception(synth_video, fake_stack(), tmp_path)
+    old = tmp_path / ".tmp-crashed"
+    old.mkdir()
+    three_hours_ago = time.time() - 10800
+    os.utime(old, (three_hours_ago, three_hours_ago))
+    _, cached = cached_perception(synth_video, fake_stack(), tmp_path)
+    assert cached is True and not old.exists()
 
 
 def test_bad_arguments_are_rejected(synth_video, tmp_path):

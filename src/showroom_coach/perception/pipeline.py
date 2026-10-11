@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import heapq
+import inspect
 import itertools
 import json
 import logging
@@ -33,7 +34,7 @@ import os
 import shutil
 import time
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
@@ -56,7 +57,9 @@ DEFAULT_CROPS_PER_TRACK = 4
 DEFAULT_POSE_EVERY = 2
 PROGRESS_EVERY = 10              # sampled frames between progress callbacks
 HSV_WEIGHT = 0.5                 # weight of the secondary half of each descriptor
-FORMAT_VERSION = 2               # 2: pose stride (carried keypoints) and descriptors for real tracks only
+FORMAT_VERSION = 3               # 3: the effective parameters are stored (and checked) next to the arrays
+STALE_TMP_SECONDS = 3600.0       # a `.tmp-*` build dir older than this is a crashed run and gets swept
+TRACKER_KNOBS = ("activation", "lost_seconds", "match_thr")
 NPZ_NAME, JSON_NAME, CROPS_NAME = "perception.npz", "perception.json", "crops"
 JPEG_QUALITY = 85
 _EPS = 1e-12
@@ -77,18 +80,72 @@ class PerceptionResult:
     obs_kpts: np.ndarray           # (M,17,3); conf 0 when pose is unavailable
     raw_frame: np.ndarray          # (R,) frame index of every person detection (for face blur)
     raw_bbox: np.ndarray           # (R,4)
-    track_emb: dict[int, np.ndarray]     # identity descriptor: L2norm(concat(dino_mean, 0.5*hsv_full_mean))
-    track_outfit: dict[int, np.ndarray]  # outfit descriptor: L2norm(concat(hsv_torso_mean, 0.5*dino_mean))
-    crops_dir: str | None                # <dir>/<track_id>.jpg = face-blurred best crop of each track
+    # Descriptors and crops exist for REAL tracks only (config.MIN_TRACK_OBS observations spanning
+    # config.MIN_TRACK_S seconds); use .get(track_id) / `in`. Flicker tracks keep their obs_* rows and raw boxes.
+    track_emb: dict[int, np.ndarray]     # real tracks: identity descriptor L2norm(concat(dino_mean, 0.5*hsv_full_mean))
+    track_outfit: dict[int, np.ndarray]  # real tracks: outfit descriptor L2norm(concat(hsv_torso_mean, 0.5*dino_mean))
+    crops_dir: str | None                # <dir>/<track_id>.jpg = face-blurred best crop of each REAL track
     cars: list[list[float]]              # car boxes [x1,y1,x2,y2,score] from the first frame (used in M8)
     timings: dict[str, float]            # decode/detect/track/pose/embed/total seconds
+    params: dict = field(default_factory=dict)   # the effective settings of this run (see `perception_params`)
 
     def track_ids(self) -> list[int]:
+        """Every track that has observations, flicker included (a subset of these has descriptors and crops)."""
         return [int(i) for i in np.unique(self.obs_track)]
 
     def obs_idx(self, track_id: int) -> np.ndarray:
         """Indices into the obs_* arrays of one track's observations, in frame order."""
         return np.flatnonzero(self.obs_track == track_id)
+
+
+# --------------------------------------------------------------------------- effective parameters
+
+
+def tracker_signature(tracker) -> dict:
+    """The tracker settings that shape the tracks: its class and `activation`, `lost_seconds`, `match_thr`.
+
+    A tracker that exposes those as attributes is read exactly. Otherwise they are taken from its constructor's
+    defaults, which is what a change of the class's tuning shows up as; a stack that builds its tracker with
+    non-default arguments but does not expose them must say so in its `name`.
+    """
+    cls = type(tracker)
+    try:
+        defaults = {n: prm.default for n, prm in inspect.signature(cls.__init__).parameters.items()
+                    if prm.default is not inspect.Parameter.empty}
+    except (TypeError, ValueError):
+        defaults = {}
+    return {"class": f"{cls.__module__}.{cls.__qualname__}",
+            **{k: getattr(tracker, k, defaults.get(k)) for k in TRACKER_KNOBS}}
+
+
+def _effective_params(stack: PerceptionStack, tracker, sample_fps, max_width, max_seconds, crops_per_track,
+                      pose_every) -> dict:
+    """Everything besides the video bytes that decides what a perception run stores, with the values the run
+    really uses (defaults filled in, constants read now). It is hashed into the cache key and stored in the JSON."""
+    pose_every = int(pose_every)
+    if pose_every < 1:
+        raise ValueError("pose_every must be >= 1")
+    return {
+        "sample_fps": float(sample_fps), "max_width": int(max_width), "max_seconds": float(max_seconds),
+        "stack": stack.name, "crops_per_track": max(1, int(crops_per_track)), "pose_every": pose_every,
+        "min_track_obs": int(MIN_TRACK_OBS), "min_track_s": float(MIN_TRACK_S),
+        "tracker": tracker_signature(tracker),
+    }
+
+
+def perception_params(stack: PerceptionStack, **kw) -> dict:
+    """The effective parameters of `cached_perception(path, stack, root, **kw)`: `kw` may carry `sample_fps`,
+    `max_width`, `max_seconds`, `crops_per_track` and `pose_every` (anything else is a TypeError); what is left out
+    takes its current default."""
+    sample_fps = kw.pop("sample_fps", SAMPLE_FPS)
+    max_width = kw.pop("max_width", MAX_WIDTH)
+    max_seconds = kw.pop("max_seconds", MAX_SECONDS)
+    crops_per_track = kw.pop("crops_per_track", DEFAULT_CROPS_PER_TRACK)
+    pose_every = kw.pop("pose_every", DEFAULT_POSE_EVERY)
+    if kw:
+        raise TypeError(f"unexpected keyword arguments: {sorted(kw)}")
+    return _effective_params(stack, stack.new_tracker(sample_fps), sample_fps, max_width, max_seconds,
+                             crops_per_track, pose_every)
 
 
 # --------------------------------------------------------------------------- the pass
@@ -178,15 +235,14 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
     """
     t_start = time.perf_counter()
     keep = max(1, int(crops_per_track))
-    pose_every = int(pose_every)
-    if pose_every < 1:
-        raise ValueError("pose_every must be >= 1")
     tm = {"decode": 0.0, "detect": 0.0, "track": 0.0, "pose": 0.0, "embed": 0.0}
 
     t0 = time.perf_counter()
     info = probe(path, max_width, sample_fps, max_seconds)
     tm["decode"] += time.perf_counter() - t0
     tracker = stack.new_tracker(sample_fps)
+    params = _effective_params(stack, tracker, sample_fps, max_width, max_seconds, keep, pose_every)
+    pose_every = params["pose_every"]
 
     frame_times: list[float] = []
     src_idx: list[int] = []
@@ -315,7 +371,7 @@ def run_perception(path, stack: PerceptionStack, sample_fps: float = SAMPLE_FPS,
         raw_frame=np.asarray(raw_frame, np.int64), raw_bbox=np.asarray(raw_bbox, np.float64).reshape(-1, 4),
         track_emb=track_emb, track_outfit=track_outfit,
         crops_dir=str(out_dir) if out_dir is not None else None,
-        cars=cars, timings=tm,
+        cars=cars, timings=tm, params=params,
     )
     if progress is not None:
         progress(1.0, "Analysis finished")
@@ -363,7 +419,7 @@ def save_result(res: PerceptionResult, d: Path) -> None:
             crops = str(res.crops_dir)
     meta = to_jsonable({
         "format": FORMAT_VERSION, "stack_name": res.stack_name, "video": res.video, "timings": res.timings,
-        "crops_dir": crops,
+        "params": res.params, "crops_dir": crops,
         "track_emb": {int(k): np.asarray(v, np.float32).tolist() for k, v in res.track_emb.items()},
         "track_outfit": {int(k): np.asarray(v, np.float32).tolist() for k, v in res.track_outfit.items()},
     })
@@ -394,41 +450,62 @@ def load_result(d: Path) -> PerceptionResult:
         track_emb={int(k): np.asarray(v, np.float32) for k, v in meta["track_emb"].items()},
         track_outfit={int(k): np.asarray(v, np.float32) for k, v in meta["track_outfit"].items()},
         crops_dir=crops, cars=cars, timings={k: float(v) for k, v in meta["timings"].items()},
+        params=dict(meta["params"]),
     )
+
+
+def cache_key(path, params: dict) -> str:
+    """The cache directory name for `path` under `params` (from `perception_params`): `video_key` over the file's
+    bytes, the three video-shaping parameters and a canonical JSON of every other parameter."""
+    rest = {k: v for k, v in params.items() if k not in ("sample_fps", "max_width", "max_seconds")}
+    return video_key(path, params["sample_fps"], params["max_width"], params["max_seconds"],
+                     json.dumps(to_jsonable(rest), sort_keys=True, separators=(",", ":")))
+
+
+def _sweep_stale_tmp(cache_root: Path, max_age: float = STALE_TMP_SECONDS) -> None:
+    """Remove `.tmp-*` build directories older than `max_age` seconds: what a crashed or killed run left behind.
+    A live build has no such directory until its very last step, so an hour-old one is never in use."""
+    now = time.time()
+    try:
+        candidates = [p for p in cache_root.glob(".tmp-*") if p.is_dir()]
+    except OSError:
+        return
+    for p in candidates:
+        try:
+            if now - p.stat().st_mtime > max_age:
+                shutil.rmtree(p, ignore_errors=True)
+        except OSError:
+            pass
 
 
 def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=None,
                       **kw) -> tuple[PerceptionResult, bool]:
     """`(result, was_cached)`: the saved perception of this exact video + parameters + stack when there is one,
-    otherwise run it (via the module-level `run_perception`) and save it under `cache_root/<video_key>/`.
+    otherwise run it (via the module-level `run_perception`) and save it under `cache_root/<cache_key>/`.
 
     `kw` may carry `sample_fps`, `max_width`, `max_seconds`, `crops_per_track` and `pose_every`; anything else
-    is a TypeError.
-    A cache entry that cannot be read is discarded and recomputed. New entries are built in a temporary
-    directory and moved into place, so a crash or a concurrent run never leaves a half-written entry. The returned
-    result always describes the video at `path` (the stored path is replaced, since the same bytes may have
-    been cached under another name).
+    is a TypeError. The key always covers the effective value of each of those plus `MIN_TRACK_OBS`, `MIN_TRACK_S`
+    and the tracker settings (see `perception_params`), and the same dict is stored in perception.json: changing
+    a default, a constant or the tracker's tuning never serves an entry built under the old ones. An entry that
+    cannot be read, or whose stored parameters disagree with the expected ones, is discarded and recomputed.
+    New entries are built in a temporary directory and moved into place, so a crash or a concurrent run never
+    leaves a half-written entry; temp directories older than an hour are swept first. The returned result
+    always describes the video at `path` (the stored path is replaced, since the same bytes may have been cached
+    under another name, or by a run that won a race).
     """
-    sample_fps = kw.pop("sample_fps", SAMPLE_FPS)
-    max_width = kw.pop("max_width", MAX_WIDTH)
-    max_seconds = kw.pop("max_seconds", MAX_SECONDS)
-    crops_per_track = kw.pop("crops_per_track", DEFAULT_CROPS_PER_TRACK)
-    pose_every = kw.pop("pose_every", DEFAULT_POSE_EVERY)
-    if kw:
-        raise TypeError(f"cached_perception() got unexpected keyword arguments: {sorted(kw)}")
+    params = perception_params(stack, **kw)
     cache_root = Path(cache_root)
-    name = stack.name                       # non-default knobs that change the result are part of the key
-    if crops_per_track != DEFAULT_CROPS_PER_TRACK:
-        name += f"|crops={crops_per_track}"
-    if pose_every != DEFAULT_POSE_EVERY:
-        name += f"|pose_every={pose_every}"
-    d = cache_root / video_key(path, sample_fps, max_width, max_seconds, name)
+    if cache_root.is_dir():
+        _sweep_stale_tmp(cache_root)
+    d = cache_root / cache_key(path, params)
 
     if d.is_dir():
         try:
             res = load_result(d)
+            if res.params != to_jsonable(params):
+                raise ValueError("stored parameters differ from the requested ones")
         except Exception as exc:                                        # any unreadable entry is just a miss
-            log.warning("discarding unreadable perception cache %s (%s: %s)", d.name, type(exc).__name__, exc)
+            log.warning("discarding unusable perception cache %s (%s: %s)", d.name, type(exc).__name__, exc)
             shutil.rmtree(d, ignore_errors=True)
         else:
             res.video = replace(res.video, path=str(path))
@@ -439,9 +516,9 @@ def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=N
     cache_root.mkdir(parents=True, exist_ok=True)
     tmp = cache_root / f".tmp-{d.name}-{uuid.uuid4().hex[:8]}"
     try:
-        res = run_perception(path, stack, sample_fps=sample_fps, max_width=max_width, max_seconds=max_seconds,
-                             progress=progress, crops_dir=tmp / CROPS_NAME, crops_per_track=crops_per_track,
-                             pose_every=pose_every)
+        res = run_perception(path, stack, sample_fps=params["sample_fps"], max_width=params["max_width"],
+                             max_seconds=params["max_seconds"], progress=progress, crops_dir=tmp / CROPS_NAME,
+                             crops_per_track=params["crops_per_track"], pose_every=params["pose_every"])
         save_result(res, tmp)
         try:
             os.replace(tmp, d)
@@ -449,6 +526,8 @@ def cached_perception(path, stack: PerceptionStack, cache_root: Path, progress=N
             if not d.is_dir():                                          # not a lost race: a real failure
                 raise
             log.info("perception cache %s was written concurrently; using that entry", d.name)
-        return load_result(d), False
+        res = load_result(d)
+        res.video = replace(res.video, path=str(path))                  # also right when another run's entry won
+        return res, False
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

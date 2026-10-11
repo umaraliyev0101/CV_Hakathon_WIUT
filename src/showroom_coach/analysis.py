@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .config import CameraConfig, RoleWeights, Thresholds, get_preset
+from .config import MIN_TRACK_OBS, MIN_TRACK_S, CameraConfig, RoleWeights, Thresholds, get_preset
 from .events import PersonState, run_events
 from .geometry import Camera, at_frame_edge, facing_vector, position_m
 from .identity import TrackSummary, merge_tracks
@@ -78,8 +78,8 @@ class Analysis:
 
 # --------------------------------------------------------------------------------------------- 1. persons
 
-def build_persons(res: PerceptionResult, merge_thr: float = 0.30, min_track_obs: int = 3,
-                  min_track_s: float = 1.0) -> tuple[list[Person], np.ndarray]:
+def build_persons(res: PerceptionResult, merge_thr: float = 0.30, min_track_obs: int = MIN_TRACK_OBS,
+                  min_track_s: float = MIN_TRACK_S) -> tuple[list[Person], np.ndarray]:
     """Persons sorted by pid, and ``obs_pid`` giving each observation's person (0 = not used).
 
     Tracks with fewer than ``min_track_obs`` observations or spanning less than ``min_track_s`` seconds are
