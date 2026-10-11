@@ -36,6 +36,9 @@ DETECTOR_FALLBACKS: dict[str, str] = {
     "yolox_s": "yolox_tiny",
     "yolox_s@2": "yolox_tiny@2",
     "rfdetr_nano": "yolox_nano@2",
+    # our fine-tuned weights (SHOWROOM_RFDETR_FT) unset, missing or unloadable: run the default detector
+    "rfdetr_ft": "yolox_nano@2",
+    "rfdetr_ft@2": "yolox_nano@2",
 }
 
 # The int8 DINOv2 export quantises activations dynamically with one scale per input tensor, so a crop's embedding

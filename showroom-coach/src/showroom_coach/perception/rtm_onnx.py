@@ -277,6 +277,21 @@ def rfdetr_preprocess(img_bgr: np.ndarray, input_hw: tuple[int, int]) -> np.ndar
     return np.ascontiguousarray(blob, dtype=np.float32)
 
 
+def rfdetr_output_names(session) -> list[str]:
+    """[boxes, logits] output names. rfdetr's own export calls them 'dets' and 'labels'; otherwise the boxes are
+    the output whose last dimension is 4 and the logits the other one, falling back to the declared order."""
+    outs = session.get_outputs()
+    names = [o.name for o in outs]
+    for b, l in (("dets", "labels"), ("boxes", "logits")):
+        if b in names and l in names:
+            return [b, l]
+    if len(outs) == 2:
+        is_box = [bool(getattr(o, "shape", None)) and o.shape[-1] == 4 for o in outs]
+        if is_box == [False, True]:
+            return [names[1], names[0]]
+    return names[:2]
+
+
 def rfdetr_postprocess(boxes: np.ndarray, logits: np.ndarray, orig_hw: tuple[int, int],
                        score_thr: float, num_select: int = 300):
     """Decode RF-DETR outputs: boxes [1,Q,4] normalised cx,cy,w,h and logits [1,Q,C].

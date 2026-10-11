@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..config import DEFAULT_DETECTOR
-from ..models import ensure_model
+from ..models import FINETUNED_DETECTOR, ModelUnavailable, ensure_model, finetuned_detector_path, short_sha256
 from ..types import Det
 from . import rtm_onnx as R
 
@@ -43,15 +43,29 @@ class Detector:
             raise ValueError(f"conflicting tiles: spec {name!r} but tiles={tiles}")
         self.name = base
         self.tiles = spec_tiles if "@" in name else tiles
-        self.spec = base if self.tiles == 1 else f"{base}@{self.tiles}"
         self.score_thr = score_thr
         self.nms_thr = nms_thr
         self.kind = "rfdetr" if base.startswith("rfdetr") else "yolox"
-        self.session = R.make_session(ensure_model(base), threads)
+        if base == FINETUNED_DETECTOR:
+            # our fine-tuned weights (SHOWROOM_RFDETR_FT); the sha prefix in `spec` makes the perception
+            # cache key change whenever the weights do. `spec` is a label only: nothing parses it back.
+            path = finetuned_detector_path()
+            label = f"{base}-{short_sha256(path)}"
+        else:
+            path, label = ensure_model(base), base
+        self.spec = label if self.tiles == 1 else f"{label}@{self.tiles}"
+        try:
+            self.session = R.make_session(path, threads)
+        except Exception as exc:  # a corrupt or foreign file: let the stack fall back like a missing one
+            if base != FINETUNED_DETECTOR:
+                raise
+            raise ModelUnavailable(f"{base}: cannot load {path}: {exc}") from exc
         inp = self.session.get_inputs()[0]
         self.input_name = inp.name
         self.input_hw = (int(inp.shape[2]), int(inp.shape[3]))
         self._out_names = [o.name for o in self.session.get_outputs()]
+        if self.kind == "rfdetr":
+            self._out_names = R.rfdetr_output_names(self.session)
 
     def _infer(self, img: np.ndarray):
         """One model run on `img`: (boxes (K,4), scores (K,), cls (K,)) in `img` pixel coordinates."""

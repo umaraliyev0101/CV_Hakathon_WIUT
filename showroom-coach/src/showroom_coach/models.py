@@ -95,6 +95,37 @@ MODELS: dict[str, ModelSpec] = {
 }
 
 
+# Our own fine-tuned RF-DETR Nano (person only), exported like the stock one. It is not downloaded: the file
+# is whatever SHOWROOM_RFDETR_FT points at, and detector specs name it `rfdetr_ft[@<tiles>]`.
+FINETUNED_DETECTOR = "rfdetr_ft"
+FINETUNED_ENV = "SHOWROOM_RFDETR_FT"
+SHA_PREFIX = 12
+_SHA_MEMO: dict[tuple[str, int, int], str] = {}
+
+
+def finetuned_detector_path(environ=None) -> Path:
+    """The fine-tuned detector's .onnx path from SHOWROOM_RFDETR_FT.
+
+    Raises ModelUnavailable (so the stack's detector fallbacks apply) when the variable is unset, blank
+    or names a file that does not exist."""
+    raw = (os.environ if environ is None else environ).get(FINETUNED_ENV, "").strip()
+    if not raw:
+        raise ModelUnavailable(f"{FINETUNED_DETECTOR}: set {FINETUNED_ENV} to the fine-tuned detector .onnx path")
+    path = Path(raw).expanduser()
+    if not path.is_file():
+        raise ModelUnavailable(f"{FINETUNED_DETECTOR}: {FINETUNED_ENV}={raw} is not a file")
+    return path
+
+
+def short_sha256(path: Path, n: int = SHA_PREFIX) -> str:
+    """First `n` hex chars of the file's sha256, memoised per (path, size, mtime)."""
+    st = Path(path).stat()
+    key = (str(Path(path).resolve()), st.st_size, st.st_mtime_ns)
+    if key not in _SHA_MEMO:
+        _SHA_MEMO[key] = _sha256_file(Path(path))
+    return _SHA_MEMO[key][:n]
+
+
 def models_dir() -> Path:
     env = os.environ.get("SHOWROOM_MODELS")
     return Path(env) if env else repo_root() / "models"

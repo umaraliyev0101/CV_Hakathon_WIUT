@@ -66,8 +66,20 @@ class RoleWeights:
 # M0 benchmark (runs/bench/detectors.json, 7 candidates): DEFAULT_DETECTOR = fastest whose recall is within
 # 5 points of the best; LIVE_DETECTOR = fastest whose recall on people >= 80 px tall is within 5 points of
 # the best on that bucket (webcam subjects are near the camera).
-DEFAULT_DETECTOR = "yolox_nano@2"
-LIVE_DETECTOR = "yolox_nano@2"
+# Deployments can override both without code changes: SHOWROOM_DETECTOR sets the file-mode spec and
+# SHOWROOM_LIVE_DETECTOR the live one (falling back to SHOWROOM_DETECTOR). Unset, empty or whitespace = default.
+# e.g. SHOWROOM_DETECTOR=rfdetr_ft@2 with SHOWROOM_RFDETR_FT=/path/to/our_finetuned.onnx.
+_BUILTIN_DETECTOR = "yolox_nano@2"
+
+
+def detector_from_env(var: str, default: str, environ=None) -> str:
+    """The detector spec in environment variable `var`, stripped; `default` when unset or blank."""
+    value = (os.environ if environ is None else environ).get(var, "").strip()
+    return value or default
+
+
+DEFAULT_DETECTOR = detector_from_env("SHOWROOM_DETECTOR", _BUILTIN_DETECTOR)
+LIVE_DETECTOR = detector_from_env("SHOWROOM_LIVE_DETECTOR", DEFAULT_DETECTOR)
 SAMPLE_FPS = 5.0
 MAX_WIDTH = 960
 MAX_SECONDS = 300.0

@@ -176,6 +176,22 @@ showroom-coach eval-meva --split test --split-file data\meva\split.json --limit-
 needs no camera), and `scripts\webcam_grab.py` is the same as `webcam-check`. The MEVA-derived sample clips in
 `data\samples\` exist on the build machine only; videos and weights are never committed.
 
+### Using our fine-tuned detector
+
+Our own fine-tuned RF-DETR Nano (person only, ONNX exported with rfdetr's `export()`) plugs in as the detector
+`rfdetr_ft` without code changes. It is never downloaded; point an env var at the file:
+
+| Variable | Meaning |
+| --- | --- |
+| `SHOWROOM_RFDETR_FT` | path to the fine-tuned `.onnx` |
+| `SHOWROOM_DETECTOR` | file-mode detector spec, e.g. `rfdetr_ft@2` (default `yolox_nano@2`) |
+| `SHOWROOM_LIVE_DETECTOR` | live/webcam spec (default: `SHOWROOM_DETECTOR`, else `yolox_nano@2`) |
+
+Unset or empty values keep the defaults. `--detector rfdetr_ft@2` works on the command line too. If the weights are
+missing or do not load, the stack logs a warning and falls back to `yolox_nano@2`. The stack name (and so the
+perception cache key) carries the first 12 hex chars of the weights' sha256, e.g. `rfdetr_ft-c429c147f355@2`,
+so retrained weights never reuse old cached results.
+
 ### Sales CSV (optional)
 
 On the results page, "Add sales CSV (optional)" takes a file with one row per lead or sale: `salesperson,timestamp,sold`
