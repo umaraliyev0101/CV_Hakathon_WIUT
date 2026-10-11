@@ -66,11 +66,11 @@ Design: `docs/superpowers/specs/2026-10-11-showroom-coach-design.md`. Plan: `doc
 - `/live`: getUserMedia → JPEG over `/ws/live` (stop-and-wait, ≤ 5 fps, auto-reconnect) → the same engine → canvas overlay. Faces are blurred on the canvas for tracked and untracked detections. Clicking a box toggles staff/customer, and auto-suggestion starts after 30 s.
 - Live people are confirmed (≥ 3 observations over ≥ 1 s) before they count, so no phantom customers. Alerts follow role changes. One person ID is never shown on two boxes (the duplicate-ID bug was fixed: 66 → 0 affected frames on `meva_b`).
 - **Real webcam frame grab:** `showroom-coach webcam-check` captured "Web Camera" at index 0 (DSHOW), 640×480. Mean brightness was 8/255 (dark, empty room at night), 0 people, and a blurred copy was saved. The live page was also tested with the real camera in headed Chrome, reaching "Live" in 1.4 s.
-- **Live fps** (real stack, CPU contended): about 4 people per frame (MEVA G423 window) gave 5.2–6.3 fps (target ≥ 4 ✅). Crowded clips with 11–19 people gave about 3–4 fps quiet and about 1.5 contended.
+- **Live fps (corrected after review):** an earlier note claimed 5.2–6.3 fps for about 4 people, but no retained log supports it, so it is withdrawn. The retained contended logs show 2.1–3.3 fps for the G423 window. Idle-machine verification numbers are in the Morning summary: 4.45 fps end to end over the real WebSocket and 3.61 fps in the in-process bench, both at 3.8 people per frame.
 
 ### M6 summary (~07:15): MEVA evaluation (details in `docs/EVAL.md`)
 
-- 7 clips × first 150 s. The split was written before tuning: dev = 3 clips, test = 4 clips, 2 of the test cameras unseen in dev. Tuning was done on dev only (64 configs, flat). The test set was measured once.
+- 7 clips × first 150 s. The split was written before tuning: dev = 3 clips, test = 4 clips, 2 of the test cameras unseen in dev. Tuning was done on dev only (64 configs, flat). Test exposure: 5 post-split test runs (2 system, 3 oracle). Test clip G421 was also used before the split for a smoke evaluation, live and dedupe debugging and speed runs. All of this is listed in EVAL.md.
 - **TEST (system):**
   - talk recall 0.5% strict / 1.1% twin-aware (target ≥ 70% ❌);
   - talk precision on mapped detections 14.3% / 10.3%;
