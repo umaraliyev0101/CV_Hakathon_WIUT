@@ -182,8 +182,18 @@ class Agent:
             prev = s
             yield
 
+    def _path(self, target, exclude=()):
+        nav = self.sim.nav_for(self, exclude)
+        try:
+            path = nav.shortest_path(self.pos, target)
+        except ValueError:
+            path = None
+        if path is None and nav is not self.sim.nav:
+            path = self.sim.nav.shortest_path(self.pos, target)
+        return path
+
     def g_walk_to(self, target, v=None):
-        path = self.sim.nav.shortest_path(self.pos, target)
+        path = self._path(target)
         if path is None:
             raise RuntimeError(f"person {self.id}: no path {self.pos} -> {target}")
         path = [list(self.pos)] + path[1:]
@@ -212,7 +222,7 @@ class Agent:
 
     def a_walk_to(self, target):
         target = self.sim.resolve_point(target)
-        path = self.sim.nav.shortest_path(self.pos, target)
+        path = self._path(target)
         if path is None:
             raise RuntimeError(f"person {self.id}: no path {self.pos} -> {target}")
         path = [list(self.pos)] + path[1:]
@@ -300,6 +310,9 @@ class Agent:
                     if self.pos[1] < 0.0 and tgt[1] > 0.0:            # entering through the door
                         yield from self.g_walk_path([list(self.pos), tgt], v=it[2])
                         continue
+                    for _ in range(int(round(self.sim.navc.get("follow_delay_s", 0.0) * self.fps))):
+                        self._push("idle", self.yaw)
+                        yield
                     # walk the leader's route (same corners) so the pair stays together
                     route = [list(self.pos)] + [list(w) for w in (it[4][1:-1] if len(it) > 4 else [])] + [tgt]
                     nav = self.sim.nav
@@ -360,6 +373,22 @@ class Sim:
     def default_face(self, agent):
         return agent.p.get("default_face", "entrance")
 
+    def nav_for(self, agent, exclude=()):
+        """Navigation graph for `agent`. With navigation.avoid_people (opt-in per config), people standing
+        still are added as 0.6 m square obstacles so walkers route around them; otherwise the static graph."""
+        if not self.navc.get("avoid_people"):
+            return self.nav
+        extra = []
+        for o in self.agents.values():
+            if o.id == agent.id or o.id in exclude or not o.rendered or not o.frames:
+                continue
+            if o.frames[-1]["speed_mps"] < 1e-6 and o.pos[1] > 0.0:
+                extra.append(layout.rect(o.pos, 0.6, 0.6, 0.0))
+        if not extra:
+            return self.nav
+        lay = dict(self.lay, obstacles_m=self.lay["obstacles_m"] + extra)
+        return navigation.NavGraph(lay, self.navc)
+
     def log_intent(self, pid, intent):
         self.board.leader_intent[pid] = intent
 
@@ -392,7 +421,7 @@ class Sim:
                             or any(math.dist(pre, o) < MIN_SEPARATION_PLAN for o in others) \
                             or any(math.dist(pre, m) < 2.0 for m in mates):
                         continue
-                    path = self.nav.shortest_path(staff.pos, pre)
+                    path = staff._path(pre, exclude=tuple(self.board.members(cust.id)))
                     if path is None:
                         continue
                     path = [list(staff.pos)] + path[1:] + [cand]

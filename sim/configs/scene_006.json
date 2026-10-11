@@ -6,7 +6,9 @@
   "clearance_m": 0.25,
   "accel_mps2": 1.0,
   "decel_mps2": 1.5,
-  "turn_rate_dps": 180.0
+  "turn_rate_dps": 180.0,
+  "avoid_people": true,
+  "follow_delay_s": 0.8
  },
  "lightings": [
   "day",
@@ -18,27 +20,27 @@
  "scenario": "dealership_long",
  "seed": 6,
  "room": {
-  "width_m": 21.05,
-  "depth_m": 15.23,
-  "height_m": 5.39,
+  "width_m": 24.11,
+  "depth_m": 15.28,
+  "height_m": 4.98,
   "wall_thickness_m": 0.2
  },
  "entrance": {
   "wall": "south",
-  "center_x_m": 7.55,
+  "center_x_m": 8.73,
   "width_m": 2.4,
   "height_m": 2.6
  },
  "exit": {
   "wall": "east",
-  "center_y_m": 9.14,
+  "center_y_m": 9.17,
   "width_m": 3.5,
   "height_m": 3.0
  },
  "desk": {
   "center_m": [
    0.95,
-   5.89
+   6.08
   ],
   "length_m": 1.6,
   "width_m": 0.7,
@@ -50,31 +52,14 @@
   {
    "id": 1,
    "center_m": [
-    6.185,
-    5.591
+    6.326,
+    4.973
    ],
-   "length_m": 4.049,
-   "width_m": 2.363,
-   "height_m": 1.068,
-   "yaw_deg": 90.0,
-   "model": "khronos_carconcept",
-   "paint": [
-    0.05,
-    0.12,
-    0.35
-   ]
-  },
-  {
-   "id": 2,
-   "center_m": [
-    10.594,
-    10.418
-   ],
-   "length_m": 4.477,
-   "width_m": 1.978,
-   "height_m": 1.421,
-   "yaw_deg": -30.0,
-   "model": "lamborghini_urus",
+   "length_m": 4.006,
+   "width_m": 1.78,
+   "height_m": 1.177,
+   "yaw_deg": 30.0,
+   "model": "porsche_930_turbo",
    "paint": [
     0.55,
     0.03,
@@ -82,37 +67,71 @@
    ]
   },
   {
+   "id": 2,
+   "center_m": [
+    10.532,
+    11.407
+   ],
+   "length_m": 4.075,
+   "width_m": 2.378,
+   "height_m": 1.075,
+   "yaw_deg": -30.0,
+   "model": "khronos_carconcept",
+   "paint": [
+    0.02,
+    0.02,
+    0.025
+   ]
+  },
+  {
    "id": 3,
    "center_m": [
-    13.638,
-    2.985
+    16.713,
+    4.082
    ],
-   "length_m": 4.015,
-   "width_m": 1.784,
-   "height_m": 1.179,
+   "length_m": 5.051,
+   "width_m": 2.244,
+   "height_m": 1.483,
    "yaw_deg": 0.0,
    "model": "porsche_930_turbo",
    "paint": [
-    0.6,
-    0.45,
-    0.2
+    0.9,
+    0.9,
+    0.9
    ]
   },
   {
    "id": 4,
    "center_m": [
-    18.081,
-    10.583
+    17.359,
+    11.706
    ],
-   "length_m": 4.056,
-   "width_m": 2.019,
-   "height_m": 1.106,
+   "length_m": 4.225,
+   "width_m": 1.877,
+   "height_m": 1.241,
+   "yaw_deg": 90.0,
+   "model": "porsche_930_turbo",
+   "paint": [
+    0.9,
+    0.9,
+    0.9
+   ]
+  },
+  {
+   "id": 5,
+   "center_m": [
+    2.703,
+    11.567
+   ],
+   "length_m": 4.136,
+   "width_m": 2.059,
+   "height_m": 1.127,
    "yaw_deg": 90.0,
    "model": "ferrari_458",
    "paint": [
-    0.02,
-    0.02,
-    0.025
+    0.55,
+    0.03,
+    0.03
    ]
   }
  ],
@@ -120,26 +139,13 @@
   {
    "id": 1,
    "position_m": [
+    0.3,
     2.4,
-    0.35,
     2.8
    ],
-   "yaw_deg": 47.9,
+   "yaw_deg": 34.41,
    "pitch_deg": -25.0,
-   "hfov_deg": 70.0,
-   "width_px": 1280,
-   "height_px": 720
-  },
-  {
-   "id": 2,
-   "position_m": [
-    8.4,
-    0.35,
-    2.8
-   ],
-   "yaw_deg": 115.15,
-   "pitch_deg": -25.0,
-   "hfov_deg": 70.0,
+   "hfov_deg": 80.0,
    "width_px": 1280,
    "height_px": 720
   }
@@ -148,7 +154,7 @@
   {
    "id": 1,
    "role": "staff",
-   "height_m": 1.684,
+   "height_m": 1.63,
    "speed_mps": [
     1.15,
     1.4
@@ -157,7 +163,7 @@
    "outfit": "uniform",
    "spawn_m": [
     1.5,
-    4.94
+    5.13
    ],
    "spawn_yaw_deg": -90.0,
    "enter_t": 0.0,
@@ -166,7 +172,7 @@
     {
      "do": "approach",
      "customer": 3,
-     "after_t": 4.2
+     "after_t": 4.88
     },
     {
      "do": "talk",
@@ -177,7 +183,7 @@
      "do": "walk_to",
      "target": [
       1.5,
-      4.94
+      5.13
      ]
     },
     {
@@ -187,12 +193,12 @@
     }
    ],
    "default_face": "entrance",
-   "character": "Business_Male_04"
+   "character": "Business_Female_03"
   },
   {
    "id": 2,
    "role": "staff",
-   "height_m": 1.708,
+   "height_m": 1.807,
    "speed_mps": [
     1.15,
     1.4
@@ -200,8 +206,8 @@
    "hard_negative": false,
    "outfit": "uniform",
    "spawn_m": [
-    8.878,
-    4.606
+    4.768,
+    8.224
    ],
    "spawn_yaw_deg": -90.0,
    "enter_t": 0.0,
@@ -214,12 +220,12 @@
     }
    ],
    "default_face": "entrance",
-   "character": "Business_Male_05"
+   "character": "Business_Male_04"
   },
   {
    "id": 3,
    "role": "customer",
-   "height_m": 1.711,
+   "height_m": 1.771,
    "speed_mps": [
     1.15,
     1.4
@@ -228,18 +234,18 @@
    "outfit": "casual",
    "colors": {
     "top": [
-     0.15,
-     0.45,
-     0.2
+     0.3,
+     0.18,
+     0.1
     ],
     "trousers": [
-     0.55,
-     0.5,
-     0.4
+     0.35,
+     0.33,
+     0.3
     ]
    },
    "spawn_m": [
-    7.55,
+    8.73,
     -2.6
    ],
    "spawn_yaw_deg": 90.0,
@@ -254,8 +260,8 @@
     {
      "do": "walk_to",
      "target": [
-      3.989,
-      3.621
+      3.911,
+      3.11
      ]
     },
     {
@@ -271,27 +277,24 @@
     {
      "do": "walk_to",
      "target": [
-      10.595,
-      2.391
+      2.067,
+      8.482
      ]
     },
     {
      "do": "idle",
-     "s": 30.0,
-     "face": "car_3",
+     "s": 999,
+     "face": "car_5",
      "anim": "look_around"
-    },
-    {
-     "do": "leave"
     }
    ],
    "default_face": "car_1",
-   "character": "Female_Adult_05"
+   "character": "Male_Adult_04"
   },
   {
    "id": 4,
    "role": "customer",
-   "height_m": 1.585,
+   "height_m": 1.813,
    "speed_mps": [
     1.15,
     1.4
@@ -311,11 +314,11 @@
     ]
    },
    "spawn_m": [
-    7.55,
+    8.73,
     -2.6
    ],
    "spawn_yaw_deg": 90.0,
-   "enter_t": 60.0,
+   "enter_t": 3.0,
    "present_at_start": false,
    "door_x_offset": 0.0,
    "script": [
@@ -326,27 +329,27 @@
     {
      "do": "walk_to",
      "target": [
-      9.096,
-      8.946
+      9.008,
+      9.752
      ]
     },
     {
      "do": "idle",
-     "s": 40.0,
+     "s": 100.0,
      "face": "car_2",
      "anim": "look_around"
     },
     {
      "do": "walk_to",
      "target": [
-      16.045,
-      9.41
+      13.153,
+      3.278
      ]
     },
     {
      "do": "idle",
-     "s": 30.0,
-     "face": "car_4",
+     "s": 118.0,
+     "face": "car_3",
      "anim": "look_around"
     },
     {
@@ -354,7 +357,7 @@
     }
    ],
    "default_face": "car_1",
-   "character": "Business_Female_01"
+   "character": "Business_Male_05"
   }
  ],
  "parties": [],
@@ -385,28 +388,25 @@
   ],
   "_doc": "Rocketbox clothing is baked into one body texture, so the uniform is a shader recolour of the dark suit fabric of staff characters (suit_recolour, linear RGB). top/vest/trousers are used by the capsule fallback only."
  },
- "duration_s": 240.0,
+ "duration_s": 251.6,
  "script": {
   "staff_stop_dist_m": 1.25,
   "staff_approach_angles_deg": 15.0,
   "approach_cam_m": [
-   2.4,
-   0.35
+   0.3,
+   2.4
   ]
  },
  "_generator": {
-  "attempt": 8,
+  "attempt": 4,
   "camera_min_person_vis": [
-   0.0,
-   0.196
+   0.927
   ],
   "camera_any_person_vis": [
-   0.829,
    1.0
   ],
   "camera_median_box_h_px": [
-   343.1,
-   277.7
+   239.2
   ],
   "note": "visibility estimated from geometry (full body in frame, >= 60 px, not behind a car or a nearer person)"
  }

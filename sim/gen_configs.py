@@ -30,8 +30,13 @@ from sim import behaviour, gt_events, layout, navigation, projection, schema  # 
 
 CFG_DIR = REPO / "sim" / "configs"
 MATCH_MARGIN_S = 0.8
+# crowded: margin = the qa tolerance (qa_events checks exactly this deterministic timeline)
+MARGIN_BY_SCENARIO = {"crowded": 1.0}
 MIN_PAIR_DIST_M = 0.5
 SHARE_VIS = 0.86
+# generator-internal margins (the qa gate itself stays at min_in_view_frac 0.80 on mask labels)
+VIS_BY_SCENARIO = {"crowded": 0.82}
+CAMS_BY_SCENARIO = {"dealership_long": 1}   # spec 4.3: dealership_long uses one or two cameras
 MIN_BOX_H_PX = 60
 CAR_META = CFG_DIR / "assets_cars.json"
 PEOPLE_META = CFG_DIR / "assets_people.json"
@@ -39,7 +44,7 @@ TYPES_CHECKED = ("greet", "handoff", "engagement", "walkout", "party")
 
 SCENES = [  # scene_id, scenario, seed
     ("s000", "greet_fast", 0), ("s001", "greet_slow", 1), ("s002", "walkout", 2), ("s003", "party", 3),
-    ("s004", "handoff", 4), ("s005", "crowded", 5), ("s006", "dealership_long", 6),
+    ("s004", "handoff", 4), ("s005", "crowded", 705), ("s006", "dealership_long", 6),
     ("s007", "greet_fast", 7), ("s008", "greet_slow", 8), ("s009", "walkout", 9), ("s010", "party", 10),
     ("s011", "handoff", 11),
 ]
@@ -253,38 +258,41 @@ def make_script(scenario, lay, nav, cfg, rng):
                          {"do": "idle", "s": 999, "face": "car_1", "anim": "look_around"}], hard_neg=hard)]
         return persons, [], 62.0, ["short_clip"]
     if scenario == "crowded":
+        # everyone is in the shop for (nearly) the whole clip, so each camera sees each person >= 80 %
+        # of the clip; the walk-out leaves at the end (clip ends 2.5 s after the exit)
         persons = [S(1, desk_spot, [{"do": "approach", "customer": 3, "after_t": t_app},
                                     {"do": "talk", "customer": 3, "s": talk},
                                     {"do": "walk_to", "target": desk_spot}, {"do": "idle", "s": 999, "face": "entrance"}]),
-                   S(2, H2, [{"do": "approach", "customer": 4, "after_t": 14.0, "face_wait": "entrance"},
+                   S(2, H2, [{"do": "approach", "customer": 4, "after_t": 18.0, "face_wait": "entrance"},
                              {"do": "talk", "customer": 4, "s": 18.0},
                              {"do": "walk_to", "target": H2}, {"do": "idle", "s": 999, "face": "entrance"}]),
                    C(3, [{"do": "walk_to", "target": V1}, {"do": "await_staff", "face": "car_1"},
                          {"do": "idle", "s": 999, "face": "car_1", "anim": "look_around"}]),
                    C(4, [{"do": "walk_to", "target": V2}, {"do": "await_staff", "face": f"car_{others[0]['id']}"},
-                         {"do": "idle", "s": 999, "face": f"car_{others[0]['id']}", "anim": "look_around"}], enter_t=8.0, door=-0.45),
+                         {"do": "idle", "s": 999, "face": f"car_{others[0]['id']}", "anim": "look_around"}], enter_t=6.0, door=-0.45),
                    _person(5, "customer", rng, chars, spawn_m=[round(x_e + 0.45, 3), behaviour.OUTSIDE_Y],
-                           spawn_yaw_deg=90.0, enter_t=8.0, present_at_start=False, door_x_offset=0.45,
+                           spawn_yaw_deg=90.0, enter_t=6.0, present_at_start=False, door_x_offset=0.45,
                            default_face="car_1", script=[{"do": "follow", "leader": 4, "offset_m": [0.9, 0.0]}]),
-                   C(6, [{"do": "walk_to", "target": V3}, {"do": "idle", "s": 14.0, "face": f"car_{others[1]['id']}", "anim": "look_around"},
-                         {"do": "walk_to", "target": V4}, {"do": "idle", "s": 8.0, "face": f"car_{others[2]['id']}", "anim": "look_around"},
+                   C(6, [{"do": "walk_to", "target": V3}, {"do": "idle", "s": 40.0, "face": f"car_{others[1]['id']}", "anim": "look_around"},
+                         {"do": "walk_to", "target": V4}, {"do": "idle", "s": 30.0, "face": f"car_{others[2]['id']}", "anim": "look_around"},
                          {"do": "leave"}], enter_t=3.0),
                    C(7, [{"do": "walk_to", "target": free_spot_near(nav, V4, [V1, V2, V3, V4, H2, desk_spot], 1.6, rng, 3.0) or V4},
-                         {"do": "idle", "s": 999, "face": f"car_{others[2]['id']}", "anim": "look_around"}], enter_t=20.0, hard_neg=hard)]
-        return persons, [[4, 5]], 75.0, ["short_clip"]
+                         {"do": "idle", "s": 999, "face": f"car_{others[2]['id']}", "anim": "look_around"}], enter_t=9.0, hard_neg=hard)]
+        return persons, [[4, 5]], "exit+2.5", ["short_clip"]
     if scenario == "dealership_long":
+        # > 120 s engagement; a second customer browses unattended the whole time and walks out at the
+        # end (clip ends 2.5 s after the exit), so every person is in the shop for the whole clip
         persons = [S(1, desk_spot, [{"do": "approach", "customer": 3, "after_t": t_app},
                                     {"do": "talk", "customer": 3, "s": 150.0},
                                     {"do": "walk_to", "target": desk_spot}, {"do": "idle", "s": 999, "face": "entrance"}]),
                    S(2, H2, [{"do": "idle", "s": 999, "face": "entrance"}]),
                    C(3, [{"do": "walk_to", "target": V1}, {"do": "await_staff", "face": "car_1"},
                          {"do": "idle", "s": 5.0, "face": "car_1", "anim": "look_around"},
-                         {"do": "walk_to", "target": V2}, {"do": "idle", "s": 30.0, "face": f"car_{others[0]['id']}", "anim": "look_around"},
-                         {"do": "leave"}]),
-                   C(4, [{"do": "walk_to", "target": V3}, {"do": "idle", "s": 40.0, "face": f"car_{others[1]['id']}", "anim": "look_around"},
-                         {"do": "walk_to", "target": V4}, {"do": "idle", "s": 30.0, "face": f"car_{others[2]['id']}", "anim": "look_around"},
-                         {"do": "leave"}], enter_t=60.0, hard_neg=hard)]
-        return persons, [], 240.0, ["dealership", "short_clip"]
+                         {"do": "walk_to", "target": V2}, {"do": "idle", "s": 999, "face": f"car_{others[0]['id']}", "anim": "look_around"}]),
+                   C(4, [{"do": "walk_to", "target": V3}, {"do": "idle", "s": 100.0, "face": f"car_{others[1]['id']}", "anim": "look_around"},
+                         {"do": "walk_to", "target": V4}, {"do": "idle", "s": 118.0, "face": f"car_{others[2]['id']}", "anim": "look_around"},
+                         {"do": "leave"}], enter_t=3.0, hard_neg=hard)]
+        return persons, [], "exit+2.5", ["dealership", "short_clip"]
     raise ValueError(scenario)
 
 
@@ -380,9 +388,10 @@ def visibility(cam_p, tl, cfg, lay, step):
 
 
 def check_events(tl, cfg, presets, eval_presets):
+    margin = MARGIN_BY_SCENARIO.get(cfg["scenario"], MATCH_MARGIN_S)
     for pr in eval_presets:
         rule = gt_events.events_by_rule(tl, cfg, presets[pr])
-        un_s, un_r = gt_events.match_events(tl["events_scripted"], rule, MATCH_MARGIN_S, TYPES_CHECKED)
+        un_s, un_r = gt_events.match_events(tl["events_scripted"], rule, margin, TYPES_CHECKED)
         un_r = [r for r in un_r if r["type"] in ("greet", "walkout", "handoff")]
         if un_s or un_r:
             return f"[{pr}] unmatched scripted {un_s} rule {un_r}"
@@ -408,6 +417,9 @@ def generate(scene_id, scenario, seed, presets, max_tries=300, verbose=False):
         if lay_cfg is None:
             continue
         cfg = dict(base, scene_id=scene_id, scenario=scenario, seed=seed, **lay_cfg)
+        if scenario in ("crowded", "dealership_long"):
+            # many people: route around people standing still, party follower trails the leader
+            cfg["navigation"] = dict(cfg["navigation"], avoid_people=True, follow_delay_s=0.8)
         cfg["cameras"] = [{"id": 0, "position_m": [0.4, 0.4, 3.0], "yaw_deg": 45.0, "pitch_deg": -35.0,
                            "hfov_deg": 74.0, "width_px": 1280, "height_px": 720}]
         cfg["persons"] = []
@@ -422,7 +434,7 @@ def generate(scene_id, scenario, seed, presets, max_tries=300, verbose=False):
         assign_characters(cfg, rng)
         try:
             if dur == "exit+2.5":
-                tl = behaviour.build_timeline(dict(cfg, duration_s=120.0))
+                tl = behaviour.build_timeline(dict(cfg, duration_s=300.0))
                 exits = [e["t"] for e in tl["events_scripted"] if e["type"] == "walkout"]
                 if not exits:
                     continue
@@ -453,24 +465,20 @@ def generate(scene_id, scenario, seed, presets, max_tries=300, verbose=False):
             vis, life, anyf, box_h = visibility(cp, tl, cfg, lay, cfg["frame_step"] * 5)
             cands.append((min(vis.values()), anyf, cp, vis, life, box_h))
         # rank: enough visibility first, then bigger people (median box height, capped at 380 px)
-        cands.sort(key=lambda c: (-(c[0] >= SHARE_VIS), -min(c[5], 380.0), -c[0]))
+        vis_min = VIS_BY_SCENARIO.get(scenario, SHARE_VIS)
+        cands.sort(key=lambda c: (-(c[0] >= vis_min), -min(c[5], 380.0), -c[0]))
         chosen = []
-        need = 2
+        need = CAMS_BY_SCENARIO.get(scenario, 2)
         for mn, anyf, cp, vis, life, box_h in cands:
             if any(math.dist(cp["position_m"][:2], c[2]["position_m"][:2]) < 4.0 for c in chosen):
                 continue
-            if scenario in SHORT and mn < SHARE_VIS:
+            if mn < vis_min:
                 continue
             if anyf < 0.5:
                 continue
             chosen.append((mn, anyf, cp, vis, life, box_h))
             if len(chosen) == need:
                 break
-        if scenario not in SHORT and chosen:
-            # each agent >= 0.8 of its lifetime in at least one chosen camera
-            pids = chosen[0][4].keys()
-            if not all(max(c[4][p] for c in chosen) >= 0.8 for p in pids):
-                chosen = []
         if len(chosen) < need:
             if verbose:
                 print(f"  attempt {attempt}: cameras best min-vis {cands[0][0]:.2f}")
@@ -491,7 +499,7 @@ def generate(scene_id, scenario, seed, presets, max_tries=300, verbose=False):
                 or not _scenario_timing_ok(scenario, tl2):
             continue
         final = [visibility(cam, tl2, cfg, lay, cfg["frame_step"] * 5) for cam in cfg["cameras"]]
-        if scenario in SHORT and min(min(v[0].values()) for v in final) < SHARE_VIS:
+        if min(min(v[0].values()) for v in final) < vis_min:
             if verbose:
                 print(f"  attempt {attempt}: final vis {[round(min(v[0].values()), 3) for v in final]}")
             continue
@@ -528,7 +536,8 @@ def assign_characters(cfg, rng):
         else:
             p["character"] = pick(pool("casual"))
         g = next(c["gender"] for c in chars if c["name"] == p["character"])
-        mu, lo, hi = (1.77, 1.62, 1.95) if g == "M" else (1.65, 1.55, 1.80)
+        # floor 1.58 m: the idle pose stands ~0.3 % below the rest height, and qa_scene requires >= 1.55 m
+        mu, lo, hi = (1.77, 1.62, 1.92) if g == "M" else (1.65, 1.58, 1.80)
         p["height_m"] = round(float(np.clip(rng.normal(mu, 0.06), lo, hi)), 3)
 
 
@@ -555,13 +564,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", type=int, nargs="*")
     ap.add_argument("-v", action="store_true")
+    ap.add_argument("--seed", type=int, help="override the scene seed (single --only scene)")
+    ap.add_argument("--out", help="write the config here instead of sim/configs/scene_NNN.json")
     a = ap.parse_args()
     presets = json.loads((CFG_DIR / "presets.json").read_text())
     for i, (sid, scen, seed) in enumerate(SCENES):
         if a.only is not None and i not in a.only:
             continue
+        if a.seed is not None:
+            seed = a.seed
         cfg, tl = generate(sid, scen, seed, presets, verbose=a.v)
-        path = CFG_DIR / f"scene_{sid[1:]}.json"
+        path = Path(a.out) if a.out else CFG_DIR / f"scene_{sid[1:]}.json"
         schema.dump_json(cfg, path)
         evs = [(e["type"], e["t"]) for e in tl["events_scripted"] if e["type"] != "engagement"]
         print(f"{path.name}: {scen} dur={cfg['duration_s']} persons={len(cfg['persons'])} cams="
