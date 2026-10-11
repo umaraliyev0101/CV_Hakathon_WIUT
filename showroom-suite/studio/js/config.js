@@ -28,6 +28,7 @@ window.SUITE_CONFIG = {
   if (window.SUITE_PROXY) {
     c.coachUrl = `${location.origin}/coach`;
     c.pulseUrl = `${location.origin}/pulse`;
+    c.live.sessions = true;   // Replays: real uploads, analysed by both servers, with their annotated videos
   }
   if (q.get("coach")) c.coachUrl = q.get("coach");
   if (q.get("pulse")) c.pulseUrl = q.get("pulse");

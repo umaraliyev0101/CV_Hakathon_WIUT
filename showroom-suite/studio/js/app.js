@@ -137,7 +137,7 @@
         $("#progress-text").textContent = `${label}…`;
       });
       $("#progress-text").textContent = `Done. ${s.customers} customers, median greet ${mmss(s.medianGreetSec)}.`;
-      toast(`“${s.name}” is ready`);
+      toast(s.warning || `“${s.name}” is ready`);
       renderSessions();
       location.hash = `#session/${encodeURIComponent(s.id)}`;   // straight to its results
     } catch (err) {
@@ -373,7 +373,7 @@
     session = s;
     const coach = s.moments.filter((m) => m.lens === "coach").length, pulse = s.moments.length - coach;
     $("#session-name").textContent = s.name;
-    $("#session-meta").textContent = [s.recorded, s.lengthSec ? `${mmss(s.lengthSec)} of video` : "", `${coach} salespeople moments, ${pulse} customer moments`].filter(Boolean).join(" · ");
+    $("#session-meta").textContent = [s.recorded, s.lengthSec ? `${mmss(s.lengthSec)} of video` : "", `${coach} salespeople moments, ${pulse} customer moments`, s.staffNote].filter(Boolean).join(" · ");
     $("#session-demo").hidden = !s.demo;
     $("#demo-stamp").hidden = !s.demo || !s.videos.length;
 

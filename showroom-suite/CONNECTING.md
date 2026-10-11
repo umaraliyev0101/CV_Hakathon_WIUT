@@ -154,6 +154,19 @@ bar never looks frozen.
 Clicking a session, or finishing an upload, opens `#session/<id>`: the video with a timeline of moments under it,
 then that session's numbers. `getSession(id)` returns everything the page shows (shape in `js/data.js`).
 
+**Already connected.** `js/data.js` implements `analyzeVideo`, `getSessions` and `getSession` against both servers.
+When the site is served by `deploy/` (one origin, `suite-config.js` present), `config.js` switches `sessions` to live
+automatically:
+
+- **Upload.** The file goes to both apps, and the page waits for both analyses.
+- **Accepted automatically.** Pulse's automatic car zones and both apps' staff suggestions are accepted as they
+  are. When Coach suggests nobody as staff, the "unsure" person who was on screen longest is taken as staff, and the
+  page says so. Corrections are made in the apps themselves (`/coach/`, `/pulse/`).
+- **Result.** The session page plays each app's annotated video.
+- **Session list.** It is kept in the browser (`localStorage`). The servers delete jobs after 24 h.
+
+The rest of this section explains how that code maps the two apps' results, for anyone changing it.
+
 **Demo mode** plays the user's own upload with invented moments and numbers on top. The page labels them three
 ways: a "Demo results" banner, a stamp on the video, and a "demo" tag on each caption. In live mode return
 `demo: false`, and none of these labels appear.
