@@ -23,7 +23,7 @@ def run(clip_dir, qa):
     for name, files in (("rgb", rgb), ("mask", masks), ("gt frames", gt["frames"])):
         if len(files) != expected:
             fails.append(f"{name} count {len(files)} != {expected}")
-    clip_max = q["clipped_frac_max_glare"] if gt.get("lighting") == "glare" else q["clipped_frac_max"]
+    clip_max = q["clipped_frac_max"]   # same limit for every lighting variant, glare included
     lumas, clips, mags = [], [], []
     mr = q["magenta_rule"]
     for k, f in enumerate(rgb):

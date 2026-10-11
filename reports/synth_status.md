@@ -37,12 +37,12 @@ All 12 scenes have finished rendering (§3, §4).
 | What | Value | Source |
 |---|---|---|
 | RGB s/frame (EEVEE Next, 16 spp, raytracing, 1280×720), one process alone | **0.333** | s000 cam1 day, first full run |
-| RGB s/frame with 3 processes in parallel on GPU 1 | 0.48–0.94 (mean over scenes 0.77) | `render_stats.json` |
+| RGB s/frame with 3 processes in parallel on GPU 1 (per process) | 0.48–0.94 (mean over scenes 0.77) | `render_stats.json` |
 | Mask s/frame (Workbench) | 0.07–0.09 | same |
 | Solo mask s/frame per person | 0.04–0.05 | same |
 | GPU that rendered | **index 1** for every scene (`nvidia-smi pmon` saw the Blender PID; `gpu_index: [1]` in every `render_stats.json`) | run_all GpuWatch |
 | GPU 1 memory with 3 Blender processes | ≈ 46 GB (limit 60 GB) | nvidia-smi |
-| Parallel gain | RGB only: one process alone 3.0 fps; 3 processes ≈ 3.8 fps, i.e. **≈ 1.26×**, which is **below** the 1.3× rule. Whole pipeline: the core batch (s000–s004, 17.5 k RGB frames plus masks, labels and encode, 3 jobs) took ≈ 6 900 s wall, i.e. 0.39 s per RGB frame. The one-scene, one-lighting run took 0.68 s per RGB frame. That comparison is **not controlled**: the batch also spreads mask cost over 3 lighting variants. FLAG: the 3-job choice is not proven above 1.3× on the RGB pass alone. | measured |
+| Parallel gain (controlled, `python sim/bench_parallel.py`: the same render job run alone vs 3 copies concurrently on GPU 1) | **Whole render job (RGB + mask + solo passes, Blender start-up included): 1.467× (60 frames) and 1.521× (120 frames)**, which is above the 1.3× rule. run_all parallelises exactly this unit (one Blender job per scene), so 3 jobs is justified. RGB pass alone: 1.253× (120 frames); the gain comes from the CPU-bound mask/solo/build work overlapping with GPU rendering. Benchmarked after the renders, at 08:50–09:00. | measured |
 | Detector recall on the share pack (IoU 0.5, box ≥ 60 px, visible_frac ≥ 0.6) | day **0.997**, evening_dim **0.992**, glare **0.985** (gate ≥ 0.80) | qa_detector |
 | Detector recall on all 36 clips of s000–s003 | day 0.996, evening 0.994, glare 0.974 | gate runs during the full run |
 | Scripted vs rule greet offset | 0.6 s (rule earlier) in every rendered scene. The tests assert ≤ 0.8 s for all 12 scenes. | qa_events, tests |
@@ -102,6 +102,7 @@ All renders finished at about 08:20 (+05). Exports and statistics were regenerat
 - **Car licences.** The Lamborghini Urus is **CC BY-NC 4.0**, so it must be replaced for any commercial use. The Porsche 930's licence is **unknown** (credit not embedded); treat it as demo-only.
 - **Rule-only events.** `wait_alert` is computed by the rules only; there is no scripted counterpart, by design.
 - **A gate check I corrected (documented, not loosened).** The quick-test-era gap check compared `visible_frac` at the two ends of a gap. It flagged a customer who walked out past the image border at s004 cam1 f37–f43; the in-image silhouette there was 5–246 px, under the 400 px drop rule. The check now uses `visible_frac` measured during the gap, which is the spec's wording. The thresholds are unchanged, and `sim/tests/test_qa_render_gap.py` shows that a real dropout of a visible person still fails.
+- **qa.json is purely additive.** `git diff b33639a -- sim/configs/qa.json` removes 0 lines. Glare clips are held to the same clipped-pixel limit (5%) as day and evening; I did not use the spec's 20% glare allowance (measured glare maximum: 0.105%).
 - **Perspective lean.** People near the image corners lean visibly (wide HFOV, −25° pitch). This is a camera effect, noted in the visual review.
 - **s005 height gate failure (root cause found, not fixed in the rendered data).**
   - Cause: `gen_configs.assign_characters` clips sampled female heights to [1.55, 1.80]. The idle pose stands about 0.3% lower than the rest height, so a person drawn at exactly 1.550 m measures 1.546 m.

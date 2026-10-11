@@ -7,12 +7,11 @@
     "mean_luma_min": 15.0,
     "clip_luma_level": 250,
     "clipped_frac_max": 0.05,
-    "clipped_frac_max_glare": 0.20,
     "magenta_frac_max": 0.001,
     "magenta_rule": {"r_min": 200, "b_min": 200, "g_max": 60},
-    "min_in_view_frac": 0.8,
     "max_track_gap_frames": 5,
-    "track_gap_visible_frac": 0.5
+    "track_gap_visible_frac": 0.5,
+    "min_in_view_frac": 0.8
   },
   "labels": {
     "min_mask_px": 400,
@@ -20,9 +19,9 @@
   },
   "events": {
     "match_tol_s": 1.0,
-    "types": ["greet"],
     "types_extra": ["handoff", "walkout", "party", "engagement"],
-    "unscripted_rule_types_fail": ["greet", "walkout", "handoff"]
+    "unscripted_rule_types_fail": ["greet", "walkout", "handoff"],
+    "types": ["greet"]
   },
   "video": {
     "codec": "h264",

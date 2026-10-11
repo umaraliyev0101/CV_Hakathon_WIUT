@@ -12,8 +12,8 @@ labelled). Budget from the goal prompt: render 8 h, disk 150 GB, stop if `/mnt/r
 | Solo mask per person (Workbench) | 0.041 | 0.043 | same |
 | Scene build (room, 4 cars, people import + keying) | 3.7 s | 2.8 s | same |
 
-- RGB throughput with 3 parallel processes: 3 / 0.62 s ≈ 4.8 fps vs 3.0 fps alone → **≈ 1.26–1.6×**
-  depending on the clip mix (masks/labelling are CPU-bound and overlap well). GPU 1 memory with 3
+- Parallel gain, controlled benchmark (`sim/bench_parallel.py`, same job alone vs 3 concurrent): whole render
+  job **1.47–1.52×**, above the 1.3× rule; RGB pass alone 1.25× (mask, solo and build work is CPU-bound and overlaps). GPU 1 memory with 3
   processes: 46 GB (limit 60 GB). Kept at 3 jobs, never 4.
 - GPU actually used: `nvidia-smi pmon` saw the Blender PID on **GPU index 1** for every scene
   (`gpu_index: [1]` in each `render_stats.json`).
