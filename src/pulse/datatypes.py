@@ -138,7 +138,7 @@ STORE_KEYS_DEFAULTS: dict[str, Any] = {
     "unserved_episodes": 0, "deep_interest_visitors": 0, "reached_desk": 0,
     "deep_interest_reached_desk": 0, "has_desk": False, "peak_occupancy": 0, "peak_t": None,
     "funnel": {}, "group_assisted_share": None, "solo_assisted_share": None,
-    "duration_s": 0.0, "analysed_share": 1.0, "distance_approx": False,
+    "short_fragments": 0, "duration_s": 0.0, "analysed_share": 1.0, "distance_approx": False,
 }
 
 

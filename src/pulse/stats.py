@@ -159,7 +159,11 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
             extra_warnings: list[str] = (), sat_events: list = ()) -> Stats:
     pre = cfg.preset
     role = lambda p: roles.get(p.person_id, "customer")  # noqa: E731
-    cust = [p for p in persons if role(p) != "staff"]
+    cust_all = [p for p in persons if role(p) != "staff"]
+    # visit-level KPIs count only customers observed for at least min_visit_s; occupancy, waiting,
+    # crowding, peak and entry/exit events keep every non-staff person (cust_all)
+    cust = [p for p in cust_all if p.last_t - p.first_t >= cfg.min_visit_s]
+    short_fragments = len(cust_all) - len(cust)
     staff = [p for p in persons if role(p) == "staff"]
     cids = {p.person_id for p in cust}
     tl = {pid: sorted(ss, key=lambda s: s.t) for pid, ss in timeline.items()}
@@ -188,14 +192,14 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
     occ, wait, crowd = [], [], []
     for k in range(int(math.floor(duration)) + 1):
         t = float(k)
-        here = [p for p in cust if p.first_t <= t <= p.last_t]
+        here = [p for p in cust_all if p.first_t <= t <= p.last_t]
         w = sum(1 for p in here if not is_asst(p.person_id)
                 or (asst(p.person_id).t_first is not None and t < asst(p.person_id).t_first))
         ns = sum(1 for p in staff if p.first_t <= t <= p.last_t)
         occ.append([t, len(here)])
         wait.append([t, w])
         crowd.append([t, len(here) / ns if ns else -1])
-    peak = max(occ, key=lambda r: r[1]) if occ and n else None  # max() keeps the first maximum
+    peak = max(occ, key=lambda r: r[1]) if occ and cust_all else None  # max() keeps the first maximum
 
     # time buckets
     size = 60.0 if duration < 3600 else 3600.0
@@ -216,7 +220,7 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
 
     store = dict(STORE_KEYS_DEFAULTS)
     store.update({
-        "visitors": n, "staff": len(staff), "unsure": sum(1 for p in cust if role(p) == "unsure"),
+        "visitors": n, "short_fragments": short_fragments, "staff": len(staff), "unsure": sum(1 for p in cust if role(p) == "unsure"),
         "already_present": n - len(fresh), "entries": entries, "exits": exits,
         "groups": len(groups), "n_group_members": len(gmember), "n_solo": len(solo),
         "median_visit_s": _med([p.last_t - p.first_t for p in fresh]),
@@ -236,7 +240,7 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
     store["distance_approx"] = approx
 
     rows = _zone_rows(zones, cv)
-    cust_tl_ids = [i for i in tl if i in cids and tl[i]]
+    cust_tl_ids = [i for i in tl if i in {p.person_id for p in cust_all} and tl[i]]
     warnings = []
     if not persons:
         warnings.append("Nobody detected — camera too far or too dark?")
@@ -246,6 +250,15 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
         warnings.append("Distance estimate approximate (box-height fallback for >50% of samples)")
     if analysed_share < 0.99:
         warnings.append(f"Only {int(analysed_share * 100)}% of the clip analysed (camera moving or cut)")
+    if short_fragments:
+        warnings.append(f"{short_fragments} track fragments shorter than {cfg.min_visit_s:g} s "
+                        "were not counted as visitors")
+    if duration < 2 * pre.leave_after:
+        warnings.append(f"Clip shorter than {2 * pre.leave_after:.0f} s: people seen at the start count "
+                        "as already present, so visit length is not measured")
+    unsure_n = store["unsure"]
+    if unsure_n:
+        warnings.append(f"{unsure_n} people with an uncertain role were counted as customers")
     warnings.extend(extra_warnings)
 
     visits = []

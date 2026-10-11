@@ -58,6 +58,7 @@ class Config:
     merge_max_speed: float = 0.25           # normalised frame widths per second
     crowding_ratio: float = 3.0             # R5
     crowding_time_s: float = 120.0          # R5
+    min_visit_s: float = 1.0                # a visitor is a customer seen for at least this long (by definition)
     heatmap_w: int = 48
     heatmap_h: int = 27
     sat_overlap: float = 0.6                # sat-in-car: share of the person box inside a car box

@@ -520,3 +520,19 @@ def test_sales_rescore_failure_is_reported(make_client, video, monkeypatch):
     monkeypatch.setattr(app_main.pipeline, "score", boom)
     r = c.post(f"/api/jobs/{jid}/sales", files={"file": ("s.csv", b"car_model,period,sold\nA,x,1\n", "text/csv")})
     assert r.status_code == 500 and "Scoring failed" in r.json()["error"]
+
+
+def test_people_gallery_hides_short_fragments(make_client, video):
+    import json as _json
+    c = make_client()
+    jid = upload(c, video)
+    wait_state(c, jid, {"ready_for_zones"})
+    pf = c.app.state.jobs_dir / jid / "out" / "people.json"
+    data = _json.loads(pf.read_text())
+    n = len(data["persons"])
+    extra = dict(data["persons"][0], person_id=99, first_t=3.0, last_t=3.4)
+    data["persons"].append(extra)
+    pf.write_text(_json.dumps(data))
+    r = c.get(f"/api/jobs/{jid}/people")
+    assert len(r.json()) == n and all(p["person_id"] != 99 for p in r.json())
+    assert r.headers["X-Short-Fragments-Hidden"] == "1"

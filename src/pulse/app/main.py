@@ -44,6 +44,7 @@ CHUNK = 1024 * 1024
 MAX_SALES = 1024 * 1024
 ZONE_KINDS = ("car", "desk", "entrance", "lounge", "other")
 ROLES = ("staff", "customer")
+MIN_VISIT_S = get_config().min_visit_s     # gallery hides persons seen for less than this
 MIN_ZONE_AREA = 1e-4
 MAX_ZONES = 50
 MAX_POLY_POINTS = 200
@@ -571,7 +572,10 @@ def create_app(jobs_dir: Path = Path("jobs"), cache_root: Path | None = None,
     def get_people(job_id: str):
         job = job_of(job_id)
         need_ready(job)
-        return read_people(job)
+        everyone = read_people(job)
+        # fragments stay customers by default; the gallery only hides them
+        shown = [e for e in everyone if e["last_t"] - e["first_t"] >= MIN_VISIT_S]
+        return JSONResponse(shown, headers={"X-Short-Fragments-Hidden": str(len(everyone) - len(shown))})
 
     @app.put("/api/jobs/{job_id}/roles")
     async def put_roles(job_id: str, request: Request):

@@ -167,3 +167,36 @@ def test_entry_exit_events_times_and_agreement_with_counts(zones4):
     st = ST.compute(persons, J.build(tl, zones4, CFG.preset), roles, CFG, timeline=tl, episodes=[],
                     assist={}, zones=zones4, duration=30.0, frame_size=(960, 540)).store
     assert (st["entries"], st["exits"]) == (len(entries), len(exits))
+
+
+# --- fix wave: visitor rule (seen for at least min_visit_s) and new warnings ---
+def test_short_fragments_are_not_visitors(zones4):
+    assert CFG.min_visit_s == 1.0
+    tl = {1: stay(1, 0.5, 0.5, 2, 4), 2: stay(2, 0.5, 0.5, 3, 0.6), 3: stay(3, 0.5, 0.5, 4, 0.0),
+          4: stay(4, 0.5, 0.5, 5, 1.0)}
+    persons = [Person(i, [i], s[0].t, s[-1].t) for i, s in tl.items()]
+    st = _run(persons, tl, zones4)
+    assert st.store["visitors"] == 2                      # persons 1 (4 s) and 4 (exactly 1 s)
+    assert st.store["short_fragments"] == 2
+    assert sorted(v["person_id"] for v in st.visits) == [1, 4]
+    assert "2 track fragments shorter than 1 s were not counted as visitors" in st.warnings
+    assert st.store["funnel"]["entered"] == 1.0
+    assert dict((r[0], r[1]) for r in st.occupancy)[3.0] == 2   # occupancy still counts fragment 2
+
+
+def test_short_clip_warning(zones4):
+    tl = {1: stay(1, 0.5, 0.5, 0, 2)}
+    st = _run([Person(1, [1], 0, 2)], tl, zones4, duration=4.0)
+    assert "Clip shorter than 6 s: people seen at the start count as already present, " \
+           "so visit length is not measured" in st.warnings
+    st = _run([Person(1, [1], 0, 2)], tl, zones4, duration=20.0)
+    assert not any(w.startswith("Clip shorter") for w in st.warnings)
+
+
+def test_unsure_warning(zones4):
+    tl = {1: stay(1, 0.5, 0.5, 5, 3), 2: stay(2, 0.5, 0.5, 5, 3)}
+    persons = [Person(i, [i], s[0].t, s[-1].t) for i, s in tl.items()]
+    st = _run(persons, tl, zones4, roles={1: "unsure", 2: "customer"})
+    assert "1 people with an uncertain role were counted as customers" in st.warnings
+    st = _run(persons, tl, zones4)
+    assert not any("uncertain role" in w for w in st.warnings)

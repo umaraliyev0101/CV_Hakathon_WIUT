@@ -61,7 +61,28 @@ class FrameOverlay:
     zones: list[dict] = field(default_factory=list)    # zone_id, name, polygon (normalised), now, total
 
 
+_CYR = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+                ["a", "b", "v", "g", "d", "e", "yo", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p",
+                 "r", "s", "t", "u", "f", "kh", "ts", "ch", "sh", "shch", "", "y", "", "e", "yu", "ya"]))
+_CYR.update({"ў": "u", "қ": "q", "ғ": "g", "ҳ": "h"})
+
+
+def _ascii(s: str) -> str:
+    """Hershey fonts are ASCII only: transliterate Cyrillic, show any other non-ASCII as '?'."""
+    out = []
+    for ch in s:
+        low = _CYR.get(ch.lower())
+        if ch.isascii():
+            out.append(ch)
+        elif low is not None:
+            out.append(low.capitalize() if ch != ch.lower() else low)
+        else:
+            out.append("?")
+    return "".join(out)
+
+
 def _text(img, s, org, color, scale=0.5):
+    s = _ascii(s)
     cv2.putText(img, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3, cv2.LINE_AA)
     cv2.putText(img, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1, cv2.LINE_AA)
 
@@ -194,6 +215,7 @@ def contact_sheet(video, moments: list[dict], overlays: dict[float, FrameOverlay
     if not tiles:
         raise ValueError(f"no frames read from {video}")
     th = tiles[0].shape[0]
+    cols = max(1, min(cols, len(tiles)))
     rows = (len(tiles) + cols - 1) // cols
     sheet = np.zeros((rows * th, cols * TILE_W, 3), np.uint8)
     for i, tile in enumerate(tiles):

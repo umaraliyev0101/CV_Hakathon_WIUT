@@ -11,6 +11,7 @@ const state = { jobId: null, fromResults: false, changed: {}, people: [], stopDa
 async function req(url, opts) {
   let res;
   try { res = await fetch(url, opts); } catch { throw new Error(t("err.network")); }
+  req.last = res;
   let body = null;
   try { body = await res.json(); } catch { /* not JSON */ }
   if (!res.ok) throw new Error(body?.error || t("err.request", { status: res.status }));
@@ -132,6 +133,7 @@ async function openStaff() {
   try {
     notice(""); showStep("staff");
     state.people = (await req(`/api/jobs/${state.jobId}/people`)).sort(personOrder);
+    state.hidden = Number(req.last.headers.get("X-Short-Fragments-Hidden")) || 0;
     state.changed = {};
     renderPeople();
   } catch (err) { notice(err.message); }
@@ -159,7 +161,8 @@ function renderPeople() {
     box.append(card);
   }
   const n = state.people.filter((p) => effectiveRole(p) === "staff").length;
-  $("staff-count").textContent = t("staff.count", { total: state.people.length, staff: n });
+  $("staff-count").textContent = t("staff.count", { total: state.people.length, staff: n })
+    + (state.hidden ? " " + t("people.hidden", { n: state.hidden }) : "");
 }
 
 async function finishStaff(skip) {

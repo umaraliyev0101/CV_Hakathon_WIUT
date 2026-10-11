@@ -257,3 +257,19 @@ def test_overlay_colours_present():
     assert (out == np.array([0, 0, 255], np.uint8)).all(axis=2).any()
     blue = out[60, 59:62].astype(int)  # staff edge, 50% alpha over grey
     assert (blue[:, 0] > blue[:, 2]).any()
+
+
+def test_contact_sheet_single_moment_has_no_filler_tile(tmp_path):
+    cfg = get_config(sample_fps=5.0)
+    vid = tmp_path / "v.mp4"
+    _make_video(vid)
+    out = contact_sheet(vid, [{"t": 0.5}], _overlays(cfg), tmp_path / "c1.jpg", cfg, {}, cols=2)
+    img = cv2.imread(str(out))
+    assert img.shape[1] == 320 and img.shape[0] == 240
+
+
+def test_zone_names_transliterated_for_putText():
+    from pulse.render import _ascii
+    assert _ascii("Машина 1") == "Mashina 1"
+    assert _ascii("Car A") == "Car A"
+    assert _ascii("Zone \u4e2d") == "Zone ?"
