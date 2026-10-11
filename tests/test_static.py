@@ -56,3 +56,25 @@ def test_js_api_paths_exist_as_routes(app):
     assert found, "no /api paths found in JS"
     missing = found - routes
     assert not missing, f"JS references unknown endpoints: {sorted(missing)}"
+
+
+def test_live_page_never_displays_raw_video():
+    css = (Path(STATIC) / "style.css").read_text()
+    js = (Path(STATIC) / "live.js").read_text()
+    assert re.search(r"\.stage video\s*\{[^}]*visibility:\s*hidden", css)
+    assert "pendingFrame" in js and "shownFrame" in js
+    assert not re.search(r"drawImage\(\s*video\b", js.split("function pump")[1].split("// ----")[1]), \
+        "the visible canvas must be drawn from shownFrame, never the raw video"
+    # only the hidden grab canvas may read the raw video
+    assert len(re.findall(r"drawImage\(\s*video\b", js)) == 1
+
+
+def test_stepper_badge_selector_only_matches_number_span():
+    css = (Path(STATIC) / "style.css").read_text()
+    assert not re.search(r"\.steps li(\.\w+)? span\b", css)
+
+
+def test_short_preset_checked_by_default():
+    html = (Path(STATIC) / "index.html").read_text()
+    assert re.search(r'value="short"[^>]*checked', html)
+    assert not re.search(r'value="dealership"[^>]*checked', html)

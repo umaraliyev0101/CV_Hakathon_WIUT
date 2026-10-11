@@ -3,6 +3,16 @@ import { t, onLangChange } from "/static/i18n.js";
 const $ = (id) => document.getElementById(id);
 const video = $("video"), overlay = $("overlay"), grab = $("grab");
 const octx = overlay.getContext("2d");
+// Privacy: the raw <video> is never visible (CSS keeps it hidden but playing, for frame grabs). The
+// preview is the exact frame the server analysed (shownFrame) with detected heads pixelated from
+// that frame's own overlay. pendingFrame holds the copy of the frame currently in flight.
+const pendingFrame = document.createElement("canvas");
+const shownFrame = document.createElement("canvas");
+let haveShown = false;
+function copyFrame(from, to) {
+  to.width = from.width; to.height = from.height;
+  to.getContext("2d").drawImage(from, 0, 0);
+}
 const SEND_MS = 200;            // ~5 fps, only when no frame is in flight
 const STUCK_MS = 6000;          // give up waiting for a reply and send again
 const COLORS = { customer: "#ff8c00", staff: "#3c78b4", alert: "#e5182b" };
@@ -78,7 +88,6 @@ async function startCamera() {
   await video.play();
   await new Promise((r) => (video.videoWidth ? r() : video.addEventListener("loadedmetadata", r, { once: true })));
   overlay.width = video.videoWidth; overlay.height = video.videoHeight;
-  $("stage-hint").hidden = true;
   $("start").disabled = true;
   S.running = true;
   updateButtons();
@@ -92,6 +101,7 @@ function pump() {
   if (S.inFlight && now - S.sentAt < STUCK_MS) return;
   grab.width = video.videoWidth; grab.height = video.videoHeight;
   grab.getContext("2d").drawImage(video, 0, 0);
+  copyFrame(grab, pendingFrame);
   S.inFlight = true; S.sentAt = now;
   grab.toBlob((blob) => {
     if (blob && S.open) S.ws.send(blob); else S.inFlight = false;
@@ -101,6 +111,7 @@ function pump() {
 // ------------------------------------------------------------------ overlay
 function onOverlay(m) {
   S.last = m;
+  if (pendingFrame.width) { copyFrame(pendingFrame, shownFrame); haveShown = true; $("stage-hint").hidden = true; }
   $("fps").textContent = m.fps.toFixed(1);
   $("dropped").textContent = String(m.dropped);
   $("occupancy").textContent = String(m.occupancy);
@@ -138,7 +149,7 @@ function pixelateHead(x1, y1, x2, y2, sx, sy) {
   if (hw < 2 || hh < 2) return;
   const tmp = pixelateHead.tmp || (pixelateHead.tmp = document.createElement("canvas"));
   tmp.width = 6; tmp.height = 6;
-  tmp.getContext("2d").drawImage(video, hx, hy, hw, hh, 0, 0, 6, 6);
+  tmp.getContext("2d").drawImage(shownFrame, hx, hy, hw, hh, 0, 0, 6, 6);
   octx.imageSmoothingEnabled = false;
   octx.drawImage(tmp, 0, 0, 6, 6, hx, hy, hw, hh);
   octx.imageSmoothingEnabled = true;
@@ -156,6 +167,14 @@ function drawAll() {
   if (!W) return;
   octx.clearRect(0, 0, W, H);
   octx.lineWidth = 2;
+  if (haveShown) {
+    octx.drawImage(shownFrame, 0, 0, W, H);
+    const m0 = S.last;      // pixelate every detected head from the overlay computed on this very frame
+    if (m0) for (const p of m0.persons) {
+      const [x1, y1, x2, y2] = p.bbox;
+      pixelateHead(x1, y1, x2, y2, W / m0.frame_size[0], H / m0.frame_size[1]);
+    }
+  } else { octx.fillStyle = "#000"; octx.fillRect(0, 0, W, H); }
   const byId = new Map(((S.last && S.last.zones) || []).map((z) => [z.zone_id, z]));
   for (const z of S.zones) {
     octx.strokeStyle = "#1b9e77"; octx.fillStyle = "rgba(27,158,119,.12)";
@@ -170,7 +189,6 @@ function drawAll() {
     const sx = W / m.frame_size[0], sy = H / m.frame_size[1];
     for (const p of m.persons) {
       const [x1, y1, x2, y2] = p.bbox;
-      pixelateHead(x1, y1, x2, y2, sx, sy);
       const color = p.alert ? COLORS.alert : COLORS[p.role] || COLORS.customer;
       octx.strokeStyle = color; octx.lineWidth = p.alert ? 4 : 2;
       octx.strokeRect(x1 * sx, y1 * sy, (x2 - x1) * sx, (y2 - y1) * sy);
@@ -222,7 +240,7 @@ function setDrawing(on) {
   $("draw").setAttribute("aria-pressed", String(on));
   $("draw").textContent = on ? t("live.done_drawing") : t("live.draw");
   overlay.style.cursor = on ? "crosshair" : "pointer";
-  if (on) video.pause(); else video.play();      // draw on a still frame, then resume
+  if (on) video.pause(); else video.play();      // pump() stops while drawing; the shown frame stays pixelated
   if (on) notice(t("live.drawing_hint"), 8000);
 }
 
