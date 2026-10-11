@@ -95,3 +95,19 @@ CUDA_VISIBLE_DEVICES=1 .venv/bin/python models/export_onnx.py --skip-export   # 
 Needs `pip install rfdetr onnx onnxsim onnxruntime-gpu` (rfdetr pulls in torch). The exporter calls
 `RFDETRNano().export(opset_version=17, batch_size=1)`, runs onnxsim, and writes `models/showroom_detector.onnx`.
 The sha256 may change if the rfdetr, torch or onnxsim version changes.
+
+## Real fine-tuning set (`data/real_labels/`, gitignored)
+
+Built by `models/label_real.py` from 37 Pexels dealership clips in `data/real_open/` (36 clips of the
+Antoni Shkraba shoot, IDs 7154207–7154242, plus 36512656), sampled at 1 fps.
+
+- **Labels:** COCO RF-DETR Large pre-labels (person, score ≥ 0.3), then a visual review of every
+  frame by Claude (`review.json`: 70 boxes deleted (headrests seen through windscreens, reflections,
+  duplicates), 27 added (missed blurred background people), 8 fixed). Each COCO annotation records
+  `attributes.source` = `model` or `review`.
+- **Split by clip:** train 25 clips / 291 images / 657 boxes; valid 3 / 32 / 97; test 9 / 106 / 387.
+  The test clips include the four demo clips (7154214, 7154217, 7154241, 36512656).
+- **Caveats:** the test split is model-reviewed, not human-labelled; a person must verify it before
+  it is reported as human ground truth. All clips share one shoot (same set, same four actors), so
+  test scores overstate how well the model generalises to other showrooms. Using Pexels clips to train ML
+  models is not explicitly covered by the Pexels licence (see `research_notes/open_footage.md`).

@@ -41,7 +41,10 @@ def main():
     rs = defaultdict(list)
     gpus = set()
     for s in scenes:
-        st = json.loads((DATA / "scenes" / s / "render_stats.json").read_text())
+        f = DATA / "scenes" / s / "render_stats.json"
+        if not f.exists():          # render stopped early on purpose (see the status report)
+            continue
+        st = json.loads(f.read_text())
         gpus |= set(st.get("gpu_index", []))
         for cam in st["cams"].values():
             for k, v in cam.items():
