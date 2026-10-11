@@ -118,6 +118,36 @@ def _per_car(zones, visits, episodes, n_cust, rows) -> list[dict]:
     return sorted(cars, key=lambda c: c["rank"])
 
 
+def entry_exit_events(persons: list[Person], tl: Timeline, cfg: Config, zones: list[Zone],
+                      duration: float, frame_size: tuple[int, int],
+                      roles: dict[int, str] | None = None
+                      ) -> tuple[list[tuple[int, float]], list[tuple[int, float]]]:
+    """Entry and exit events (spec 4.5) as (person_id, t), ordered by person id.
+
+    A customer enters when their first sample is inside an `entrance` zone (frame edge if the preset has
+    none drawn) and they were not already present at the start; they exit when their last sample is
+    inside one and they were last seen at least `leave_after` s before the end. `tl` holds samples
+    sorted by time. `compute` counts these lists, so KPIs and eval timings share one definition."""
+    pre = cfg.preset
+    roles = roles or {}
+    cust = [p for p in persons if roles.get(p.person_id, "customer") != "staff"]
+    entrance = [z for z in zones if z.kind == "entrance"]
+    ent_ids = {z.zone_id for z in entrance}
+
+    def through_entrance(s: Sample) -> bool:
+        if entrance:
+            return zone_of(s.foot, entrance) in ent_ids
+        return at_edge(s, frame_size, cfg.edge_margin)
+
+    entries = [(p.person_id, tl[p.person_id][0].t) for p in cust
+               if not already_present(p, pre.leave_after) and tl.get(p.person_id)
+               and through_entrance(tl[p.person_id][0])]
+    exits = [(p.person_id, tl[p.person_id][-1].t) for p in cust
+             if tl.get(p.person_id) and p.last_t <= duration - pre.leave_after
+             and through_entrance(tl[p.person_id][-1])]
+    return entries, exits
+
+
 def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: dict[int, str],
             cfg: Config, *, timeline: Timeline, episodes: list[InterestEpisode],
             assist: dict[int, AssistInfo], zones: list[Zone], duration: float,
@@ -134,17 +164,8 @@ def compute(persons: list[Person], journeys: dict[int, list[ZoneVisit]], roles: 
     cv = [v for p in cust for v in journeys.get(p.person_id, [])]
     ceps = [e for e in episodes if e.person_id in cids]
 
-    entrance = [z for z in zones if z.kind == "entrance"]
-    ent_ids = {z.zone_id for z in entrance}
-
-    def through_entrance(s: Sample) -> bool:
-        if entrance:
-            return zone_of(s.foot, entrance) in ent_ids
-        return at_edge(s, frame_size, cfg.edge_margin)
-
-    entries = sum(1 for p in fresh if tl.get(p.person_id) and through_entrance(tl[p.person_id][0]))
-    exits = sum(1 for p in cust if tl.get(p.person_id) and p.last_t <= duration - pre.leave_after
-                and through_entrance(tl[p.person_id][-1]))
+    entries_ev, exits_ev = entry_exit_events(persons, tl, cfg, zones, duration, frame_size, roles)
+    entries, exits = len(entries_ev), len(exits_ev)
 
     groups = _groups(sorted(cids), tl, cfg)
     gmember = {i: k for k, g in enumerate(groups) for i in g}

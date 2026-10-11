@@ -59,6 +59,58 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
   - dev: G423 03-11 123/124 = 99.2%, G420 44/44 = 100.0%, total 167/168 = 99.4% (no tuning rounds needed after the first draw).
   - test (reported once, not tuned): G423 03-12 140/142 = 98.6%, G421 52/53 = 98.1%, G419 31/48 = 64.6% (below target; stairwell camera where people come up the stairs and the upper flight is not covered), G299 42/46 = 91.3%; total 265/289 = 91.7%.
 
+### M6 / Task 19B: metrics, `pulse eval`, speed bench, dev tuning
+- New: `pulse.eval.metrics` (MOT via motmetrics, count error, occupancy MAE, track matching, dwell/journey pairs, event timing), `pulse.eval.run_eval` (`pulse eval --out docs/EVAL.md`, deterministic, per-clip results memoised in `runs/eval/` keyed by code+config+zones+annotations+cache), `pulse.eval.scenarios` (R1-R7 inputs shared by `tests/test_insights.py` and EVAL.md), `pulse bench speed`, `scripts/tune_merge.py`, `stats.entry_exit_events`. `scripts/verify.sh` runs `pulse eval` before the git steps (verify.sh itself was NOT run tonight: webcam exception).
+- Dev tuning (post-cache knobs only: `merge_sim_thr`, `merge_max_speed`; dev clips G423 03-11 + G420 03-11; test clips never loaded by the tuner). Objective declared before the run: J = mean of (entry/exit error / 10%, occupancy MAE / 0.5, dwell median % / 10%, (1 - journey accuracy) / 0.2), pooled over dev; keep defaults unless J improves >= 5% at an interior grid point of `merge_sim_thr`. Two earlier runs were discarded: (1) J capped at 3 per term and (2) uncapped, both with a bug in the pooled count error (it computed |err - GT| / GT instead of err / GT), which made J fall monotonically down to `merge_sim_thr` 0.2 (merge nearly everyone); the bug was found while reading the EVAL.md per-clip figures (59.3% where 50/123 = 40.7% was expected), fixed, with a regression test, and the whole grid re-run. The table below is the corrected run (the only one that counts); defaults at the time were 0.75 / 0.25:
+
+| trial | sim_thr | max_speed | persons | entry/exit err % | occ MAE | dwell med % | journey acc | IDF1 merged | entries ours/GT | J |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0.2 | 0.1 | 48 | 70.7 | 1.70 | 40.7 | 60.0% | 25.8% | 34 / 104 | 4.133 |
+| 2 | 0.2 | 0.25 | 46 | 70.1 | 1.69 | 40.7 | 60.0% | 26.2% | 34 / 104 | 4.114 |
+| 3 | 0.2 | 0.5 | 45 | 70.1 | 1.68 | 40.7 | 60.0% | 25.6% | 34 / 104 | 4.110 |
+| 4 | 0.3 | 0.1 | 50 | 68.9 | 1.68 | 40.7 | 60.0% | 25.9% | 36 / 104 | 4.081 |
+| 5 | 0.3 | 0.25 | 48 | 68.3 | 1.67 | 40.7 | 60.0% | 26.3% | 36 / 104 | 4.061 |
+| 6 | 0.3 | 0.5 | 47 | 68.3 | 1.66 | 40.7 | 60.0% | 25.7% | 36 / 104 | 4.057 |
+| 7 | 0.4 | 0.1 | 54 | 66.5 | 1.65 | 40.7 | 60.0% | 26.0% | 38 / 104 | 4.007 |
+| 8 | 0.4 | 0.25 | 51 | 65.9 | 1.65 | 40.7 | 60.0% | 26.4% | 38 / 104 | 3.990 |
+| 9 | 0.4 | 0.5 | 50 | 65.9 | 1.65 | 40.7 | 60.0% | 25.7% | 38 / 104 | 3.988 |
+| 10 | 0.5 | 0.1 | 56 | 64.7 | 1.63 | 40.7 | 60.0% | 26.1% | 40 / 104 | 3.952 |
+| 11 | 0.5 | 0.25 | 53 | 64.1 | 1.64 | 40.7 | 60.0% | 26.6% | 40 / 104 | 3.938 |
+| 12 | 0.5 | 0.5 | 53 | 64.1 | 1.63 | 40.7 | 60.0% | 26.0% | 40 / 104 | 3.936 |
+| 13 | 0.55 | 0.1 | 62 | 59.9 | 1.58 | 40.7 | 60.0% | 27.0% | 45 / 104 | 3.805 |
+| 14 | 0.55 | 0.25 | 59 | 59.3 | 1.58 | 40.7 | 60.0% | 27.6% | 45 / 104 | 3.792 |
+| 15 | 0.55 | 0.5 | 59 | 59.3 | 1.58 | 40.7 | 60.0% | 27.0% | 45 / 104 | 3.790 |
+| 16 | 0.6 | 0.1 | 65 | 57.5 | 1.57 | 40.7 | 60.0% | 27.2% | 47 / 104 | 3.739 |
+| 17 | 0.6 | 0.25 | 64 | 56.9 | 1.56 | 40.7 | 60.0% | 27.8% | 47 / 104 | 3.723 |
+| 18 | 0.6 | 0.5 | 64 | 56.9 | 1.56 | 40.7 | 60.0% | 27.2% | 47 / 104 | 3.721 |
+| 19 | 0.65 | 0.1 | 73 | 52.1 | 1.47 | 40.7 | 60.0% | 27.6% | 53 / 104 | 3.558 |
+| 20 | 0.65 | 0.25 | 72 | 51.5 | 1.47 | 40.7 | 60.0% | 28.2% | 53 / 104 | 3.542 |
+| 21 | 0.65 | 0.5 | 72 | 51.5 | 1.47 | 40.7 | 60.0% | 27.5% | 53 / 104 | 3.539 |
+| 22 | 0.7 | 0.1 | 84 | 43.7 | 1.36 | 40.7 | 60.0% | 28.5% | 62 / 104 | 3.291 |
+| 23 | 0.7 | 0.25 | 82 | 44.3 | 1.38 | 40.7 | 60.0% | 29.3% | 60 / 104 | 3.316 |
+| 24 | 0.7 | 0.5 | 82 | 44.3 | 1.38 | 40.7 | 60.0% | 29.3% | 60 / 104 | 3.316 |
+| 25 | 0.75 | 0.1 | 94 | 35.9 | 1.30 | 40.7 | 60.0% | 30.1% | 70 / 104 | 3.065 |
+| 26 | 0.75 | 0.25 | 94 | 35.3 | 1.30 | 40.7 | 60.0% | 31.2% | 70 / 104 | 3.050 |
+| 27 | 0.75 | 0.5 | 94 | 35.3 | 1.30 | 40.7 | 60.0% | 31.2% | 70 / 104 | 3.050 |
+| 28 | 0.8 | 0.1 | 108 | 24.6 | 1.16 | 40.7 | 60.0% | 33.0% | 80 / 104 | 2.715 |
+| 29 | 0.8 | 0.25 | 107 | 24.6 | 1.16 | 40.7 | 60.0% | 32.1% | 80 / 104 | 2.714 |
+| 30 | 0.8 | 0.5 | 107 | 24.6 | 1.16 | 40.7 | 60.0% | 32.1% | 80 / 104 | 2.714 |
+| 31 | 0.85 | 0.1 | 123 | 10.2 | 1.06 | 40.7 | 60.0% | 34.5% | 94 / 104 | 2.305 |
+| 32 | 0.85 | 0.25 | 121 | 10.8 | 1.07 | 40.7 | 60.0% | 33.0% | 93 / 104 | 2.324 |
+| 33 | 0.85 | 0.5 | 121 | 10.8 | 1.07 | 40.7 | 60.0% | 33.0% | 93 / 104 | 2.324 |
+| 34 | 0.9 | 0.1 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 35 | 0.9 | 0.25 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 36 | 0.9 | 0.5 | 134 | 3.6 | 1.00 | 40.7 | 60.0% | 35.4% | 104 / 104 | 2.111 |
+| 37 | 0.95 | 0.1 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 38 | 0.95 | 0.25 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 39 | 0.95 | 0.5 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 40 | 1.01 | 0.1 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 41 | 1.01 | 0.25 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+| 42 | 1.01 | 0.5 | 138 | 8.4 | 0.98 | 40.7 | 60.0% | 35.6% | 108 / 104 | 2.218 |
+
+- Result: best J 2.111 (sim 0.90, any speed; ties go to the default speed 0.25) vs default 3.050 (-30.8%, interior optimum: 0.95 and above are worse). Frozen: `merge_sim_thr` 0.75 -> 0.9, `merge_max_speed` 0.25 unchanged (insensitive at every sim). Dev journey accuracy (60.0%) and dwell median (40.7%) did not move at all across the grid; only counts and occupancy respond to the merge. Caveat: two dev clips, count-based objective; with appearance embeddings the 0.75 merge joined different people in these uniform-clothing hallways (entries 70/104 at 0.75, 104/104 at 0.9), which is plausible but not verifiable with per-activity GT. `identity.reattach` (live mode) uses the same knob, so live re-attach is now stricter; live smoke still passes after the change (SMOKE LIVE OK, 5.01 fps paced).
+- Test numbers were computed once after the freeze (see docs/EVAL.md, section Targets). Targets met on test: file-mode RTF 1.54x and live fps; missed: entry/exit count error, occupancy MAE, zone dwell %, journey accuracy (values in EVAL.md; reported as measured).
+
 ## Decisions
 
 - 2026-10-11: Pre-flight was not run by the owner; the agent created the repo, copied the spec/CLAUDE.md/prompt; `data/stock/` and `data/synthetic/share/` are empty.
@@ -72,6 +124,13 @@ Rule: Fastest detector whose person recall (IoU>=0.5, GT height>=20px) is within
 - 2026-10-11: roles reasons (controller ruling R3): a feature yields a reason only when its normalised value >= 0.25; top 3 such features by w*norm. Needed so a customer with presence 0.1 has `reasons == []`.
 
 - 2026-10-11 (Task 19A): zone coverage uses each actor's GT box nearest to the activity's first (enter) / last (exit) frame; entrance zones are generous (door face plus threshold) because people are at door level at those frames. G419 test coverage 64.6% is reported as is (no test tuning).
+
+- 2026-10-11 (Task 19B): MEVA geom tracks are per activity (median 6 sampled frames = 1.2 s on the first dev clip; 132 GT ids for ~62 people), so `match_persons` has `one_to_one` (Hungarian, brief) and a many-to-one mode (each GT track takes its best predicted person); `pulse eval` uses many-to-one, scores overlap as sum IoU / n_gt (min 0.3), and compares dwell/journeys only inside the GT track's time window (our person's samples in that window through the same `journey.build`). One-to-one matched only 5 of 132 GT tracks on the first dev clip.
+- 2026-10-11 (Task 19B): GT entry/exit counts use the same window as the entry/exit rule (spec 4.5: people already present in the first `leave_after` s are excluded; exits must end >= `leave_after` s before the end); all-activity counts are shown alongside. Pooled count error = sum |ours - GT| / sum GT over entries and exits and clips (no cancelling). Timing: greedy one-to-one nearest match within 5 s.
+- 2026-10-11 (Task 19B): eval scores everyone as customer by calling `stats.compute` with empty roles/episodes/assist directly on `build_people` output (equivalent to `score(..., overrides=all customer)` for entries/exits/occupancy/journeys, but skips the O(n^2) role interactions). MOTA/IDF1 over all GT person boxes (no size filter); `motmetrics.distances.iou_matrix` breaks on numpy 2 (`np.asfarray`), so the IoU distance matrix is computed in `metrics.py`.
+- 2026-10-11 (Task 19B): journey accuracy skips matched pairs where both sequences are empty; zone dwell % and seconds are over pairs with GT dwell > 0 (pairs with only predicted dwell are counted as `ours only`).
+- 2026-10-11 (Task 19B): `tests/test_insights.py` helpers/inputs moved to `pulse.eval.scenarios` (assertions unchanged) so EVAL.md runs the very same inputs; `pulse eval` returns 1 if a clip, KPF, zones file or `runs/bench/{speed,live_smoke,detectors}.json` is missing, and `runs/bench/speed.json` is produced by `pulse bench speed` (not part of verify.sh; ~80 s) and also snapshots `live_smoke.json`, because verify.sh re-runs the live smoke before `pulse eval` and a changing fps would otherwise make docs/EVAL.md differ run to run.
+- 2026-10-11 (Task 19B): CoreML engine step rate (optional, separate row) measured on the first 60 excerpt frames: about 33-34 fps on frames with 1-4 people vs about 8 fps CPU (exact values in EVAL.md). Accuracy under CoreML was not checked.
 
 ## Open problems
 

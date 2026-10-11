@@ -14,6 +14,13 @@ def main(argv=None) -> int:
     d.add_argument("--showroom", required=True, nargs="+", type=Path, help="showroom image(s)")
     d.add_argument("--out", type=Path, default=Path("runs/bench/detectors.json"))
     d.add_argument("--frames", type=int, default=60)
+    sp = bs.add_parser("speed", help="file-mode RTF (60 s 720p excerpt) and live engine fps")
+    sp.add_argument("--clip", required=True, type=Path, help="MEVA dev clip")
+    sp.add_argument("--out", type=Path, default=Path("runs/bench/speed.json"))
+    sp.add_argument("--no-coreml", action="store_true")
+    ev = sub.add_parser("eval", help="score against MEVA ground truth and write docs/EVAL.md")
+    ev.add_argument("--out", type=Path, default=Path("docs/EVAL.md"))
+    ev.add_argument("--clips", nargs="*", default=None, help="restrict to these clip names")
     a = sub.add_parser("analyze", help="analyse a video and write every result file")
     a.add_argument("video", type=Path)
     a.add_argument("--out", required=True, type=Path)
@@ -29,6 +36,13 @@ def main(argv=None) -> int:
         from pulse.bench import run_detector_bench
         run_detector_bench(args.clip, args.kpf, list(args.showroom), args.out, args.frames)
         return 0
+    if args.cmd == "bench" and getattr(args, "what", None) == "speed":
+        from pulse.bench import run_speed_bench
+        run_speed_bench(args.clip, args.out, coreml=not args.no_coreml)
+        return 0
+    if args.cmd == "eval":
+        from pulse.eval import run_eval
+        return run_eval.main(args.out, args.clips or None)
     p.print_help()
     return 0
 

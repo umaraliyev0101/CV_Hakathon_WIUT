@@ -54,7 +54,7 @@ class Config:
         "outfit_peers": 1.0, "contacts": 1.0, "presence": 1.0, "initiator": 0.5})
     role_staff_thr: float = 0.6
     role_customer_thr: float = 0.35
-    merge_sim_thr: float = 0.75             # identity merge cosine threshold
+    merge_sim_thr: float = 0.9              # identity merge cosine threshold (was 0.75; tuned on dev, PROGRESS.md M6)
     merge_max_speed: float = 0.25           # normalised frame widths per second
     crowding_ratio: float = 3.0             # R5
     crowding_time_s: float = 120.0          # R5

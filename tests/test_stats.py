@@ -147,3 +147,23 @@ def test_rank_tiebreak_by_stops(zones4):
     st = _run(persons, tl, cars, journeys=j)
     ranks = {c["zone_id"]: c["rank"] for c in st.per_car}
     assert ranks == {"car-b": 1, "car-a": 2}
+
+
+def test_entry_exit_events_times_and_agreement_with_counts(zones4):
+    # entrance zone is x in [0.9, 1.0]; short preset leave_after = 3, duration 30
+    tl = {
+        1: stay(1, 0.95, 0.5, 0, 6),                                   # already present (no entry event) but leaves through the entrance at 6
+        2: stay(2, 0.95, 0.5, 5, 1) + stay(2, 0.5, 0.5, 6.2, 5) + stay(2, 0.95, 0.5, 11.4, 1),
+        3: stay(3, 0.5, 0.5, 8, 4),                                    # appears mid-floor, vanishes mid-floor
+        4: stay(4, 0.95, 0.5, 20, 2),                                  # enters 20, ends 22: exit event at 22
+        5: stay(5, 0.95, 0.5, 27, 3),                                  # ends 30 > duration - 3: no exit event
+        9: stay(9, 0.95, 0.5, 6, 4),                                   # staff: never counted
+    }
+    persons = [Person(pid, [pid], s[0].t, s[-1].t) for pid, s in tl.items()]
+    roles = {9: "staff"}
+    entries, exits = ST.entry_exit_events(persons, tl, CFG, zones4, 30.0, (960, 540), roles)
+    assert entries == [(2, 5.0), (4, 20.0), (5, 27.0)]
+    assert exits == [(1, 6.0), (2, 12.4), (4, 22.0)]
+    st = ST.compute(persons, J.build(tl, zones4, CFG.preset), roles, CFG, timeline=tl, episodes=[],
+                    assist={}, zones=zones4, duration=30.0, frame_size=(960, 540)).store
+    assert (st["entries"], st["exits"]) == (len(entries), len(exits))

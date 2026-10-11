@@ -1,8 +1,11 @@
 """Detector benchmark (spec §5): person recall on MEVA, cars on showroom images, CPU speed."""
 from __future__ import annotations
 
+import importlib.util
 import json
+import platform
 import statistics
+import tempfile
 import time
 from pathlib import Path
 
@@ -151,3 +154,103 @@ def run_detector_bench(clip: Path, kpf: Path, showroom_imgs: list[Path], out: Pa
         print(f"| {n} | {r['person_recall']:.3f} | {list(r['cars_per_image'].values())} | {r['det_ms']:.1f} |")
     print(f"pose ms (4 boxes): {pose_ms}\nchosen: {chosen} ({why})")
     return out_d
+
+
+# ---- speed benchmark (spec section 6: file-mode RTF at 5 fps / 720p, live fps with 1-4 people) ----
+
+_ROOT = Path(__file__).resolve().parents[2]
+EXCERPT_START_S = 40.0      # people are in view from ~44 s on the first dev clip
+EXCERPT_DUR_S = 60.0
+EXCERPT_WIDTH = 1280        # 720p-class input (the MEVA source is 1920x1072, so the excerpt is 1280x714)
+_WARMUP = 3
+
+
+def _make_clip():
+    spec = importlib.util.spec_from_file_location("make_clip", _ROOT / "scripts" / "make_clip.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.make_clip
+
+
+def _step_stats(engine, frames, cfg) -> dict:
+    """Time engine.process on already-decoded frames; bucket by detected-person count."""
+    engine.reset()
+    all_ms, few_ms = [], []
+    for k, (t, frame) in enumerate(frames):
+        t0 = time.perf_counter()
+        engine.process(t, frame, k)
+        ms = (time.perf_counter() - t0) * 1000.0
+        if k < _WARMUP:
+            continue
+        n = sum(1 for d in engine.last_person_dets if d.score > cfg.det_score_thr)
+        all_ms.append(ms)
+        if 1 <= n <= 4:
+            few_ms.append(ms)
+
+    def agg(xs):
+        m = statistics.fmean(xs) if xs else None
+        return {"n_frames": len(xs), "mean_ms": m, "fps": 1000.0 / m if m else None}
+    return {"all": agg(all_ms), "1_to_4": agg(few_ms)}
+
+
+def run_speed_bench(clip: Path, out: Path, start: float = EXCERPT_START_S, dur: float = EXCERPT_DUR_S,
+                    width: int = EXCERPT_WIDTH, coreml: bool = True, coreml_frames: int = 60) -> dict:
+    """File-mode RTF (cold perceive of a 60 s 720p excerpt, temporary cache, CPU EP) and the engine's
+    per-frame step rate (all frames / frames with 1-4 detected persons). CoreML, if available, is
+    measured once on the first `coreml_frames` frames and labelled separately."""
+    import onnxruntime as ort
+
+    from pulse import sources
+    from pulse.config import get_config
+    from pulse.engine import PerceptionEngine
+    from pulse.pipeline import perceive
+
+    cfg = get_config("dealership")
+    clip, out = Path(clip), Path(out)
+    fx = _ROOT / "runs" / "fixtures" / f"speed_{int(start)}s_{int(dur)}s_{width}w.mp4"
+    fx.parent.mkdir(parents=True, exist_ok=True)
+    if not fx.is_file():
+        _make_clip()(clip, fx, start=start, dur=dur, width=width)
+    info = sources.probe(fx)
+    print(f"excerpt {fx.name}: {info.width}x{info.height}, {info.duration:.1f} s", flush=True)
+
+    with tempfile.TemporaryDirectory(prefix="pulse-speed-") as tmp:
+        t0 = time.perf_counter()
+        pc = perceive(fx, Path(tmp), cfg)
+        wall = time.perf_counter() - t0
+    analysed = float(pc.meta["analysed_duration"])
+    cpu = {"wall_seconds": wall, "analysed_seconds": analysed, "rtf": analysed / wall,
+           "perception_seconds": float(pc.meta["perception_seconds"]), "providers": list(pc.meta["providers"]),
+           "tracks": len({o.track_id for o in pc.obs})}
+    print(f"cold perceive: {wall:.1f} s for {analysed:.1f} s -> RTF {cpu['rtf']:.2f}x", flush=True)
+
+    frames = list(sources.iter_frames(fx, cfg.sample_fps, cfg.max_width, cfg.max_duration_s))
+    st = _step_stats(PerceptionEngine(cfg), frames, cfg)
+    print(f"engine step: all {st['all']['fps']:.2f} fps, 1-4 people {st['1_to_4']['fps']:.2f} fps "
+          f"({st['1_to_4']['n_frames']} frames)", flush=True)
+
+    res = {"clip": clip.name, "machine": platform.platform(), "provider": "CPUExecutionProvider",
+           "excerpt": {"start_s": start, "duration_s": float(info.duration), "width": info.width,
+                       "height": info.height, "sample_fps": cfg.sample_fps, "analysis_width": cfg.max_width},
+           "cpu": cpu, "engine_all": st["all"], "engine_1_to_4_people": st["1_to_4"]}
+    live = _ROOT / "runs" / "bench" / "live_smoke.json"
+    if live.is_file():       # snapshot, so docs/EVAL.md does not change when verify.sh re-runs the live smoke
+        d = json.loads(live.read_text())
+        res["live_smoke"] = {k: d[k] for k in ("fps", "fps_max", "frames", "dropped", "people_max",
+                                               "step_ms_mean", "seconds") if k in d}
+    if coreml and "CoreMLExecutionProvider" in ort.get_available_providers():
+        try:
+            eng = PerceptionEngine(cfg, providers=("CoreMLExecutionProvider", "CPUExecutionProvider"))
+            cst = _step_stats(eng, frames[:coreml_frames], cfg)
+            res["coreml"] = {"providers": list(eng.detector.session.get_providers()),
+                             "frames": min(coreml_frames, len(frames)),
+                             "fps_all": cst["all"]["fps"], "mean_ms_all": cst["all"]["mean_ms"],
+                             "fps_1_to_4": cst["1_to_4"]["fps"], "mean_ms_1_to_4": cst["1_to_4"]["mean_ms"],
+                             "n_frames_1_to_4": cst["1_to_4"]["n_frames"]}
+            print(f"coreml engine step: {res['coreml']}", flush=True)
+        except Exception as e:  # noqa: BLE001 - optional path, record why it was unusable
+            res["coreml"] = {"error": f"{type(e).__name__}: {str(e)[:200]}"}
+            print(f"coreml unusable: {res['coreml']['error']}", flush=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(res, indent=2, sort_keys=True))
+    return res
