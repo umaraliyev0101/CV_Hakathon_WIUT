@@ -6,3 +6,5 @@ run.sh text eol=lf
 # Never touch the bytes of weights and videos (they are gitignored and never committed; this is a safety net).
 *.onnx binary
 *.mp4 binary
+Dockerfile text eol=lf
+.dockerignore text eol=lf
