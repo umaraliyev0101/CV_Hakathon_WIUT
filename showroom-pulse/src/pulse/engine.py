@@ -70,5 +70,14 @@ class PerceptionEngine:
             self._time("pose", t0)
         return obs
 
+    @property
+    def vehicle_detector(self) -> Detector:
+        """The model used for cars (cfg.vehicle_detector), built on first use; `detector` when they are the same."""
+        if self.cfg.vehicle_detector == self.cfg.detector:
+            return self.detector
+        if getattr(self, "_vehicle_detector", None) is None:
+            self._vehicle_detector = Detector(self.cfg.vehicle_detector, self.cfg, providers=self.providers)
+        return self._vehicle_detector
+
     def detect_vehicles(self, frame: np.ndarray) -> list[Det]:
-        return self.detector.detect(frame, tuple(VEHICLE_CLASSES))
+        return self.vehicle_detector.detect(frame, tuple(VEHICLE_CLASSES))

@@ -25,8 +25,12 @@ def _iou(a, b) -> float:
 
 
 def auto_zones(car_dets: list[Det], frame_shape: tuple[int, int], apron: float = 0.25,
-               foot_frac: float = 0.4, min_area_frac: float = 0.002,
+               foot_frac: float = 0.7, apron_down: float = 0.8, min_area_frac: float = 0.002,
                merge_iou: float = 0.5) -> list[Zone]:
+    """One rectangle per car: `apron` x box width on each side, from `foot_frac` x box height above the box bottom
+    to `apron_down` x box height below it. People stand beside and in front of a car, so their feet land well outside
+    the box. Fitted on the 65 synthetic clips: feet in the right car zone 0.55 -> 0.79 (sides 0.4 reach 0.83 but the
+    zones look oversized)."""
     h, w = frame_shape
     cands = [d for d in car_dets if d.cls in VEHICLES
              and (d.bbox[2] - d.bbox[0]) * (d.bbox[3] - d.bbox[1]) >= min_area_frac * w * h]
@@ -42,7 +46,7 @@ def auto_zones(car_dets: list[Det], frame_shape: tuple[int, int], apron: float =
         lx = max(0.0, x1 - apron * bw)
         rx = min(float(w), x2 + apron * bw)
         ty = max(0.0, y2 - foot_frac * bh)
-        by = min(float(h), y2 + apron * bh)
+        by = min(float(h), y2 + apron_down * bh)
         if d.cls == "motorcycle":
             moto += 1
             name = f"Motorcycle {moto}"

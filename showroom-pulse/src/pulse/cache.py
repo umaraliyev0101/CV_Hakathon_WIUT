@@ -62,6 +62,8 @@ def file_sha1(path) -> str:
 
 def video_key(path, cfg: Config, sha1: str | None = None) -> str:
     params = f"|v{CACHE_VERSION}|{cfg.sample_fps}|{cfg.max_width}|{cfg.max_duration_s}|{cfg.detector}|{cfg.pose_model}"
+    if cfg.vehicle_detector != cfg.detector:
+        params += f"|cars={cfg.vehicle_detector}"
     ft = finetuned.tag_from_env()          # PULSE_RFDETR_FT: person detector weights (absent: key unchanged)
     if ft is not None:
         params += f"|person={ft}"

@@ -40,7 +40,7 @@ compose=(docker compose -f docker-compose.yml)
 from pulse.config import get_config
 from pulse.perception.models import ensure_model
 c = get_config()
-for name in (c.detector, c.pose_model, 'dinov2_small'):
+for name in (c.detector, c.vehicle_detector, c.pose_model, 'dinov2_small'):
     print(name, ensure_model(name, '/app/models'))
 "
 

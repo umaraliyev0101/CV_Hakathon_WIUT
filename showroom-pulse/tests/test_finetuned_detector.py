@@ -141,7 +141,8 @@ def test_engine_with_finetuned_routes_persons_and_vehicles(monkeypatch, fake_eng
     e.process(0.0, frame, 0)
     e.detect_vehicles(frame)
     assert e.person_detector.calls == [("person",)]
-    assert e.detector.calls == [("car", "truck", "motorcycle", "bus")]
+    assert e.vehicle_detector.name == cfg.vehicle_detector
+    assert e.vehicle_detector.calls == [("car", "truck", "motorcycle", "bus")]
 
 
 # ---------------------------------------------------------------- the real export (stock COCO stand-in)

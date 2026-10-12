@@ -35,6 +35,7 @@ class Config:
     hfov_deg: float = 70.0
     kp_thr: float = 0.3                     # keypoint confidence threshold
     detector: str = "yolox_s"               # chosen by the M0 benchmark (PROGRESS.md)
+    vehicle_detector: str = "rfdetr_s"      # one keyframe per video; finds edge/partial cars yolox_s misses
     pose_model: str = "rtmpose_s"
     det_score_thr: float = 0.3
     det_nms_thr: float = 0.45
