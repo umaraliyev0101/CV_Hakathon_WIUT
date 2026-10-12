@@ -32,6 +32,9 @@ MODEL_PATH = Path(__file__).resolve().parent / "showroom_detector.onnx"
 # against rfdetr.RFDETRNano.predict() (class_id == 1 -> "person") by
 # models/export_onnx.py --validate.
 PERSON_CLASS_ID = 1
+# The fine-tuned person-only model (models/showroom_detector_ft.onnx, models/finetune/) has a 2-wide
+# logit head; person is column 0 (checked on real frames: column 1 stays ~0).
+FINETUNED_PERSON_CLASS_ID = 0
 
 # ImageNet normalisation, identical to rfdetr.detr.RFDETR.means / stds.
 _MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -143,7 +146,8 @@ class Detector:
         scores = prob[top]
         labels = top % num_classes
         queries = top // num_classes
-        keep = (labels == PERSON_CLASS_ID) & (scores > conf)
+        person_id = PERSON_CLASS_ID if num_classes > 2 else FINETUNED_PERSON_CLASS_ID
+        keep = (labels == person_id) & (scores > conf)
         if not np.any(keep):
             return []
         b = boxes[queries[keep]]

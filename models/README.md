@@ -111,3 +111,50 @@ Antoni Shkraba shoot, IDs 7154207–7154242, plus 36512656), sampled at 1 fps.
   it is reported as human ground truth. All clips share one shoot (same set, same four actors), so
   test scores overstate how well the model generalises to other showrooms. Using Pexels clips to train ML
   models is not explicitly covered by the Pexels licence (see `research_notes/open_footage.md`).
+
+## Fine-tuned person detector (`models/showroom_detector_ft.onnx`)
+
+RF-DETR Nano fine-tuned from the COCO weights, person-only head (logit column 0; `detect.py` picks
+the column from the head width, so both ONNX files work with `Detector(model_path=...)`).
+
+- **Data** (`data/finetune/`, symlinks): train = reviewed real Pexels frames ×3 (873) + every 4th
+  synthetic CCTV frame (1,575); valid = 32 real + 153 synthetic. Script: `models/finetune/train_nano.py`.
+- **Run:** batch 16, lr 1e-4, 384 px, GPU 1; ~25 s/epoch. Validation mAP50–95 peaked at epoch 4
+  (0.892) and then declined, so the run was stopped at epoch 9 and the epoch-4 EMA checkpoint
+  (`data/finetune_runs/nano_mix/checkpoint_best_ema.pth`) was exported (`models/finetune/export_ft.py`).
+- **Speed:** unchanged, 18 FPS at 720p on 4 CPU threads (same architecture).
+
+`models/finetune/evaluate.py` (conf 0.5, IoU 0.5; results in `data/finetune_runs/eval.json`):
+
+| Metric | COCO Nano | Fine-tuned |
+|---|---|---|
+| Real test AP50 / AP50–95 (106 frames, 387 boxes) | 0.943 / 0.779 | 0.939 / 0.762 |
+| Real test recall @0.5 | 0.827 | **0.886** |
+| Real test false positives / frame @0.5 | 0.13 | 0.12 |
+| Synthetic test AP50 / AP50–95 (650 frames) | 0.990 / 0.823 | 0.990 / **0.856** |
+| Synthetic recall, people < 60 % visible (n = 29) | 0.59 | **0.72** |
+| Floor-position error from detector boxes, median / p90 | 0.19 / 0.32 m | 0.18 / 0.29 m |
+
+Reading it: the fine-tune mostly raises recall at the deployment threshold (real +6 pts) and on
+people partly hidden behind cars (+14 pts, small sample), without more false positives. Real AP is
+flat within noise; note the real labels started as RF-DETR Large (COCO) boxes, which favours the
+COCO model's box style. The hard-negative check (headrests/reflections) had only 3 regions in the
+test split, too few to conclude. The real test split is model-reviewed, not yet human-verified, and
+comes from the same shoot as the training clips.
+
+### Benchmark: YOLO11n (Ultralytics, AGPL-3.0, comparison only, not for the product)
+
+Same data (`models/finetune/to_yolo.py`, `train_yolo.py`: 15 epochs, 640 px, ~1.5 min) and the same
+`evaluate.py` checks at conf 0.5 (`data/finetune_runs/eval_yolo.json`):
+
+| Model | Real AP50 / AP50–95 | Real recall | Real FP/frame | Occluded recall (syn) | Syn FP/frame |
+|---|---|---|---|---|---|
+| RF-DETR Nano COCO | 0.943 / 0.779 | 0.827 | 0.13 | 0.59 | 0.02 |
+| **RF-DETR Nano fine-tuned** | 0.939 / 0.762 | **0.886** | 0.12 | **0.72** | 0.01 |
+| YOLO11n COCO | 0.875 / 0.704 | 0.685 | 0.00 | 0.28 | 0.02 |
+| YOLO11n fine-tuned | 0.731 / 0.439 | 0.651 | 0.16 | 0.24 | 0.22 |
+
+The stock YOLO11n already trails stock RF-DETR Nano on real footage and on people behind cars. The
+quick YOLO fine-tune got worse on real footage (default hyper-parameters, one untuned run; likely
+forgetting real appearance on a synthetic-heavy mix), so it is reported as a single run, not
+YOLO's best. Decision: keep RF-DETR (better here, and Apache-2.0).

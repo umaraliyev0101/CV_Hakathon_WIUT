@@ -32,8 +32,8 @@ window.SUITE_CONFIG = {
     c.coachUrl = `${location.origin}/coach`;
     c.pulseUrl = `${location.origin}/pulse`;
     c.live.sessions = true;   // Replays: real uploads, analysed by both servers, with their annotated videos
-    // reports/demo_clips.md: the walk-out clip shows well in both apps (long-wait alert, walk-out, unserved car)
-    c.demoVideo = { url: `${location.origin}/demo/s002_walkout_cam1_glare.mp4`, name: "Showroom demo · walk-out" };
+    // one-click demo clip for judges: the party scene (several customers at once)
+    c.demoVideo = { url: `${location.origin}/demo/s003_party_cam1_day.mp4`, name: "Showroom demo · party" };
   }
   if (q.get("coach")) c.coachUrl = q.get("coach");
   if (q.get("pulse")) c.pulseUrl = q.get("pulse");
